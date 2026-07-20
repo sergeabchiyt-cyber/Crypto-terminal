@@ -20,24 +20,24 @@
     .ex-OKX        {border-color:#60a5fa} .ex-OKXFUT     {border-color:#93c5fd}
     .ex-GATE       {border-color:#34d399} .ex-MEXC       {border-color:#a78bfa}
     .ex-BITGET     {border-color:#fb923c} .ex-KUCOIN     {border-color:#22d3ee}
-    .ex-CRYPTOCOM  {border-color:#6366f1} .ex-BITSTAMP   {border-color:#84cc16}
-    .ex-GEMINI     {border-color:#e879f9} .ex-KRAKEN     {border-color:#7c3aed}
-    .ex-COINBASE   {border-color:#0ea5e9} .ex-BITFINEX   {border-color:#f97316}
-    .ex-HTX        {border-color:#10b981} .ex-PHEMEX     {border-color:#d946ef}
-    .ex-POLONIEX   {border-color:#fcd34d} .ex-BINGX      {border-color:#38bdf8}
-    .ex-WOOX       {border-color:#ec4899} .ex-DERIBIT    {border-color:#c084fc}
+    .ex-BITSTAMP   {border-color:#84cc16} .ex-GEMINI     {border-color:#e879f9}
+    .ex-KRAKEN     {border-color:#7c3aed} .ex-COINBASE   {border-color:#0ea5e9}
+    .ex-BITFINEX   {border-color:#f97316} .ex-HTX        {border-color:#10b981}
+    .ex-PHEMEX     {border-color:#d946ef} .ex-POLONIEX   {border-color:#fcd34d}
+    .ex-BINGX      {border-color:#38bdf8} .ex-WOOX       {border-color:#ec4899}
+    .ex-DERIBIT    {border-color:#c084fc}
 
     .exl-BINANCE   {color:#f0b90b} .exl-BINANCEFUT{color:#f3d06d}
     .exl-BYBIT     {color:#ff6b35} .exl-BYBITLIN  {color:#ff9a6c}
     .exl-OKX       {color:#60a5fa} .exl-OKXFUT    {color:#93c5fd}
     .exl-GATE      {color:#34d399} .exl-MEXC      {color:#a78bfa}
     .exl-BITGET    {color:#fb923c} .exl-KUCOIN    {color:#22d3ee}
-    .exl-CRYPTOCOM {color:#6366f1} .exl-BITSTAMP  {color:#84cc16}
-    .exl-GEMINI    {color:#e879f9} .exl-KRAKEN    {color:#7c3aed}
-    .exl-COINBASE  {color:#0ea5e9} .exl-BITFINEX  {color:#f97316}
-    .exl-HTX       {color:#10b981} .exl-PHEMEX    {color:#d946ef}
-    .exl-POLONIEX  {color:#fcd34d} .exl-BINGX     {color:#38bdf8}
-    .exl-WOOX      {color:#ec4899} .exl-DERIBIT   {color:#c084fc}
+    .exl-BITSTAMP  {color:#84cc16} .exl-GEMINI    {color:#e879f9}
+    .exl-KRAKEN    {color:#7c3aed} .exl-COINBASE  {color:#0ea5e9}
+    .exl-BITFINEX  {color:#f97316} .exl-HTX       {color:#10b981}
+    .exl-PHEMEX    {color:#d946ef} .exl-POLONIEX  {color:#fcd34d}
+    .exl-BINGX     {color:#38bdf8} .exl-WOOX      {color:#ec4899}
+    .exl-DERIBIT   {color:#c084fc}
 
     .status-dot { width:6px; height:6px; border-radius:50%; display:inline-block; flex-shrink:0; }
     .status-dot.connected    { background:#22c55e; }
@@ -76,17 +76,9 @@
     .msg-sys   { align-self:center; color:#6b7280; font-size:10px; font-style:italic; }
 
     #ai-input-row { display:flex; gap:4px; padding:6px 8px; border-top:1px solid #1e2433; flex-shrink:0; }
-    #ai-input {
-      flex:1; background:#131722; border:1px solid #2a2e39; color:#e5e7eb;
-      font-size:11px; font-family:monospace; padding:5px 8px; border-radius:5px;
-      outline:none; resize:none; min-height:32px; max-height:80px;
-    }
+    #ai-input { flex:1; background:#131722; border:1px solid #2a2e39; color:#e5e7eb; font-size:11px; font-family:monospace; padding:5px 8px; border-radius:5px; outline:none; resize:none; min-height:32px; max-height:80px; }
     #ai-input:focus { border-color:#7c3aed; }
-    #ai-send-btn {
-      background:#7c3aed; color:#fff; font-size:10px; font-weight:700;
-      border:none; border-radius:5px; padding:0 12px; cursor:pointer;
-      transition:background .15s; flex-shrink:0;
-    }
+    #ai-send-btn { background:#7c3aed; color:#fff; font-size:10px; font-weight:700; border:none; border-radius:5px; padding:0 12px; cursor:pointer; transition:background .15s; flex-shrink:0; }
     #ai-send-btn:hover:not(:disabled) { background:#6d28d9; }
     #ai-send-btn:disabled { opacity:.4; cursor:not-allowed; }
     #ai-header { display:flex; align-items:center; justify-content:space-between; padding:5px 8px; border-bottom:1px solid #1e2433; cursor:pointer; user-select:none; flex-shrink:0; }
@@ -95,10 +87,9 @@
     .nim-dot { width:6px; height:6px; border-radius:50%; background:#76b900; flex-shrink:0; }
     .nim-dot.busy { animation:pulse .7s infinite; }
 
-    /* ── Proxy status bar ── */
     #proxy-bar { font-size:9px; font-family:monospace; padding:2px 8px; text-align:center; flex-shrink:0; }
-    #proxy-bar.ok  { background:#0a1f0a; color:#4ade80; }
-    #proxy-bar.bad { background:#1f0a0a; color:#f87171; }
+    #proxy-bar.ok      { background:#0a1f0a; color:#4ade80; }
+    #proxy-bar.bad     { background:#1f0a0a; color:#f87171; }
     #proxy-bar.loading { background:#1a1505; color:#facc15; }
 
     /* ── Key modal ── */
@@ -126,41 +117,27 @@
       <p class="text-[10px] text-neutral-500 mb-1 leading-relaxed mt-2">
         Enter your <code class="text-green-400">nvapi-</code> key from
         <a href="https://build.nvidia.com" target="_blank" class="text-blue-400 underline">build.nvidia.com</a>.
-        Stored in <code>sessionStorage</code> only — never leaves your browser except to
-        <code>integrate.api.nvidia.com</code> via the page's Service Worker proxy.
+        Stored in <code>sessionStorage</code> only. Routed through <code>/sw.js</code> proxy.
       </p>
-      <!-- SW status -->
       <div id="sw-status" class="text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-yellow-400">
-        ⏳ Checking Service Worker proxy status…
+        ⏳ Checking Service Worker…
       </div>
-      <label class="block text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1 mt-3">
-        NVIDIA API Key
-      </label>
+      <label class="block text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1 mt-3">NVIDIA API Key</label>
       <input id="nim-key-input" type="password" placeholder="nvapi-..."
-             class="w-full bg-[#131722] border border-neutral-700 text-xs font-mono
-                    text-neutral-200 py-2 px-3 rounded outline-none
-                    focus:border-purple-600 transition-colors mb-4" />
+             class="w-full bg-[#131722] border border-neutral-700 text-xs font-mono text-neutral-200 py-2 px-3 rounded outline-none focus:border-purple-600 transition-colors mb-4" />
       <div class="flex gap-2">
-        <button onclick="saveNimKey()"
-                class="flex-1 bg-purple-600 hover:bg-purple-500 text-white text-xs
-                       font-bold py-2 rounded transition-colors cursor-pointer">
-          Save & Launch
-        </button>
-        <button onclick="dismissModal()"
-                class="px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-400
-                       text-xs font-bold py-2 rounded transition-colors cursor-pointer">
-          Skip
-        </button>
+        <button onclick="saveNimKey()" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 rounded transition-colors cursor-pointer">Save & Launch</button>
+        <button onclick="dismissModal()" class="px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 text-xs font-bold py-2 rounded transition-colors cursor-pointer">Skip</button>
       </div>
       <p id="key-err" class="mt-2 text-[10px] text-red-400 text-center hidden"></p>
     </div>
   </div>
 
   <!-- ══════════════ DEBUG DRAWER ══════════════ -->
-  <div id="debug-drawer" id="debug-drawer">
+  <div id="debug-drawer">
     <div class="flex justify-between items-center mb-1">
-      <span class="text-purple-400 font-bold text-[10px]">▶ NIM Debug Log</span>
-      <button onclick="toggleDebug()" class="text-neutral-600 hover:text-neutral-300 cursor-pointer text-[10px]">✕ close</button>
+      <span class="text-purple-400 font-bold text-[10px]">▶ Debug Log</span>
+      <button onclick="toggleDebug()" class="text-neutral-600 hover:text-neutral-300 cursor-pointer text-[10px]">✕</button>
     </div>
     <div id="debug-log"></div>
   </div>
@@ -192,7 +169,7 @@
         </div>
       </div>
       <div class="grid grid-cols-3 gap-1 text-[9px] font-mono">
-        <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Streams</div><div id="stat-streams" class="text-green-400 font-bold">0/22</div></div>
+        <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Streams</div><div id="stat-streams" class="text-green-400 font-bold">0/21</div></div>
         <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Trades/s</div><div id="stat-tps" class="text-yellow-400 font-bold">0</div></div>
         <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Volume</div><div id="stat-vol" class="text-blue-400 font-bold">--</div></div>
       </div>
@@ -219,31 +196,17 @@
     <!-- AI Panel -->
     <div id="ai-panel" style="height:310px;flex-shrink:0;">
       <div id="ai-header" onclick="toggleAiPanel()">
-        <span class="ai-badge">
-          <span class="nim-dot" id="nim-dot"></span>
-          NVIDIA NIM · GLM-5.2
-        </span>
+        <span class="ai-badge"><span class="nim-dot" id="nim-dot"></span>NVIDIA NIM · GLM-5.2</span>
         <div class="flex items-center gap-3">
-          <button onclick="event.stopPropagation();toggleDebug()"
-                  class="text-neutral-600 hover:text-neutral-300 text-[9px] font-mono cursor-pointer transition-colors">
-            dbg
-          </button>
-          <button onclick="event.stopPropagation();openKeyModal()"
-                  class="text-neutral-600 hover:text-neutral-300 text-[9px] font-mono cursor-pointer transition-colors">
-            ⚙ key
-          </button>
+          <button onclick="event.stopPropagation();toggleDebug()" class="text-neutral-600 hover:text-neutral-300 text-[9px] font-mono cursor-pointer">dbg</button>
+          <button onclick="event.stopPropagation();openKeyModal()" class="text-neutral-600 hover:text-neutral-300 text-[9px] font-mono cursor-pointer">⚙ key</button>
           <span id="ai-chevron" class="text-neutral-500 text-[10px]">▼</span>
         </div>
       </div>
-      <!-- Proxy status strip -->
-      <div id="proxy-bar" class="loading">⏳ initialising proxy…</div>
-      <!-- Messages -->
+      <div id="proxy-bar" class="loading">⏳ registering SW proxy…</div>
       <div id="ai-messages"></div>
-      <!-- Input -->
       <div id="ai-input-row">
-        <textarea id="ai-input" rows="1"
-                  placeholder="Ask GLM-5.2 about the market…"
-                  onkeydown="handleAiKey(event)"></textarea>
+        <textarea id="ai-input" rows="1" placeholder="Ask GLM-5.2 about the market…" onkeydown="handleAiKey(event)"></textarea>
         <button id="ai-send-btn" onclick="sendToGLM()">Send</button>
       </div>
     </div>
@@ -253,239 +216,175 @@
       <div class="text-[8px] text-neutral-600 uppercase tracking-widest mb-1">Stream Status</div>
       <div id="ex-status-panel"></div>
     </div>
-
   </div>
 
-  <!-- ══════════════════════════════════════════════════════════
-       SERVICE WORKER — injected as a Blob URL so no extra file
-       is needed. Intercepts /nim-proxy/* and rewrites to NIM.
-  ══════════════════════════════════════════════════════════ -->
   <script>
-  // ─── Service Worker source (stringified so it can be Blob-registered) ───────
-  const SW_SOURCE = `
-    const NIM_BASE = 'https://integrate.api.nvidia.com/v1';
-
-    self.addEventListener('install', () => self.skipWaiting());
-    self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-
-    self.addEventListener('fetch', event => {
-      const url = new URL(event.request.url);
-      if (!url.pathname.startsWith('/nim-proxy')) return;
-
-      // Strip the /nim-proxy prefix and forward to NIM
-      const nimPath = url.pathname.replace('/nim-proxy', '');
-      const nimUrl  = NIM_BASE + nimPath + url.search;
-
-      event.respondWith(
-        fetch(nimUrl, {
-          method:  event.request.method,
-          headers: event.request.headers,
-          body:    ['GET','HEAD'].includes(event.request.method) ? undefined : event.request.body,
-          duplex:  'half',
-        }).catch(err => new Response(
-          JSON.stringify({ error: err.message }),
-          { status: 502, headers: { 'Content-Type': 'application/json' } }
-        ))
-      );
-    });
-  `;
-
-  // ─── Register SW from Blob (no separate sw.js file required) ────────────────
-  let swReady = false;
-
-  async function registerServiceWorker() {
-    if (!('serviceWorker' in navigator)) {
-      updateProxyBar(false, 'Service Workers not supported in this browser');
-      return;
-    }
-    try {
-      const blob = new Blob([SW_SOURCE], { type: 'application/javascript' });
-      const swUrl = URL.createObjectURL(blob);
-      const reg   = await navigator.serviceWorker.register(swUrl, { scope: '/' });
-
-      // Wait for the SW to become active
-      await new Promise((resolve) => {
-        if (reg.active) { resolve(); return; }
-        const target = reg.installing || reg.waiting;
-        if (target) target.addEventListener('statechange', function h() {
-          if (this.state === 'activated') { this.removeEventListener('statechange', h); resolve(); }
-        });
-        // Fallback: navigator ready
-        navigator.serviceWorker.ready.then(resolve);
-      });
-
-      swReady = true;
-      updateProxyBar(true, 'SW proxy active — routing via /nim-proxy');
-      debugLog('SW', 'Service Worker registered & active');
-
-      const swStatusEl = document.getElementById('sw-status');
-      if (swStatusEl) {
-        swStatusEl.textContent = '✓ Service Worker proxy active';
-        swStatusEl.className = 'text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-green-400';
-      }
-    } catch (err) {
-      swReady = false;
-      updateProxyBar(false, `SW failed: ${err.message}`);
-      debugLog('SW ERROR', err.message);
-      const swStatusEl = document.getElementById('sw-status');
-      if (swStatusEl) {
-        swStatusEl.textContent = `✗ SW failed: ${err.message}`;
-        swStatusEl.className = 'text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-red-400';
-      }
-    }
-  }
-
-  function updateProxyBar(ok, msg) {
-    const bar = document.getElementById('proxy-bar');
-    if (!bar) return;
-    bar.className = ok ? 'ok' : 'bad';
-    bar.textContent = ok ? `✓ ${msg}` : `✗ ${msg}`;
-  }
-  </script>
-
-  <script>
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   // CONSTANTS
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   const MAX_TAPE   = 120;
   const MAX_LEVELS = 12;
   const TPS_WIN    = 2000;
+  const NIM_PROXY  = '/nim-proxy/chat/completions';
+  const NIM_MODEL  = 'z-ai/glm-5.2';
+  const TOTAL_EX   = 21;  // Crypto.com removed (403), Phemex fixed to vapi
 
-  // NIM is called via the local SW proxy path — no CORS issue
-  const NIM_PROXY_URL = '/nim-proxy/chat/completions';
-  const NIM_MODEL     = 'z-ai/glm-5.2';
-
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   // STATE
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   let currentBase = 'BTCUSDT';
-  let tape = [], stamps = [], lastPrice = 0, vol = 0;
-  const sockets = {}, pings = {};
-  const book = { asks:[], bids:[] };
-  let nimKey    = sessionStorage.getItem('nim_key') || '';
+  let tape=[], stamps=[], lastPrice=0, vol=0;
+  const sockets={}, pings={};
+  const book={asks:[],bids:[]};
+  let nimKey    = sessionStorage.getItem('nim_key')||'';
   let aiHistory = [];
   let aiOpen    = true;
   let aiBusy    = false;
+  let swReady   = false;
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // DEBUG LOG
-  // ═══════════════════════════════════════════════════════════════════════════
-  function debugLog(label, ...args) {
-    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-    console.log(`[${label}]`, msg);
-    const el = document.getElementById('debug-log');
-    if (!el) return;
-    const line = document.createElement('div');
-    line.style.borderBottom = '1px solid #1f2937';
-    line.style.paddingBottom = '2px';
-    line.style.marginBottom = '2px';
-    const ts = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    line.innerHTML = `<span style="color:#6b7280">${ts}</span> <span style="color:#a78bfa">[${label}]</span> ${msg}`;
-    el.insertBefore(line, el.firstChild);
-    if (el.children.length > 60) el.lastChild.remove();
-  }
-
-  function toggleDebug() {
-    document.getElementById('debug-drawer').classList.toggle('open');
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // EXCHANGES
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
+  // EXCHANGE REGISTRY  — Crypto.com removed (403), Phemex fixed
+  // ═══════════════════════════════════════════════════════════════════════
   const EXCHANGES = [
-    {id:'BINANCE',label:'Binance'},{id:'BINANCEFUT',label:'BNB Fut'},
-    {id:'BYBIT',label:'Bybit'},{id:'BYBITLIN',label:'Bybit Lin'},
-    {id:'OKX',label:'OKX'},{id:'OKXFUT',label:'OKX Fut'},
-    {id:'GATE',label:'Gate.io'},{id:'MEXC',label:'MEXC'},
-    {id:'BITGET',label:'Bitget'},{id:'KUCOIN',label:'KuCoin'},
-    {id:'CRYPTOCOM',label:'Crypto.com'},{id:'BITSTAMP',label:'Bitstamp'},
-    {id:'GEMINI',label:'Gemini'},{id:'KRAKEN',label:'Kraken'},
-    {id:'COINBASE',label:'Coinbase'},{id:'BITFINEX',label:'Bitfinex'},
-    {id:'HTX',label:'HTX'},{id:'PHEMEX',label:'Phemex'},
-    {id:'POLONIEX',label:'Poloniex'},{id:'BINGX',label:'BingX'},
-    {id:'WOOX',label:'WOO X'},{id:'DERIBIT',label:'Deribit'},
+    {id:'BINANCE',   label:'Binance'  }, {id:'BINANCEFUT',label:'BNB Fut' },
+    {id:'BYBIT',     label:'Bybit'    }, {id:'BYBITLIN',  label:'Bybit Lin'},
+    {id:'OKX',       label:'OKX'      }, {id:'OKXFUT',    label:'OKX Fut'  },
+    {id:'GATE',      label:'Gate.io'  }, {id:'MEXC',      label:'MEXC'     },
+    {id:'BITGET',    label:'Bitget'   }, {id:'KUCOIN',    label:'KuCoin'   },
+    {id:'BITSTAMP',  label:'Bitstamp' }, {id:'GEMINI',    label:'Gemini'   },
+    {id:'KRAKEN',    label:'Kraken'   }, {id:'COINBASE',  label:'Coinbase' },
+    {id:'BITFINEX',  label:'Bitfinex' }, {id:'HTX',       label:'HTX'      },
+    {id:'PHEMEX',    label:'Phemex'   }, {id:'POLONIEX',  label:'Poloniex' },
+    {id:'BINGX',     label:'BingX'    }, {id:'WOOX',      label:'WOO X'    },
+    {id:'DERIBIT',   label:'Deribit'  },
   ];
-  const exStatus = {};
-  EXCHANGES.forEach(e => exStatus[e.id] = 'disconnected');
+  const exStatus={};
+  EXCHANGES.forEach(e=>exStatus[e.id]='disconnected');
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   // SYMBOL MAP
-  // ═══════════════════════════════════════════════════════════════════════════
-  const SYM = {
-    BTCUSDT:{BINANCE:'btcusdt',BINANCEFUT:'btcusdt',BYBIT:'BTCUSDT',BYBITLIN:'BTCUSDT',OKX:'BTC-USDT',OKXFUT:'BTC-USDT-SWAP',GATE:'BTC_USDT',MEXC:'BTCUSDT',BITGET:'BTCUSDT',KUCOIN:'BTC-USDT',CRYPTOCOM:'BTC_USDT',BITSTAMP:'btcusdt',GEMINI:'BTCUSD',KRAKEN:'BTC/USDT',COINBASE:'BTC-USDT',BITFINEX:'tBTCUSD',HTX:'btcusdt',PHEMEX:'BTCUSDT',POLONIEX:'BTC_USDT',BINGX:'BTC-USDT',WOOX:'SPOT_BTC_USDT',DERIBIT:'BTC_USDT'},
-    ETHUSDT:{BINANCE:'ethusdt',BINANCEFUT:'ethusdt',BYBIT:'ETHUSDT',BYBITLIN:'ETHUSDT',OKX:'ETH-USDT',OKXFUT:'ETH-USDT-SWAP',GATE:'ETH_USDT',MEXC:'ETHUSDT',BITGET:'ETHUSDT',KUCOIN:'ETH-USDT',CRYPTOCOM:'ETH_USDT',BITSTAMP:'ethusdt',GEMINI:'ETHUSD',KRAKEN:'ETH/USDT',COINBASE:'ETH-USDT',BITFINEX:'tETHUSD',HTX:'ethusdt',PHEMEX:'ETHUSDT',POLONIEX:'ETH_USDT',BINGX:'ETH-USDT',WOOX:'SPOT_ETH_USDT',DERIBIT:'ETH_USDT'},
-    SOLUSDT:{BINANCE:'solusdt',BINANCEFUT:'solusdt',BYBIT:'SOLUSDT',BYBITLIN:'SOLUSDT',OKX:'SOL-USDT',OKXFUT:'SOL-USDT-SWAP',GATE:'SOL_USDT',MEXC:'SOLUSDT',BITGET:'SOLUSDT',KUCOIN:'SOL-USDT',CRYPTOCOM:'SOL_USDT',BITSTAMP:'solusd',GEMINI:'SOLUSD',KRAKEN:'SOL/USDT',COINBASE:'SOL-USDT',BITFINEX:'tSOLUSD',HTX:'solusdt',PHEMEX:'SOLUSDT',POLONIEX:'SOL_USDT',BINGX:'SOL-USDT',WOOX:'SPOT_SOL_USDT',DERIBIT:null},
-    BNBUSDT:{BINANCE:'bnbusdt',BINANCEFUT:'bnbusdt',BYBIT:'BNBUSDT',BYBITLIN:'BNBUSDT',OKX:'BNB-USDT',OKXFUT:null,GATE:'BNB_USDT',MEXC:'BNBUSDT',BITGET:'BNBUSDT',KUCOIN:'BNB-USDT',CRYPTOCOM:'BNB_USDT',BITSTAMP:null,GEMINI:null,KRAKEN:null,COINBASE:null,BITFINEX:null,HTX:'bnbusdt',PHEMEX:'BNBUSDT',POLONIEX:'BNB_USDT',BINGX:'BNB-USDT',WOOX:'SPOT_BNB_USDT',DERIBIT:null},
-    XRPUSDT:{BINANCE:'xrpusdt',BINANCEFUT:'xrpusdt',BYBIT:'XRPUSDT',BYBITLIN:'XRPUSDT',OKX:'XRP-USDT',OKXFUT:'XRP-USDT-SWAP',GATE:'XRP_USDT',MEXC:'XRPUSDT',BITGET:'XRPUSDT',KUCOIN:'XRP-USDT',CRYPTOCOM:'XRP_USDT',BITSTAMP:'xrpusdt',GEMINI:'XRPUSD',KRAKEN:'XRP/USDT',COINBASE:'XRP-USDT',BITFINEX:'tXRPUSD',HTX:'xrpusdt',PHEMEX:'XRPUSDT',POLONIEX:'XRP_USDT',BINGX:'XRP-USDT',WOOX:'SPOT_XRP_USDT',DERIBIT:null},
+  // ═══════════════════════════════════════════════════════════════════════
+  const SYM={
+    BTCUSDT:{BINANCE:'btcusdt',BINANCEFUT:'btcusdt',BYBIT:'BTCUSDT',BYBITLIN:'BTCUSDT',OKX:'BTC-USDT',OKXFUT:'BTC-USDT-SWAP',GATE:'BTC_USDT',MEXC:'BTCUSDT',BITGET:'BTCUSDT',KUCOIN:'BTC-USDT',BITSTAMP:'btcusdt',GEMINI:'BTCUSD',KRAKEN:'BTC/USDT',COINBASE:'BTC-USDT',BITFINEX:'tBTCUSD',HTX:'btcusdt',PHEMEX:'BTCUSDT',POLONIEX:'BTC_USDT',BINGX:'BTC-USDT',WOOX:'SPOT_BTC_USDT',DERIBIT:'BTC_USDT'},
+    ETHUSDT:{BINANCE:'ethusdt',BINANCEFUT:'ethusdt',BYBIT:'ETHUSDT',BYBITLIN:'ETHUSDT',OKX:'ETH-USDT',OKXFUT:'ETH-USDT-SWAP',GATE:'ETH_USDT',MEXC:'ETHUSDT',BITGET:'ETHUSDT',KUCOIN:'ETH-USDT',BITSTAMP:'ethusdt',GEMINI:'ETHUSD',KRAKEN:'ETH/USDT',COINBASE:'ETH-USDT',BITFINEX:'tETHUSD',HTX:'ethusdt',PHEMEX:'ETHUSDT',POLONIEX:'ETH_USDT',BINGX:'ETH-USDT',WOOX:'SPOT_ETH_USDT',DERIBIT:'ETH_USDT'},
+    SOLUSDT:{BINANCE:'solusdt',BINANCEFUT:'solusdt',BYBIT:'SOLUSDT',BYBITLIN:'SOLUSDT',OKX:'SOL-USDT',OKXFUT:'SOL-USDT-SWAP',GATE:'SOL_USDT',MEXC:'SOLUSDT',BITGET:'SOLUSDT',KUCOIN:'SOL-USDT',BITSTAMP:'solusd',GEMINI:'SOLUSD',KRAKEN:'SOL/USDT',COINBASE:'SOL-USDT',BITFINEX:'tSOLUSD',HTX:'solusdt',PHEMEX:'SOLUSDT',POLONIEX:'SOL_USDT',BINGX:'SOL-USDT',WOOX:'SPOT_SOL_USDT',DERIBIT:null},
+    BNBUSDT:{BINANCE:'bnbusdt',BINANCEFUT:'bnbusdt',BYBIT:'BNBUSDT',BYBITLIN:'BNBUSDT',OKX:'BNB-USDT',OKXFUT:null,GATE:'BNB_USDT',MEXC:'BNBUSDT',BITGET:'BNBUSDT',KUCOIN:'BNB-USDT',BITSTAMP:null,GEMINI:null,KRAKEN:null,COINBASE:null,BITFINEX:null,HTX:'bnbusdt',PHEMEX:'BNBUSDT',POLONIEX:'BNB_USDT',BINGX:'BNB-USDT',WOOX:'SPOT_BNB_USDT',DERIBIT:null},
+    XRPUSDT:{BINANCE:'xrpusdt',BINANCEFUT:'xrpusdt',BYBIT:'XRPUSDT',BYBITLIN:'XRPUSDT',OKX:'XRP-USDT',OKXFUT:'XRP-USDT-SWAP',GATE:'XRP_USDT',MEXC:'XRPUSDT',BITGET:'XRPUSDT',KUCOIN:'XRP-USDT',BITSTAMP:'xrpusdt',GEMINI:'XRPUSD',KRAKEN:'XRP/USDT',COINBASE:'XRP-USDT',BITFINEX:'tXRPUSD',HTX:'xrpusdt',PHEMEX:'XRPUSDT',POLONIEX:'XRP_USDT',BINGX:'XRP-USDT',WOOX:'SPOT_XRP_USDT',DERIBIT:null},
   };
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // CHART
-  // ═══════════════════════════════════════════════════════════════════════════
-  function updateChart(base) {
-    const c = document.getElementById('chart-container');
-    c.innerHTML = '';
-    const wrap  = document.createElement('div');
-    wrap.className = 'tradingview-widget-container';
-    wrap.style.cssText = 'width:100%;height:100%;';
-    const inner = document.createElement('div');
-    inner.className = 'tradingview-widget-container__widget';
-    inner.style.cssText = 'width:100%;height:100%;';
-    const s = document.createElement('script');
-    s.type = 'text/javascript';
-    s.src  = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    s.async = true;
-    s.textContent = JSON.stringify({
-      autosize:true, symbol:`BINANCE:${base}`, interval:'1',
-      timezone:'Etc/UTC', theme:'dark', style:'1', locale:'en',
-      enable_publishing:false, hide_side_toolbar:false,
-      allow_symbol_change:true, calendar:false, hide_legend:false,
-      support_host:'https://www.tradingview.com',
-    });
-    wrap.appendChild(inner);
-    wrap.appendChild(s);
-    c.appendChild(wrap);
+  // ═══════════════════════════════════════════════════════════════════════
+  // DEBUG
+  // ═══════════════════════════════════════════════════════════════════════
+  function dbg(label,...args){
+    const msg=args.map(a=>typeof a==='object'?JSON.stringify(a):String(a)).join(' ');
+    console.log(`[${label}]`,msg);
+    const el=document.getElementById('debug-log'); if(!el) return;
+    const line=document.createElement('div');
+    line.style.cssText='border-bottom:1px solid #1f2937;padding-bottom:2px;margin-bottom:2px;';
+    const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    line.innerHTML=`<span style="color:#6b7280">${ts}</span> <span style="color:#a78bfa">[${label}]</span> ${msg}`;
+    el.insertBefore(line,el.firstChild);
+    if(el.children.length>80) el.lastChild.remove();
+  }
+  function toggleDebug(){ document.getElementById('debug-drawer').classList.toggle('open'); }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SERVICE WORKER — registers real /sw.js file (no blob:)
+  // ═══════════════════════════════════════════════════════════════════════
+  async function registerSW(){
+    const swStatusEl=document.getElementById('sw-status');
+    if(!('serviceWorker' in navigator)){
+      updateProxyBar(false,'Service Workers not supported');
+      swStatusEl.textContent='✗ SW not supported in this browser';
+      swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-red-400';
+      return;
+    }
+    try {
+      // Register the real sw.js file — blob: URLs are blocked by Chrome
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope:'/' });
+
+      await new Promise(resolve=>{
+        if(reg.active){ resolve(); return; }
+        const target=reg.installing||reg.waiting;
+        if(target) target.addEventListener('statechange',function h(){
+          if(this.state==='activated'){ this.removeEventListener('statechange',h); resolve(); }
+        });
+        navigator.serviceWorker.ready.then(resolve);
+      });
+
+      swReady=true;
+      updateProxyBar(true,'SW proxy active (/sw.js) — NIM + KuCoin routed');
+      dbg('SW','registered and active');
+      swStatusEl.textContent='✓ Service Worker proxy active';
+      swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-green-400';
+    } catch(err){
+      swReady=false;
+      updateProxyBar(false,`SW failed: ${err.message}`);
+      dbg('SW ERROR',err.message);
+      swStatusEl.textContent=`✗ SW failed: ${err.message}`;
+      swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-red-400';
+    }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  function updateProxyBar(ok,msg){
+    const bar=document.getElementById('proxy-bar'); if(!bar) return;
+    bar.className=ok?'ok':'bad';
+    bar.textContent=ok?`✓ ${msg}`:`✗ ${msg}`;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // CHART
+  // ═══════════════════════════════════════════════════════════════════════
+  function updateChart(base){
+    const c=document.getElementById('chart-container'); c.innerHTML='';
+    const wrap=document.createElement('div');
+    wrap.className='tradingview-widget-container'; wrap.style.cssText='width:100%;height:100%;';
+    const inner=document.createElement('div');
+    inner.className='tradingview-widget-container__widget'; inner.style.cssText='width:100%;height:100%;';
+    const s=document.createElement('script');
+    s.type='text/javascript';
+    s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    s.async=true;
+    s.textContent=JSON.stringify({autosize:true,symbol:`BINANCE:${base}`,interval:'1',timezone:'Etc/UTC',theme:'dark',style:'1',locale:'en',enable_publishing:false,hide_side_toolbar:false,allow_symbol_change:true,calendar:false,hide_legend:false,support_host:'https://www.tradingview.com'});
+    wrap.appendChild(inner); wrap.appendChild(s); c.appendChild(wrap);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   // STATUS PANEL
-  // ═══════════════════════════════════════════════════════════════════════════
-  function buildStatusPanel() {
-    const p = document.getElementById('ex-status-panel');
-    p.innerHTML = '';
-    EXCHANGES.forEach(({id,label}) => {
-      const chip = document.createElement('div');
-      chip.className = 'ex-status-chip';
-      chip.id = `chip-${id}`;
-      chip.innerHTML = `<span class="status-dot connecting" id="dot-${id}"></span><span class="exl-${id} truncate">${label}</span>`;
+  // ═══════════════════════════════════════════════════════════════════════
+  function buildStatusPanel(){
+    const p=document.getElementById('ex-status-panel'); p.innerHTML='';
+    EXCHANGES.forEach(({id,label})=>{
+      const chip=document.createElement('div');
+      chip.className='ex-status-chip'; chip.id=`chip-${id}`;
+      chip.innerHTML=`<span class="status-dot connecting" id="dot-${id}"></span><span class="exl-${id} truncate">${label}</span>`;
       p.appendChild(chip);
     });
   }
-
-  function setEx(id, state) {
-    exStatus[id] = state;
-    const d = document.getElementById(`dot-${id}`);
-    if (d) d.className = `status-dot ${state}`;
-    const n = Object.values(exStatus).filter(s=>s==='connected').length;
-    document.getElementById('stat-streams').textContent = `${n}/22`;
+  function setEx(id,state){
+    exStatus[id]=state;
+    const d=document.getElementById(`dot-${id}`);
+    if(d) d.className=`status-dot ${state}`;
+    const n=Object.values(exStatus).filter(s=>s==='connected').length;
+    document.getElementById('stat-streams').textContent=`${n}/${TOTAL_EX}`;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // TRADE INGESTION
-  // ═══════════════════════════════════════════════════════════════════════════
-  function ingest({exchange,price,qty,isBuy,ts}) {
+  // ═══════════════════════════════════════════════════════════════════════
+  // INGEST
+  // ═══════════════════════════════════════════════════════════════════════
+  function ingest({exchange,price,qty,isBuy,ts}){
     tape.push({exchange,price,qty,isBuy,ts:ts||Date.now()});
     stamps.push(Date.now());
-    if (tape.length>MAX_TAPE) tape.shift();
+    if(tape.length>MAX_TAPE) tape.shift();
     lastPrice=price; vol+=qty;
     scheduleTape(); updateStats();
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   // RENDER — TAPE
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   let tapeRaf=false;
-  function scheduleTape() {
+  function scheduleTape(){
     if(tapeRaf) return; tapeRaf=true;
     requestAnimationFrame(()=>{
       tapeRaf=false;
@@ -504,21 +403,19 @@
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   // RENDER — ORDER BOOK
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   let bookRaf=false;
-  function scheduleBook() {
+  function scheduleBook(){
     if(bookRaf) return; bookRaf=true;
     requestAnimationFrame(()=>{
       bookRaf=false;
-      const aEl=document.getElementById('dom-asks');
-      const bEl=document.getElementById('dom-bids');
-      const sp=document.getElementById('dom-spread');
-      const va=book.asks.slice(0,MAX_LEVELS), vb=book.bids.slice(0,MAX_LEVELS);
+      const aEl=document.getElementById('dom-asks'),bEl=document.getElementById('dom-bids'),sp=document.getElementById('dom-spread');
+      const va=book.asks.slice(0,MAX_LEVELS),vb=book.bids.slice(0,MAX_LEVELS);
       const all=[...va.map(r=>parseFloat(r[1])),...vb.map(r=>parseFloat(r[1]))];
       const mx=all.length?Math.max(...all):1;
-      const rows=(levels,side)=>{
+      const makeRows=(levels,side)=>{
         const f=document.createDocumentFragment();
         const tc=side==='ask'?'text-red-400':'text-green-400';
         const bc=side==='ask'?'bg-red-500':'bg-green-500';
@@ -532,8 +429,8 @@
         });
         return f;
       };
-      aEl.innerHTML=''; aEl.appendChild(rows(va,'ask'));
-      bEl.innerHTML=''; bEl.appendChild(rows(vb,'bid'));
+      aEl.innerHTML=''; aEl.appendChild(makeRows(va,'ask'));
+      bEl.innerHTML=''; bEl.appendChild(makeRows(vb,'bid'));
       if(book.asks.length&&book.bids.length){
         const s=parseFloat(book.asks[0][0])-parseFloat(book.bids[0][0]);
         sp.textContent=`SPREAD: $${s.toFixed(2)}`;
@@ -541,17 +438,17 @@
     });
   }
 
-  function updateStats() {
+  function updateStats(){
     const now=Date.now();
     stamps=stamps.filter(t=>now-t<TPS_WIN);
     document.getElementById('stat-tps').textContent=(stamps.length/(TPS_WIN/1000)).toFixed(1);
     document.getElementById('stat-vol').textContent=vol>=1000?`${(vol/1000).toFixed(1)}K`:vol.toFixed(2);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   // WS FACTORY + GZIP
-  // ═══════════════════════════════════════════════════════════════════════════
-  function makeWS(id,url,{onopen,onmessage,onping,pingMs}={}) {
+  // ═══════════════════════════════════════════════════════════════════════
+  function makeWS(id,url,{onopen,onmessage,onping,pingMs}={}){
     return new Promise((res,rej)=>{
       let ws; try{ws=new WebSocket(url);}catch(e){return rej(e);}
       ws.binaryType='arraybuffer'; sockets[id]=ws;
@@ -567,10 +464,10 @@
     });
   }
 
-  async function gunzip(ab) {
+  async function gunzip(ab){
     const ds=new DecompressionStream('gzip');
     const w=ds.writable.getWriter(); w.write(new Uint8Array(ab)); w.close();
-    const chunks=[]; const r=ds.readable.getReader();
+    const chunks=[],r=ds.readable.getReader();
     while(true){const{done,value}=await r.read(); if(done)break; chunks.push(value);}
     const tot=chunks.reduce((a,c)=>a+c.length,0);
     const out=new Uint8Array(tot); let off=0;
@@ -578,66 +475,277 @@
     return new TextDecoder().decode(out);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   // STREAM MANAGER
-  // ═══════════════════════════════════════════════════════════════════════════
-  function closeAll() {
+  // ═══════════════════════════════════════════════════════════════════════
+  function closeAll(){
     Object.keys(sockets).forEach(id=>{const ws=sockets[id];if(ws){ws._dead=true;ws.onclose=null;ws.close();}delete sockets[id];});
     Object.keys(pings).forEach(id=>{clearInterval(pings[id]);delete pings[id];});
     EXCHANGES.forEach(e=>setEx(e.id,'disconnected'));
   }
-
-  function openStream(id,factory,retry=1500) {
+  function openStream(id,factory,retry=1500){
     const sym=SYM[currentBase]?.[id];
     if(!sym){setEx(id,'disconnected');return;}
     setEx(id,'connecting');
     factory(sym,id).catch(()=>setTimeout(()=>openStream(id,factory,Math.min(retry*1.6,30000)),retry));
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 22 EXCHANGE ADAPTERS
-  // ═══════════════════════════════════════════════════════════════════════════
-  function connectBinance(sym,id){return makeWS(id,`wss://stream.binance.com:9443/stream?streams=${sym}@depth20@100ms/${sym}@trade`,{onmessage(ev){const env=JSON.parse(ev.data);if(env.stream?.includes('@depth')){book.bids=env.data.bids;book.asks=env.data.asks;scheduleBook();}else if(env.stream?.includes('@trade')){const d=env.data;ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}}})}
-  function connectBinanceFut(sym,id){return makeWS(id,`wss://fstream.binance.com/stream?streams=${sym}@aggTrade`,{onmessage(ev){const env=JSON.parse(ev.data);if(env.stream?.includes('@aggTrade')){const d=env.data;ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}}})}
-  function connectBybit(sym,id){return makeWS(id,'wss://stream.bybit.com/v5/public/spot',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));},onping(ws){ws.send(JSON.stringify({op:'ping'}));},pingMs:20000})}
-  function connectBybitLin(sym,id){return makeWS(id,'wss://stream.bybit.com/v5/public/linear',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));},onping(ws){ws.send(JSON.stringify({op:'ping'}));},pingMs:20000})}
-  function connectOKX(sym,id){return makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));},onping(ws){ws.send('ping');},pingMs:25000})}
-  function connectOKXFut(sym,id){return makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));},onping(ws){ws.send('ping');},pingMs:25000})}
-  function connectGate(sym,id){return makeWS(id,'wss://api.gateio.ws/ws/v4/',{onopen(ws){ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.trades',event:'subscribe',payload:[sym]}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='spot.trades'&&d.event==='update'){const t=d.result;ingest({exchange:'GATE',price:+t.price,qty:+t.amount,isBuy:t.side==='buy',ts:t.create_time_ms||Date.now()});}},onping(ws){ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.ping',event:'',payload:null}));},pingMs:20000})}
-  function connectMEXC(sym,id){return makeWS(id,'wss://wbs.mexc.com/ws',{onopen(ws){ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${sym}`]}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.c?.includes('deals'))(d.d?.deals||[]).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}));},onping(ws){ws.send(JSON.stringify({method:'PING'}));},pingMs:20000})}
-  function connectBitget(sym,id){return makeWS(id,'wss://ws.bitget.com/v2/ws/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:sym}]}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.action==='snapshot'||d.action==='update')(d.data||[]).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}));},onping(ws){ws.send('ping');},pingMs:25000})}
+  // ═══════════════════════════════════════════════════════════════════════
+  // ADAPTERS — 21 exchanges
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // 1. Binance Spot
+  function connectBinance(sym,id){
+    return makeWS(id,`wss://stream.binance.com:9443/stream?streams=${sym}@depth20@100ms/${sym}@trade`,{
+      onmessage(ev){
+        const env=JSON.parse(ev.data);
+        if(env.stream?.includes('@depth')){book.bids=env.data.bids;book.asks=env.data.asks;scheduleBook();}
+        else if(env.stream?.includes('@trade')){const d=env.data;ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}
+      }
+    });
+  }
+
+  // 2. Binance Futures
+  function connectBinanceFut(sym,id){
+    return makeWS(id,`wss://fstream.binance.com/stream?streams=${sym}@aggTrade`,{
+      onmessage(ev){const env=JSON.parse(ev.data);if(env.stream?.includes('@aggTrade')){const d=env.data;ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}}
+    });
+  }
+
+  // 3. Bybit Spot
+  function connectBybit(sym,id){
+    return makeWS(id,'wss://stream.bybit.com/v5/public/spot',{
+      onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));},
+      onping(ws){ws.send(JSON.stringify({op:'ping'}));},pingMs:20000
+    });
+  }
+
+  // 4. Bybit Linear
+  function connectBybitLin(sym,id){
+    return makeWS(id,'wss://stream.bybit.com/v5/public/linear',{
+      onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));},
+      onping(ws){ws.send(JSON.stringify({op:'ping'}));},pingMs:20000
+    });
+  }
+
+  // 5. OKX Spot
+  function connectOKX(sym,id){
+    return makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{
+      onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));},
+      onping(ws){ws.send('ping');},pingMs:25000
+    });
+  }
+
+  // 6. OKX Futures
+  function connectOKXFut(sym,id){
+    return makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{
+      onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));},
+      onping(ws){ws.send('ping');},pingMs:25000
+    });
+  }
+
+  // 7. Gate.io
+  function connectGate(sym,id){
+    return makeWS(id,'wss://api.gateio.ws/ws/v4/',{
+      onopen(ws){ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.trades',event:'subscribe',payload:[sym]}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='spot.trades'&&d.event==='update'){const t=d.result;ingest({exchange:'GATE',price:+t.price,qty:+t.amount,isBuy:t.side==='buy',ts:t.create_time_ms||Date.now()});}},
+      onping(ws){ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.ping',event:'',payload:null}));},pingMs:20000
+    });
+  }
+
+  // 8. MEXC
+  function connectMEXC(sym,id){
+    return makeWS(id,'wss://wbs.mexc.com/ws',{
+      onopen(ws){ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${sym}`]}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.c?.includes('deals'))(d.d?.deals||[]).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}));},
+      onping(ws){ws.send(JSON.stringify({method:'PING'}));},pingMs:20000
+    });
+  }
+
+  // 9. Bitget
+  function connectBitget(sym,id){
+    return makeWS(id,'wss://ws.bitget.com/v2/ws/public',{
+      onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:sym}]}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.action==='snapshot'||d.action==='update')(d.data||[]).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}));},
+      onping(ws){ws.send('ping');},pingMs:25000
+    });
+  }
+
+  // 10. KuCoin — bullet-public routed through SW /kucoin-proxy to bypass CORS
   async function connectKucoin(sym,id){
     setEx(id,'connecting');
-    let td; try{const r=await fetch('https://api.kucoin.com/api/v1/bullet-public',{method:'POST'});td=await r.json();}catch{return Promise.reject(new Error('kucoin token'));}
-    const{token,instanceServers}=td.data; const url=`${instanceServers[0].endpoint}?token=${token}`; const pi=instanceServers[0].pingInterval; let mid=1;
-    return makeWS(id,url,{onopen(ws){ws.send(JSON.stringify({id:mid++,type:'subscribe',topic:`/market/match:${sym}`,privateChannel:false,response:true}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='message'&&d.topic?.includes('/market/match')){const t=d.data;ingest({exchange:'KUCOIN',price:+t.price,qty:+t.size,isBuy:t.side==='buy',ts:+t.time/1e6});}},onping(ws){ws.send(JSON.stringify({id:mid++,type:'ping'}));},pingMs:pi||18000});
+    let td;
+    try {
+      // Use SW proxy path instead of direct fetch — KuCoin blocks browser CORS
+      const endpoint = swReady
+        ? '/kucoin-proxy/api/v1/bullet-public'
+        : 'https://api.kucoin.com/api/v1/bullet-public';
+      dbg('KUCOIN',`token fetch via ${swReady?'SW proxy':'direct'}`);
+      const r=await fetch(endpoint,{method:'POST'});
+      td=await r.json();
+    } catch(e){
+      dbg('KUCOIN','token fetch failed:',e.message);
+      return Promise.reject(new Error('kucoin token'));
+    }
+    const{token,instanceServers}=td.data;
+    const url=`${instanceServers[0].endpoint}?token=${token}`;
+    const pi=instanceServers[0].pingInterval;
+    let mid=1;
+    return makeWS(id,url,{
+      onopen(ws){ws.send(JSON.stringify({id:mid++,type:'subscribe',topic:`/market/match:${sym}`,privateChannel:false,response:true}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='message'&&d.topic?.includes('/market/match')){const t=d.data;ingest({exchange:'KUCOIN',price:+t.price,qty:+t.size,isBuy:t.side==='buy',ts:+t.time/1e6});}},
+      onping(ws){ws.send(JSON.stringify({id:mid++,type:'ping'}));},pingMs:pi||18000
+    });
   }
-  function connectCryptoCom(sym,id){return makeWS(id,'wss://stream.crypto.com/exchange/v1/market',{onopen(ws){ws.send(JSON.stringify({id:1,method:'subscribe',params:{channels:[`trade.${sym}`]},nonce:Date.now()}));},onmessage(ev,ws){const d=JSON.parse(ev.data);if(d.method==='public/heartbeat'){ws.send(JSON.stringify({id:d.id,method:'public/respond-heartbeat'}));return;}(d.result?.data||[]).forEach(t=>ingest({exchange:'CRYPTOCOM',price:+t.p,qty:+t.q,isBuy:t.s==='BUY',ts:t.t}));}})}
-  function connectBitstamp(sym,id){return makeWS(id,'wss://ws.bitstamp.net',{onopen(ws){ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${sym}`}}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.event==='trade'){const t=d.data;ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000});}}})}
-  function connectGemini(sym,id){return makeWS(id,`wss://api.gemini.com/v2/marketdata?symbols=${sym}`,{onopen(ws){ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2',symbols:[sym]}]}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='trade')ingest({exchange:'GEMINI',price:+d.price,qty:+d.quantity,isBuy:d.side==='buy',ts:d.timestamp||Date.now()});}})}
-  function connectKraken(sym,id){return makeWS(id,'wss://ws.kraken.com/v2',{onopen(ws){ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[sym]},req_id:1}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='trade'&&d.type==='update')(d.data||[]).forEach(t=>ingest({exchange:'KRAKEN',price:+t.price,qty:+t.qty,isBuy:t.side==='buy',ts:new Date(t.timestamp).getTime()}));},onping(ws){ws.send(JSON.stringify({method:'ping'}));},pingMs:30000})}
-  function connectCoinbase(sym,id){return makeWS(id,'wss://advanced-trade-ws.coinbase.com',{onopen(ws){ws.send(JSON.stringify({type:'subscribe',product_ids:[sym],channel:'market_trades'}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='market_trades')(d.events||[]).forEach(e=>(e.trades||[]).forEach(t=>ingest({exchange:'COINBASE',price:+t.price,qty:+t.size,isBuy:t.side==='BUY',ts:new Date(t.time).getTime()})));}})}
-  function connectBitfinex(sym,id){return makeWS(id,'wss://api-pub.bitfinex.com/ws/2',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbol:sym}));},onmessage:async(ev)=>{let text;if(ev.data instanceof ArrayBuffer){try{text=await gunzip(ev.data);}catch{text=new TextDecoder().decode(ev.data);}}else{text=ev.data;}const d=JSON.parse(text);if(Array.isArray(d)&&d[1]==='te'){const[,,[,ts,amt,price]]=d;ingest({exchange:'BITFINEX',price:+price,qty:Math.abs(+amt),isBuy:+amt>0,ts});}},onping(ws){ws.send(JSON.stringify({event:'ping'}));},pingMs:30000})}
-  function connectHTX(sym,id){return makeWS(id,'wss://api.huobi.pro/ws',{onopen(ws){ws.send(JSON.stringify({sub:`market.${sym}.trade.detail`,id:'omni'}));},onmessage:async(ev)=>{let text;try{text=await gunzip(ev.data);}catch{return;}const d=JSON.parse(text);if(d.ping){sockets[id]?.send(JSON.stringify({pong:d.ping}));return;}if(d.ch?.includes('trade.detail')&&d.tick)(d.tick.data||[]).forEach(t=>ingest({exchange:'HTX',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.ts}));}})}
-  function connectPhemex(sym,id){return makeWS(id,'wss://phemex.com/ws',{onopen(ws){ws.send(JSON.stringify({id:1,method:'trade.subscribe',params:[sym]}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='snapshot'||d.type==='incremental')(d.trades||[]).forEach(t=>ingest({exchange:'PHEMEX',price:+t[2]/1e4,qty:+t[3],isBuy:t[1]==='Buy',ts:Math.floor(+t[0]/1e6)}));},onping(ws){ws.send(JSON.stringify({id:99,method:'server.ping',params:[]}));},pingMs:20000})}
-  function connectPoloniex(sym,id){return makeWS(id,'wss://ws.poloniex.com/ws/public',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbols:[sym]}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='trades'&&d.data)d.data.forEach(t=>ingest({exchange:'POLONIEX',price:+t.price,qty:+t.quantity,isBuy:t.takerSide==='buy',ts:t.ts||Date.now()}));},onping(ws){ws.send(JSON.stringify({event:'ping'}));},pingMs:30000})}
-  function connectBingX(sym,id){return makeWS(id,'wss://open-api-ws.bingx.com/market',{onopen(ws){ws.send(JSON.stringify({id:'omni-bingx',reqType:'sub',dataType:`${sym}@trade`}));},onmessage:async(ev)=>{let text;if(ev.data instanceof ArrayBuffer){try{text=await gunzip(ev.data);}catch{text=new TextDecoder().decode(ev.data);}}else{text=ev.data;}if(text==='Ping'){sockets[id]?.send('Pong');return;}try{const d=JSON.parse(text);if(d.data)ingest({exchange:'BINGX',price:+d.data.p,qty:+d.data.q,isBuy:d.data.m===false,ts:d.data.T||Date.now()});}catch{}}})}
-  function connectWooX(sym,id){return makeWS(id,'wss://wss.woo.org/ws/stream/broadcast',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',topic:`${sym}@trade`}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.includes('@trade')&&d.data)ingest({exchange:'WOOX',price:+d.data.price,qty:+d.data.size,isBuy:d.data.side==='BUY',ts:d.data.ts||Date.now()});},onping(ws){ws.send(JSON.stringify({event:'ping'}));},pingMs:25000})}
-  function connectDeribit(sym,id){return makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:1,method:'public/subscribe',params:{channels:[`trades.${sym}.raw`]}}));},onmessage(ev){const d=JSON.parse(ev.data);if(d.method==='subscription'&&d.params?.channel?.startsWith('trades'))(d.params.data||[]).forEach(t=>ingest({exchange:'DERIBIT',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.timestamp}));},onping(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}}));},pingMs:30000})}
 
-  const ADAPTERS={BINANCE:connectBinance,BINANCEFUT:connectBinanceFut,BYBIT:connectBybit,BYBITLIN:connectBybitLin,OKX:connectOKX,OKXFUT:connectOKXFut,GATE:connectGate,MEXC:connectMEXC,BITGET:connectBitget,KUCOIN:connectKucoin,CRYPTOCOM:connectCryptoCom,BITSTAMP:connectBitstamp,GEMINI:connectGemini,KRAKEN:connectKraken,COINBASE:connectCoinbase,BITFINEX:connectBitfinex,HTX:connectHTX,PHEMEX:connectPhemex,POLONIEX:connectPoloniex,BINGX:connectBingX,WOOX:connectWooX,DERIBIT:connectDeribit};
+  // 11. Bitstamp
+  function connectBitstamp(sym,id){
+    return makeWS(id,'wss://ws.bitstamp.net',{
+      onopen(ws){ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${sym}`}}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.event==='trade'){const t=d.data;ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000});}}
+    });
+  }
 
-  function launchAll() {
+  // 12. Gemini
+  function connectGemini(sym,id){
+    return makeWS(id,`wss://api.gemini.com/v2/marketdata?symbols=${sym}`,{
+      onopen(ws){ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2',symbols:[sym]}]}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='trade')ingest({exchange:'GEMINI',price:+d.price,qty:+d.quantity,isBuy:d.side==='buy',ts:d.timestamp||Date.now()});}
+    });
+  }
+
+  // 13. Kraken v2
+  function connectKraken(sym,id){
+    return makeWS(id,'wss://ws.kraken.com/v2',{
+      onopen(ws){ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[sym]},req_id:1}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='trade'&&d.type==='update')(d.data||[]).forEach(t=>ingest({exchange:'KRAKEN',price:+t.price,qty:+t.qty,isBuy:t.side==='buy',ts:new Date(t.timestamp).getTime()}));},
+      onping(ws){ws.send(JSON.stringify({method:'ping'}));},pingMs:30000
+    });
+  }
+
+  // 14. Coinbase Advanced Trade
+  function connectCoinbase(sym,id){
+    return makeWS(id,'wss://advanced-trade-ws.coinbase.com',{
+      onopen(ws){ws.send(JSON.stringify({type:'subscribe',product_ids:[sym],channel:'market_trades'}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='market_trades')(d.events||[]).forEach(e=>(e.trades||[]).forEach(t=>ingest({exchange:'COINBASE',price:+t.price,qty:+t.size,isBuy:t.side==='BUY',ts:new Date(t.time).getTime()})));}
+    });
+  }
+
+  // 15. Bitfinex
+  function connectBitfinex(sym,id){
+    return makeWS(id,'wss://api-pub.bitfinex.com/ws/2',{
+      onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbol:sym}));},
+      onmessage:async(ev)=>{
+        let text;
+        if(ev.data instanceof ArrayBuffer){try{text=await gunzip(ev.data);}catch{text=new TextDecoder().decode(ev.data);}}else{text=ev.data;}
+        const d=JSON.parse(text);
+        if(Array.isArray(d)&&d[1]==='te'){const[,,[,ts,amt,price]]=d;ingest({exchange:'BITFINEX',price:+price,qty:Math.abs(+amt),isBuy:+amt>0,ts});}
+      },
+      onping(ws){ws.send(JSON.stringify({event:'ping'}));},pingMs:30000
+    });
+  }
+
+  // 16. HTX (GZip)
+  function connectHTX(sym,id){
+    return makeWS(id,'wss://api.huobi.pro/ws',{
+      onopen(ws){ws.send(JSON.stringify({sub:`market.${sym}.trade.detail`,id:'omni'}));},
+      onmessage:async(ev)=>{
+        let text; try{text=await gunzip(ev.data);}catch{return;}
+        const d=JSON.parse(text);
+        if(d.ping){sockets[id]?.send(JSON.stringify({pong:d.ping}));return;}
+        if(d.ch?.includes('trade.detail')&&d.tick)(d.tick.data||[]).forEach(t=>ingest({exchange:'HTX',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.ts}));
+      }
+    });
+  }
+
+  // 17. Phemex — FIXED: new endpoint wss://vapi.phemex.com/ws (old wss://phemex.com/ws = 410 Gone)
+  function connectPhemex(sym,id){
+    return makeWS(id,'wss://vapi.phemex.com/ws',{
+      onopen(ws){ws.send(JSON.stringify({id:1,method:'trade.subscribe',params:[sym]}));},
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+        // Phemex pong
+        if(d.result==='pong') return;
+        if(d.type==='snapshot'||d.type==='incremental'){
+          (d.trades||[]).forEach(t=>
+            // [timestamp_ns, side, price_ep×10000, qty]
+            ingest({exchange:'PHEMEX',price:+t[2]/1e4,qty:+t[3],isBuy:t[1]==='Buy',ts:Math.floor(+t[0]/1e6)})
+          );
+        }
+      },
+      onping(ws){ws.send(JSON.stringify({id:99,method:'server.ping',params:[]}));},pingMs:20000
+    });
+  }
+
+  // 18. Poloniex
+  function connectPoloniex(sym,id){
+    return makeWS(id,'wss://ws.poloniex.com/ws/public',{
+      onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbols:[sym]}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='trades'&&d.data)d.data.forEach(t=>ingest({exchange:'POLONIEX',price:+t.price,qty:+t.quantity,isBuy:t.takerSide==='buy',ts:t.ts||Date.now()}));},
+      onping(ws){ws.send(JSON.stringify({event:'ping'}));},pingMs:30000
+    });
+  }
+
+  // 19. BingX (may GZip)
+  function connectBingX(sym,id){
+    return makeWS(id,'wss://open-api-ws.bingx.com/market',{
+      onopen(ws){ws.send(JSON.stringify({id:'omni-bingx',reqType:'sub',dataType:`${sym}@trade`}));},
+      onmessage:async(ev)=>{
+        let text;
+        if(ev.data instanceof ArrayBuffer){try{text=await gunzip(ev.data);}catch{text=new TextDecoder().decode(ev.data);}}else{text=ev.data;}
+        if(text==='Ping'){sockets[id]?.send('Pong');return;}
+        try{const d=JSON.parse(text);if(d.data)ingest({exchange:'BINGX',price:+d.data.p,qty:+d.data.q,isBuy:d.data.m===false,ts:d.data.T||Date.now()});}catch{}
+      }
+    });
+  }
+
+  // 20. WOO X
+  function connectWooX(sym,id){
+    return makeWS(id,'wss://wss.woo.org/ws/stream/broadcast',{
+      onopen(ws){ws.send(JSON.stringify({event:'subscribe',topic:`${sym}@trade`}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.includes('@trade')&&d.data)ingest({exchange:'WOOX',price:+d.data.price,qty:+d.data.size,isBuy:d.data.side==='BUY',ts:d.data.ts||Date.now()});},
+      onping(ws){ws.send(JSON.stringify({event:'ping'}));},pingMs:25000
+    });
+  }
+
+  // 21. Deribit
+  function connectDeribit(sym,id){
+    return makeWS(id,'wss://www.deribit.com/ws/api/v2',{
+      onopen(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:1,method:'public/subscribe',params:{channels:[`trades.${sym}.raw`]}}));},
+      onmessage(ev){const d=JSON.parse(ev.data);if(d.method==='subscription'&&d.params?.channel?.startsWith('trades'))(d.params.data||[]).forEach(t=>ingest({exchange:'DERIBIT',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.timestamp}));},
+      onping(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}}));},pingMs:30000
+    });
+  }
+
+  const ADAPTERS={
+    BINANCE:connectBinance, BINANCEFUT:connectBinanceFut,
+    BYBIT:connectBybit,     BYBITLIN:connectBybitLin,
+    OKX:connectOKX,         OKXFUT:connectOKXFut,
+    GATE:connectGate,       MEXC:connectMEXC,
+    BITGET:connectBitget,   KUCOIN:connectKucoin,
+    BITSTAMP:connectBitstamp, GEMINI:connectGemini,
+    KRAKEN:connectKraken,   COINBASE:connectCoinbase,
+    BITFINEX:connectBitfinex, HTX:connectHTX,
+    PHEMEX:connectPhemex,   POLONIEX:connectPoloniex,
+    BINGX:connectBingX,     WOOX:connectWooX,
+    DERIBIT:connectDeribit,
+  };
+
+  function launchAll(){
     EXCHANGES.forEach(({id})=>{
       const f=ADAPTERS[id]; if(!f) return;
       setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*2000);
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   // SYMBOL SWITCH
-  // ═══════════════════════════════════════════════════════════════════════════
-  function switchSymbol(b) {
+  // ═══════════════════════════════════════════════════════════════════════
+  function switchSymbol(b){
     currentBase=b; tape=[]; stamps=[]; lastPrice=0; vol=0;
     book.asks=[]; book.bids=[];
     document.getElementById('ticker-price').textContent='--';
@@ -648,41 +756,31 @@
     closeAll(); updateChart(b); setTimeout(launchAll,300);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // NVIDIA NIM — GLM-5.2  (via SW proxy at /nim-proxy)
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  function openKeyModal() {
-    document.getElementById('key-modal').classList.remove('hidden');
-    document.getElementById('nim-key-input').value = nimKey||'';
-    document.getElementById('key-err').classList.add('hidden');
-  }
-  function dismissModal() {
-    document.getElementById('key-modal').classList.add('hidden');
-  }
-  function saveNimKey() {
-    const v   = document.getElementById('nim-key-input').value.trim();
-    const err = document.getElementById('key-err');
-    if (!v.startsWith('nvapi-')) {
-      err.textContent='Key must start with nvapi-'; err.classList.remove('hidden'); return;
-    }
+  // ═══════════════════════════════════════════════════════════════════════
+  // AI — Key modal
+  // ═══════════════════════════════════════════════════════════════════════
+  function openKeyModal(){document.getElementById('key-modal').classList.remove('hidden');document.getElementById('nim-key-input').value=nimKey||'';document.getElementById('key-err').classList.add('hidden');}
+  function dismissModal(){document.getElementById('key-modal').classList.add('hidden');}
+  function saveNimKey(){
+    const v=document.getElementById('nim-key-input').value.trim();
+    const err=document.getElementById('key-err');
+    if(!v.startsWith('nvapi-')){err.textContent='Key must start with nvapi-';err.classList.remove('hidden');return;}
     nimKey=v; sessionStorage.setItem('nim_key',nimKey); dismissModal();
-    appendMsg('sys','✓ Key saved. Ready — ask GLM-5.2 about the market.');
-    debugLog('KEY','API key saved to sessionStorage');
+    appendMsg('sys','✓ Key saved. GLM-5.2 ready.');
+    dbg('KEY','saved to sessionStorage');
   }
 
-  function toggleAiPanel() {
-    const panel=document.getElementById('ai-panel');
-    const chev=document.getElementById('ai-chevron');
+  function toggleAiPanel(){
+    const panel=document.getElementById('ai-panel'),chev=document.getElementById('ai-chevron');
     aiOpen=!aiOpen;
     panel.style.height=aiOpen?'310px':'32px';
     chev.textContent=aiOpen?'▼':'▲';
-    document.getElementById('ai-messages').style.display=aiOpen?'':'none';
-    document.getElementById('ai-input-row').style.display=aiOpen?'':'none';
-    document.getElementById('proxy-bar').style.display=aiOpen?'':'none';
+    ['ai-messages','ai-input-row','proxy-bar'].forEach(id=>{
+      document.getElementById(id).style.display=aiOpen?'':'none';
+    });
   }
 
-  function appendMsg(role,text) {
+  function appendMsg(role,text){
     const el=document.getElementById('ai-messages');
     const div=document.createElement('div');
     if(role==='user')       div.className='msg-user';
@@ -691,124 +789,75 @@
     else if(role==='sys')   div.className='msg-sys';
     else                    div.className='msg-ai';
     div.textContent=text;
-    el.appendChild(div);
-    el.scrollTop=el.scrollHeight;
+    el.appendChild(div); el.scrollTop=el.scrollHeight;
     return div;
   }
 
-  function buildMarketContext() {
+  function buildMarketCtx(){
     const recent=tape.slice(-30);
-    const buys=recent.filter(t=>t.isBuy).length, sells=recent.length-buys;
+    const buys=recent.filter(t=>t.isBuy).length,sells=recent.length-buys;
     const avgP=recent.length?(recent.reduce((a,t)=>a+t.price,0)/recent.length).toFixed(2):'N/A';
     const bestAsk=book.asks[0]?parseFloat(book.asks[0][0]).toFixed(2):'N/A';
     const bestBid=book.bids[0]?parseFloat(book.bids[0][0]).toFixed(2):'N/A';
     const spread=(book.asks[0]&&book.bids[0])?(parseFloat(book.asks[0][0])-parseFloat(book.bids[0][0])).toFixed(2):'N/A';
     const active=Object.entries(exStatus).filter(([,s])=>s==='connected').map(([id])=>id).join(', ')||'none';
-    return (
-      `[Live Market Snapshot — ${currentBase} @ ${new Date().toISOString()}]\n`+
-      `Last: $${lastPrice>0?lastPrice.toFixed(2):'--'} | Ask: $${bestAsk} | Bid: $${bestBid} | Spread: $${spread}\n`+
-      `Last 30 trades → Buys: ${buys}, Sells: ${sells} | Avg price: $${avgP}\n`+
-      `Session volume: ${vol>=1000?(vol/1000).toFixed(2)+'K':vol.toFixed(4)}\n`+
-      `Active feeds (${active.split(',').length}): ${active}\n`
-    );
+    return `[Live Snapshot — ${currentBase} @ ${new Date().toISOString()}]\nLast: $${lastPrice>0?lastPrice.toFixed(2):'--'} | Ask: $${bestAsk} | Bid: $${bestBid} | Spread: $${spread}\nLast 30 trades → Buys: ${buys}, Sells: ${sells} | Avg: $${avgP}\nSession vol: ${vol>=1000?(vol/1000).toFixed(2)+'K':vol.toFixed(4)}\nFeeds active: ${active}\n`;
   }
 
-  async function sendToGLM() {
+  // ═══════════════════════════════════════════════════════════════════════
+  // AI — Send to GLM-5.2 via SW proxy
+  // ═══════════════════════════════════════════════════════════════════════
+  async function sendToGLM(){
     if(aiBusy) return;
     if(!nimKey){openKeyModal();return;}
-    if(!swReady){
-      appendMsg('error','⚠ Service Worker proxy not ready yet.\nWait a moment and try again, or reload the page.');
-      return;
-    }
+    if(!swReady){appendMsg('error','⚠ SW proxy not ready yet. Wait a moment and retry.');return;}
 
-    const inp=document.getElementById('ai-input');
-    const btn=document.getElementById('ai-send-btn');
-    const userMsg=inp.value.trim();
-    if(!userMsg) return;
-
+    const inp=document.getElementById('ai-input'),btn=document.getElementById('ai-send-btn');
+    const userMsg=inp.value.trim(); if(!userMsg) return;
     inp.value=''; inp.style.height='auto';
     aiBusy=true; btn.disabled=true;
     document.getElementById('nim-dot').classList.add('busy');
-
     appendMsg('user',userMsg);
 
-    const systemContent=
-      `You are a professional crypto market analyst integrated into a live multi-exchange trading terminal.\n`+
-      `You receive aggregated real-time trade flow from 22 exchange WebSocket feeds simultaneously.\n`+
-      `Be concise and analytical. Use bullet points for lists. Current live data:\n\n`+
-      buildMarketContext();
-
     const messages=[
-      {role:'system',content:systemContent},
+      {role:'system',content:`You are a professional crypto market analyst in a live multi-exchange terminal.\nBe concise and analytical. Use bullets for lists.\n\n${buildMarketCtx()}`},
       ...aiHistory,
       {role:'user',content:userMsg},
     ];
     aiHistory.push({role:'user',content:userMsg});
 
     const bubble=appendMsg('ai','');
-    let fullText='', thinkBubble=null, thinkText='';
+    let fullText='',thinkBubble=null,thinkText='';
+    dbg('NIM',`→ POST ${NIM_PROXY}`);
 
-    debugLog('NIM','→ POST /nim-proxy/chat/completions', NIM_MODEL);
-
-    try {
-      const resp=await fetch(NIM_PROXY_URL,{
+    try{
+      const resp=await fetch(NIM_PROXY,{
         method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          'Authorization':`Bearer ${nimKey}`,
-        },
-        body:JSON.stringify({
-          model:      NIM_MODEL,
-          messages,
-          temperature:0.6,
-          top_p:      0.9,
-          max_tokens: 1024,
-          stream:     true,
-        }),
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${nimKey}`},
+        body:JSON.stringify({model:NIM_MODEL,messages,temperature:0.6,top_p:0.9,max_tokens:1024,stream:true}),
       });
 
-      // ── Surface the exact HTTP status in all cases ──
-      debugLog('NIM',`← HTTP ${resp.status} ${resp.statusText}`);
+      dbg('NIM',`← ${resp.status} ${resp.statusText}`);
 
-      if(!resp.ok) {
-        // Read body even on error — NIM returns JSON error details
+      if(!resp.ok){
         let errBody='(no body)';
-        try { errBody=await resp.text(); } catch(_){}
-        debugLog('NIM ERROR',`${resp.status}:`, errBody.slice(0,400));
-
-        // Parse NIM error object if possible
-        let errMsg=`HTTP ${resp.status} ${resp.statusText}`;
-        try {
-          const parsed=JSON.parse(errBody);
-          if(parsed?.message) errMsg+=`\n${parsed.message}`;
-          else if(parsed?.detail) errMsg+=`\n${parsed.detail}`;
-          else if(parsed?.error?.message) errMsg+=`\n${parsed.error.message}`;
-          else errMsg+=`\n${errBody.slice(0,300)}`;
-        } catch {
-          errMsg+=`\n${errBody.slice(0,300)}`;
-        }
-
-        // Common status explanations
-        if(resp.status===401) errMsg+='\n→ Invalid or expired nvapi- key.';
-        if(resp.status===403) errMsg+='\n→ Key does not have access to this model.';
-        if(resp.status===429) errMsg+='\n→ Rate limit hit (free tier: 40 RPM). Wait and retry.';
-        if(resp.status===422) errMsg+='\n→ Bad request payload (check model name / params).';
-        if(resp.status===503) errMsg+='\n→ NIM endpoint temporarily unavailable.';
-
-        bubble.remove();
-        aiHistory.pop();
-        appendMsg('error', errMsg);
-        return;
+        try{errBody=await resp.text();}catch{}
+        dbg('NIM ERROR',`${resp.status}:`,errBody.slice(0,400));
+        let msg=`HTTP ${resp.status} ${resp.statusText}`;
+        try{const p=JSON.parse(errBody);msg+='\n'+(p?.message||p?.detail||p?.error?.message||errBody.slice(0,300));}
+        catch{msg+='\n'+errBody.slice(0,300);}
+        if(resp.status===401) msg+='\n→ Invalid or expired nvapi- key.';
+        if(resp.status===403) msg+='\n→ Key lacks access to this model.';
+        if(resp.status===429) msg+='\n→ Rate limit hit. Wait and retry.';
+        if(resp.status===422) msg+='\n→ Bad payload (check model name).';
+        bubble.remove(); aiHistory.pop();
+        appendMsg('error',msg); return;
       }
 
-      // ── Stream SSE ──
-      const reader=resp.body.getReader();
-      const decoder=new TextDecoder();
+      const reader=resp.body.getReader(),decoder=new TextDecoder();
       let buf='';
-
       while(true){
-        const{done,value}=await reader.read();
-        if(done) break;
+        const{done,value}=await reader.read(); if(done) break;
         buf+=decoder.decode(value,{stream:true});
         const lines=buf.split('\n'); buf=lines.pop();
         for(const line of lines){
@@ -830,58 +879,39 @@
               bubble.textContent=fullText;
               document.getElementById('ai-messages').scrollTop=9999;
             }
-          }catch(_){}
+          }catch{}
         }
       }
 
-      debugLog('NIM',`← stream complete, ${fullText.length} chars`);
+      dbg('NIM',`stream done, ${fullText.length} chars`);
       aiHistory.push({role:'assistant',content:fullText});
       if(aiHistory.length>20) aiHistory.splice(0,2);
 
-    } catch(err) {
-      // Network-level failure (SW down, offline, etc.)
-      bubble.remove();
-      aiHistory.pop();
-      const isNetErr=err instanceof TypeError && err.message.includes('fetch');
-      const hint=isNetErr
-        ? '\n→ Network error. Check the proxy-bar above — SW may still be loading.'
-        : '';
-      debugLog('NIM CATCH',err.message);
-      appendMsg('error',`Fetch failed: ${err.message}${hint}`);
-    } finally {
+    }catch(err){
+      bubble.remove(); aiHistory.pop();
+      dbg('NIM CATCH',err.message);
+      appendMsg('error',`Fetch failed: ${err.message}\n→ Check proxy-bar — SW may still be loading.`);
+    }finally{
       aiBusy=false; btn.disabled=false;
       document.getElementById('nim-dot').classList.remove('busy');
     }
   }
 
-  function handleAiKey(e){
-    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendToGLM();}
-  }
-
+  function handleAiKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendToGLM();}}
   document.addEventListener('keydown',e=>{if(e.key==='Escape')dismissModal();});
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════
   // BOOT
-  // ═══════════════════════════════════════════════════════════════════════════
-  window.addEventListener('DOMContentLoaded', async () => {
+  // ═══════════════════════════════════════════════════════════════════════
+  window.addEventListener('DOMContentLoaded',async()=>{
     buildStatusPanel();
     updateChart(currentBase);
-
-    // 1. Register SW proxy first — market streams open in parallel
-    await registerServiceWorker();
-
-    // 2. Open 22 exchange streams
+    await registerSW();   // must complete before launchAll so KuCoin proxy is ready
     launchAll();
-
-    // 3. Key modal / greeting
     if(nimKey){
       dismissModal();
-      appendMsg('ai',
-        `GLM-5.2 ready. Watching live ${currentBase} flow from all active feeds.\n`+
-        `Ask me about price action, order book depth, buy/sell pressure, or anything else.`
-      );
+      appendMsg('ai',`GLM-5.2 ready. Watching ${currentBase} across all active feeds.`);
     }
-    // else modal stays open
   });
   </script>
 </body>
