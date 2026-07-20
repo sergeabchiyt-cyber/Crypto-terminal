@@ -4,7 +4,7 @@ An ultra-lightweight, decoupled quantitative processing suite executing low-late
 
 ## Repository Component Matrix
 *   **Main Workspace Front-end:** Fully dynamic zero-dependency user workspace providing real-time canvas instrumentation and interactive order depth monitoring.
-*   **Ai integration utlizing NVIDIA's NIM API to analyze your chart. 
+*   **AI integration utlizing NVIDIA's NIM API to analyze your chart. 
 ## Repository Disclaimer
 > [!IMPORTANT]
 > **AI GENERATION NOTICE & DEVELOPMENT DISCLAIMER**
