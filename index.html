@@ -114,21 +114,26 @@
         <span class="text-neutral-500 text-xs">×</span>
         <span class="text-purple-400 font-bold text-xs tracking-wider">GLM-5.2</span>
       </div>
+
       <p class="text-[10px] text-neutral-500 mb-1 leading-relaxed mt-2">
         Enter your <code class="text-green-400">nvapi-</code> key from
         <a href="https://build.nvidia.com" target="_blank" class="text-blue-400 underline">build.nvidia.com</a>.
-        Stored in <code>sessionStorage</code> only. Routed through <code>/sw.js</code> proxy.
+        Stored in <code>sessionStorage</code> only. Routed through the server proxy.
       </p>
+
       <div id="sw-status" class="text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-yellow-400">
-        ⏳ Checking Service Worker…
+        ⏳ Checking proxy…
       </div>
+
       <label class="block text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1 mt-3">NVIDIA API Key</label>
       <input id="nim-key-input" type="password" placeholder="nvapi-..."
              class="w-full bg-[#131722] border border-neutral-700 text-xs font-mono text-neutral-200 py-2 px-3 rounded outline-none focus:border-purple-600 transition-colors mb-4" />
+
       <div class="flex gap-2">
         <button onclick="saveNimKey()" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 rounded transition-colors cursor-pointer">Save & Launch</button>
         <button onclick="dismissModal()" class="px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 text-xs font-bold py-2 rounded transition-colors cursor-pointer">Skip</button>
       </div>
+
       <p id="key-err" class="mt-2 text-[10px] text-red-400 text-center hidden"></p>
     </div>
   </div>
@@ -168,6 +173,7 @@
           <div id="ticker-price" class="font-mono font-bold text-base text-neutral-100 tabular-nums">--</div>
         </div>
       </div>
+
       <div class="grid grid-cols-3 gap-1 text-[9px] font-mono">
         <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Streams</div><div id="stat-streams" class="text-green-400 font-bold">0/21</div></div>
         <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Trades/s</div><div id="stat-tps" class="text-yellow-400 font-bold">0</div></div>
@@ -203,19 +209,19 @@
           <span id="ai-chevron" class="text-neutral-500 text-[10px]">▼</span>
         </div>
       </div>
-      <div id="proxy-bar" class="loading">⏳ registering SW proxy…</div>
+
+      <div id="proxy-bar" class="loading">⏳ starting proxy…</div>
+
       <div id="ai-messages"></div>
+
       <div id="ai-input-row">
         <textarea id="ai-input" rows="1" placeholder="Ask GLM-5.2 about the market…" onkeydown="handleAiKey(event)"></textarea>
         <button id="ai-send-btn" onclick="sendToGLM()">Send</button>
       </div>
     </div>
 
-    <!-- Exchange Status -->
-    <div class="flex-shrink-0 border-t border-neutral-800 p-2" style="max-height:100px;overflow-y:auto;">
-      <div class="text-[8px] text-neutral-600 uppercase tracking-widest mb-1">Stream Status</div>
-      <div id="ex-status-panel"></div>
-    </div>
+    <!-- Exchange Status: names removed; hidden state panel kept for JS compatibility -->
+    <div id="ex-status-panel" style="display:none;"></div>
   </div>
 
   <script>
@@ -225,9 +231,13 @@
   const MAX_TAPE   = 120;
   const MAX_LEVELS = 12;
   const TPS_WIN    = 2000;
-  const NIM_PROXY  = '/nim-proxy/chat/completions';
+
+  // Server-side proxy routes.
+  // These require the accompanying server.js backend.
+  const NIM_PROXY  = '/api/nim/chat/completions';
   const NIM_MODEL  = 'z-ai/glm-5.2';
-  const TOTAL_EX   = 21;  // Crypto.com removed (403), Phemex fixed to vapi
+
+  let TOTAL_EX = 21; // recalculated after DISABLED_EX is defined
 
   // ═══════════════════════════════════════════════════════════════════════
   // STATE
@@ -236,14 +246,17 @@
   let tape=[], stamps=[], lastPrice=0, vol=0;
   const sockets={}, pings={};
   const book={asks:[],bids:[]};
-  let nimKey    = sessionStorage.getItem('nim_key')||'';
+
+  let nimKey    = sessionStorage.getItem('nim_key') || '';
   let aiHistory = [];
   let aiOpen    = true;
   let aiBusy    = false;
-  let swReady   = false;
+
+  // Kept for compatibility, but the app no longer depends on a service worker proxy.
+  let swReady = false;
 
   // ═══════════════════════════════════════════════════════════════════════
-  // EXCHANGE REGISTRY  — Crypto.com removed (403), Phemex fixed
+  // EXCHANGE REGISTRY
   // ═══════════════════════════════════════════════════════════════════════
   const EXCHANGES = [
     {id:'BINANCE',   label:'Binance'  }, {id:'BINANCEFUT',label:'BNB Fut' },
@@ -258,8 +271,18 @@
     {id:'BINGX',     label:'BingX'    }, {id:'WOOX',      label:'WOO X'    },
     {id:'DERIBIT',   label:'Deribit'  },
   ];
+
   const exStatus={};
-  EXCHANGES.forEach(e=>exStatus[e.id]='disconnected');
+  EXCHANGES.forEach(e => exStatus[e.id] = 'disconnected');
+
+  // If your server.js Phemex WebSocket proxy is deployed, leave this empty.
+  // If you are NOT running the backend Phemex proxy, add 'PHEMEX' here:
+  //
+  //   const DISABLED_EX = new Set(['PHEMEX']);
+  //
+  const DISABLED_EX = new Set([]);
+
+  TOTAL_EX = EXCHANGES.filter(e => !DISABLED_EX.has(e.id)).length;
 
   // ═══════════════════════════════════════════════════════════════════════
   // SYMBOL MAP
@@ -278,93 +301,156 @@
   function dbg(label,...args){
     const msg=args.map(a=>typeof a==='object'?JSON.stringify(a):String(a)).join(' ');
     console.log(`[${label}]`,msg);
-    const el=document.getElementById('debug-log'); if(!el) return;
+
+    const el=document.getElementById('debug-log');
+    if(!el) return;
+
     const line=document.createElement('div');
     line.style.cssText='border-bottom:1px solid #1f2937;padding-bottom:2px;margin-bottom:2px;';
+
     const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     line.innerHTML=`<span style="color:#6b7280">${ts}</span> <span style="color:#a78bfa">[${label}]</span> ${msg}`;
+
     el.insertBefore(line,el.firstChild);
     if(el.children.length>80) el.lastChild.remove();
   }
-  function toggleDebug(){ document.getElementById('debug-drawer').classList.toggle('open'); }
+
+  function toggleDebug(){
+    document.getElementById('debug-drawer').classList.toggle('open');
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SERVICE WORKER — registers real /sw.js file (no blob:)
+  // PROXY CHECK
   // ═══════════════════════════════════════════════════════════════════════
   async function registerSW(){
     const swStatusEl=document.getElementById('sw-status');
-    if(!('serviceWorker' in navigator)){
-      updateProxyBar(false,'Service Workers not supported');
-      swStatusEl.textContent='✗ SW not supported in this browser';
-      swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-red-400';
-      return;
-    }
-    try {
-      // Register the real sw.js file — blob: URLs are blocked by Chrome
-      const reg = await navigator.serviceWorker.register('/sw.js', { scope:'/' });
 
-      await new Promise(resolve=>{
-        if(reg.active){ resolve(); return; }
-        const target=reg.installing||reg.waiting;
-        if(target) target.addEventListener('statechange',function h(){
-          if(this.state==='activated'){ this.removeEventListener('statechange',h); resolve(); }
-        });
-        navigator.serviceWorker.ready.then(resolve);
+    if(swStatusEl){
+      swStatusEl.textContent='⏳ Checking server proxy…';
+      swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-yellow-400';
+    }
+
+    updateProxyBar('loading','Checking server proxy…');
+
+    // Register the no-op service worker only to replace old proxy SW versions.
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/sw.js', { scope:'/' })
+        .catch(err => dbg('SW', `no-op SW registration failed: ${err.message}`));
+    }
+
+    try{
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2500);
+
+      const r = await fetch('/healthz', {
+        cache:'no-store',
+        signal: controller.signal
       });
 
-      swReady=true;
-      updateProxyBar(true,'SW proxy active (/sw.js) — NIM + KuCoin routed');
-      dbg('SW','registered and active');
-      swStatusEl.textContent='✓ Service Worker proxy active';
-      swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-green-400';
-    } catch(err){
-      swReady=false;
-      updateProxyBar(false,`SW failed: ${err.message}`);
-      dbg('SW ERROR',err.message);
-      swStatusEl.textContent=`✗ SW failed: ${err.message}`;
-      swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-red-400';
+      clearTimeout(timer);
+
+      if(!r.ok) throw new Error(`health ${r.status}`);
+
+      swReady = true;
+      updateProxyBar(true,'Server proxy active (/api) — NIM + KuCoin routed');
+      dbg('PROXY','/healthz OK');
+
+      if(swStatusEl){
+        swStatusEl.textContent='✓ Server proxy active';
+        swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-green-400';
+      }
+    }catch(err){
+      swReady = false;
+      updateProxyBar(false,'Server proxy not responding at /healthz');
+      dbg('PROXY ERROR', err.message);
+
+      if(swStatusEl){
+        swStatusEl.textContent='✗ Server proxy not responding';
+        swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-red-400';
+      }
     }
   }
 
   function updateProxyBar(ok,msg){
-    const bar=document.getElementById('proxy-bar'); if(!bar) return;
-    bar.className=ok?'ok':'bad';
-    bar.textContent=ok?`✓ ${msg}`:`✗ ${msg}`;
+    const bar=document.getElementById('proxy-bar');
+    if(!bar) return;
+
+    if(ok === 'loading'){
+      bar.className='loading';
+      bar.textContent=`⏳ ${msg}`;
+      return;
+    }
+
+    bar.className = ok ? 'ok' : 'bad';
+    bar.textContent = ok ? `✓ ${msg}` : `✗ ${msg}`;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
   // CHART
   // ═══════════════════════════════════════════════════════════════════════
   function updateChart(base){
-    const c=document.getElementById('chart-container'); c.innerHTML='';
+    const c=document.getElementById('chart-container');
+    c.innerHTML='';
+
     const wrap=document.createElement('div');
-    wrap.className='tradingview-widget-container'; wrap.style.cssText='width:100%;height:100%;';
+    wrap.className='tradingview-widget-container';
+    wrap.style.cssText='width:100%;height:100%;';
+
     const inner=document.createElement('div');
-    inner.className='tradingview-widget-container__widget'; inner.style.cssText='width:100%;height:100%;';
+    inner.className='tradingview-widget-container__widget';
+    inner.style.cssText='width:100%;height:100%;';
+
     const s=document.createElement('script');
     s.type='text/javascript';
     s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
     s.async=true;
-    s.textContent=JSON.stringify({autosize:true,symbol:`BINANCE:${base}`,interval:'1',timezone:'Etc/UTC',theme:'dark',style:'1',locale:'en',enable_publishing:false,hide_side_toolbar:false,allow_symbol_change:true,calendar:false,hide_legend:false,support_host:'https://www.tradingview.com'});
-    wrap.appendChild(inner); wrap.appendChild(s); c.appendChild(wrap);
+    s.textContent=JSON.stringify({
+      autosize:true,
+      symbol:`BINANCE:${base}`,
+      interval:'1',
+      timezone:'Etc/UTC',
+      theme:'dark',
+      style:'1',
+      locale:'en',
+      enable_publishing:false,
+      hide_side_toolbar:false,
+      allow_symbol_change:true,
+      calendar:false,
+      hide_legend:false,
+      support_host:'https://www.tradingview.com'
+    });
+
+    wrap.appendChild(inner);
+    wrap.appendChild(s);
+    c.appendChild(wrap);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // STATUS PANEL
+  // STATUS PANEL — visible names removed
   // ═══════════════════════════════════════════════════════════════════════
   function buildStatusPanel(){
-    const p=document.getElementById('ex-status-panel'); p.innerHTML='';
-    EXCHANGES.forEach(({id,label})=>{
-      const chip=document.createElement('div');
-      chip.className='ex-status-chip'; chip.id=`chip-${id}`;
-      chip.innerHTML=`<span class="status-dot connecting" id="dot-${id}"></span><span class="exl-${id} truncate">${label}</span>`;
-      p.appendChild(chip);
+    const p=document.getElementById('ex-status-panel');
+    if(!p) return;
+
+    p.innerHTML='';
+
+    // Stream status names removed.
+    // Keep hidden dots only so setEx() and stream counting still work.
+    EXCHANGES.forEach(({id})=>{
+      const dot=document.createElement('span');
+      dot.id=`dot-${id}`;
+      dot.className='status-dot connecting';
+      dot.style.display='none';
+      p.appendChild(dot);
     });
   }
+
   function setEx(id,state){
     exStatus[id]=state;
+
     const d=document.getElementById(`dot-${id}`);
     if(d) d.className=`status-dot ${state}`;
+
     const n=Object.values(exStatus).filter(s=>s==='connected').length;
     document.getElementById('stat-streams').textContent=`${n}/${TOTAL_EX}`;
   }
@@ -375,31 +461,48 @@
   function ingest({exchange,price,qty,isBuy,ts}){
     tape.push({exchange,price,qty,isBuy,ts:ts||Date.now()});
     stamps.push(Date.now());
+
     if(tape.length>MAX_TAPE) tape.shift();
-    lastPrice=price; vol+=qty;
-    scheduleTape(); updateStats();
+
+    lastPrice=price;
+    vol+=qty;
+
+    scheduleTape();
+    updateStats();
   }
 
   // ═══════════════════════════════════════════════════════════════════════
   // RENDER — TAPE
   // ═══════════════════════════════════════════════════════════════════════
   let tapeRaf=false;
+
   function scheduleTape(){
-    if(tapeRaf) return; tapeRaf=true;
+    if(tapeRaf) return;
+    tapeRaf=true;
+
     requestAnimationFrame(()=>{
       tapeRaf=false;
+
       const el=document.getElementById('market-trades');
       const frag=document.createDocumentFragment();
+
       tape.forEach(t=>{
         const row=document.createElement('div');
         row.className=`tape-row ${t.isBuy?'tape-buy':'tape-sell'} ex-${t.exchange}`;
+
         const tm=new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
         row.innerHTML=`<span>${t.price.toFixed(2)}</span><span class="t-qty">${t.qty.toFixed(4)}</span><span class="t-time">${tm}</span>`;
+
         frag.appendChild(row);
       });
-      el.innerHTML=''; el.appendChild(frag);
-      if(lastPrice>0) document.getElementById('ticker-price').textContent=
-        `$${lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+
+      el.innerHTML='';
+      el.appendChild(frag);
+
+      if(lastPrice>0){
+        document.getElementById('ticker-price').textContent =
+          `$${lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+      }
     });
   }
 
@@ -407,31 +510,51 @@
   // RENDER — ORDER BOOK
   // ═══════════════════════════════════════════════════════════════════════
   let bookRaf=false;
+
   function scheduleBook(){
-    if(bookRaf) return; bookRaf=true;
+    if(bookRaf) return;
+    bookRaf=true;
+
     requestAnimationFrame(()=>{
       bookRaf=false;
-      const aEl=document.getElementById('dom-asks'),bEl=document.getElementById('dom-bids'),sp=document.getElementById('dom-spread');
-      const va=book.asks.slice(0,MAX_LEVELS),vb=book.bids.slice(0,MAX_LEVELS);
+
+      const aEl=document.getElementById('dom-asks');
+      const bEl=document.getElementById('dom-bids');
+      const sp=document.getElementById('dom-spread');
+
+      const va=book.asks.slice(0,MAX_LEVELS);
+      const vb=book.bids.slice(0,MAX_LEVELS);
+
       const all=[...va.map(r=>parseFloat(r[1])),...vb.map(r=>parseFloat(r[1]))];
       const mx=all.length?Math.max(...all):1;
+
       const makeRows=(levels,side)=>{
         const f=document.createDocumentFragment();
         const tc=side==='ask'?'text-red-400':'text-green-400';
         const bc=side==='ask'?'bg-red-500':'bg-green-500';
+
         levels.forEach(([price,qty])=>{
-          const p=parseFloat(price),q=parseFloat(qty);
+          const p=parseFloat(price);
+          const q=parseFloat(qty);
           const pct=Math.min(100,(q/mx)*100).toFixed(1);
+
           const r=document.createElement('div');
           r.className=`depth-row ${tc}`;
           r.innerHTML=`<div class="depth-bar ${bc}" style="width:${pct}%"></div><span class="depth-col">${p.toFixed(2)}</span><span class="depth-col">${q.toFixed(4)}</span>`;
+
           f.appendChild(r);
         });
+
         return f;
       };
-      aEl.innerHTML=''; aEl.appendChild(makeRows(va,'ask'));
-      bEl.innerHTML=''; bEl.appendChild(makeRows(vb,'bid'));
-      if(book.asks.length&&book.bids.length){
+
+      aEl.innerHTML='';
+      aEl.appendChild(makeRows(va,'ask'));
+
+      bEl.innerHTML='';
+      bEl.appendChild(makeRows(vb,'bid'));
+
+      if(book.asks.length && book.bids.length){
         const s=parseFloat(book.asks[0][0])-parseFloat(book.bids[0][0]);
         sp.textContent=`SPREAD: $${s.toFixed(2)}`;
       }
@@ -441,37 +564,100 @@
   function updateStats(){
     const now=Date.now();
     stamps=stamps.filter(t=>now-t<TPS_WIN);
+
     document.getElementById('stat-tps').textContent=(stamps.length/(TPS_WIN/1000)).toFixed(1);
     document.getElementById('stat-vol').textContent=vol>=1000?`${(vol/1000).toFixed(1)}K`:vol.toFixed(2);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // WS FACTORY + GZIP
+  // WS FACTORY + RECONNECT STATE
   // ═══════════════════════════════════════════════════════════════════════
+  const streamFactories = {};
+  const retryDelay = {};
+  const failCount = {};
+
   function makeWS(id,url,{onopen,onmessage,onping,pingMs}={}){
     return new Promise((res,rej)=>{
-      let ws; try{ws=new WebSocket(url);}catch(e){return rej(e);}
-      ws.binaryType='arraybuffer'; sockets[id]=ws;
+      let ws;
+
+      try{
+        ws=new WebSocket(url);
+      }catch(e){
+        return rej(e);
+      }
+
+      ws.binaryType='arraybuffer';
+      sockets[id]=ws;
+
+      let settled=false;
+
       ws.onopen=()=>{
+        settled=true;
+
+        failCount[id]=0;
+        retryDelay[id]=1500;
+
         setEx(id,'connected');
+
         if(onopen) onopen(ws);
-        if(onping&&pingMs) pings[id]=setInterval(()=>{if(ws.readyState===1)onping(ws);},pingMs);
+
+        if(onping && pingMs){
+          pings[id]=setInterval(()=>{
+            if(ws.readyState===1) onping(ws);
+          }, pingMs);
+        }
+
         res(ws);
       };
-      ws.onmessage=ev=>{try{onmessage(ev,ws);}catch(_){}};
+
+      ws.onmessage=ev=>{
+        try{
+          onmessage(ev,ws);
+        }catch(_){}
+      };
+
       ws.onerror=()=>{};
-      ws.onclose=()=>{if(ws._dead)return; clearInterval(pings[id]); setEx(id,'disconnected'); rej(new Error('closed'));};
+
+      ws.onclose=()=>{
+        if(ws._dead) return;
+
+        clearInterval(pings[id]);
+        setEx(id,'disconnected');
+
+        if(!settled){
+          return rej(new Error('closed'));
+        }
+
+        // If an already-open stream drops, reconnect it.
+        scheduleReconnect(id, 1500);
+      };
     });
   }
 
   async function gunzip(ab){
     const ds=new DecompressionStream('gzip');
-    const w=ds.writable.getWriter(); w.write(new Uint8Array(ab)); w.close();
-    const chunks=[],r=ds.readable.getReader();
-    while(true){const{done,value}=await r.read(); if(done)break; chunks.push(value);}
+    const w=ds.writable.getWriter();
+    w.write(new Uint8Array(ab));
+    w.close();
+
+    const chunks=[];
+    const r=ds.readable.getReader();
+
+    while(true){
+      const{done,value}=await r.read();
+      if(done) break;
+      chunks.push(value);
+    }
+
     const tot=chunks.reduce((a,c)=>a+c.length,0);
-    const out=new Uint8Array(tot); let off=0;
-    chunks.forEach(c=>{out.set(c,off);off+=c.length;});
+    const out=new Uint8Array(tot);
+
+    let off=0;
+    chunks.forEach(c=>{
+      out.set(c,off);
+      off+=c.length;
+    });
+
     return new TextDecoder().decode(out);
   }
 
@@ -479,15 +665,74 @@
   // STREAM MANAGER
   // ═══════════════════════════════════════════════════════════════════════
   function closeAll(){
-    Object.keys(sockets).forEach(id=>{const ws=sockets[id];if(ws){ws._dead=true;ws.onclose=null;ws.close();}delete sockets[id];});
-    Object.keys(pings).forEach(id=>{clearInterval(pings[id]);delete pings[id];});
+    Object.keys(sockets).forEach(id=>{
+      const ws=sockets[id];
+      if(ws){
+        ws._dead=true;
+        ws.onclose=null;
+        ws.close();
+      }
+      delete sockets[id];
+    });
+
+    Object.keys(pings).forEach(id=>{
+      clearInterval(pings[id]);
+      delete pings[id];
+    });
+
+    Object.keys(failCount).forEach(id=>{
+      delete failCount[id];
+    });
+
+    Object.keys(retryDelay).forEach(id=>{
+      delete retryDelay[id];
+    });
+
     EXCHANGES.forEach(e=>setEx(e.id,'disconnected'));
   }
+
+  function scheduleReconnect(id, delay=1500){
+    const factory = streamFactories[id];
+
+    if(!factory || DISABLED_EX.has(id)) return;
+
+    const next = Math.min(retryDelay[id] || delay, 30000);
+    retryDelay[id] = next * 1.6;
+
+    setTimeout(() => openStream(id, factory, next), next);
+  }
+
   function openStream(id,factory,retry=1500){
-    const sym=SYM[currentBase]?.[id];
-    if(!sym){setEx(id,'disconnected');return;}
+    streamFactories[id] = factory;
+    retryDelay[id] = retry;
+
+    const sym = SYM[currentBase]?.[id];
+
+    if(!sym || DISABLED_EX.has(id)){
+      setEx(id,'disconnected');
+      return;
+    }
+
     setEx(id,'connecting');
-    factory(sym,id).catch(()=>setTimeout(()=>openStream(id,factory,Math.min(retry*1.6,30000)),retry));
+
+    factory(sym,id)
+      .then(()=>{
+        failCount[id] = 0;
+        retryDelay[id] = 1500;
+      })
+      .catch((err)=>{
+        failCount[id] = (failCount[id] || 0) + 1;
+
+        dbg('WS FAIL', `${id} attempt ${failCount[id]}: ${err?.message || err}`);
+
+        if(failCount[id] >= 6){
+          dbg('WS DISABLE', `${id} disabled after ${failCount[id]} failed handshake attempts`);
+          setEx(id,'disconnected');
+          return;
+        }
+
+        scheduleReconnect(id, retry);
+      });
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -499,8 +744,15 @@
     return makeWS(id,`wss://stream.binance.com:9443/stream?streams=${sym}@depth20@100ms/${sym}@trade`,{
       onmessage(ev){
         const env=JSON.parse(ev.data);
-        if(env.stream?.includes('@depth')){book.bids=env.data.bids;book.asks=env.data.asks;scheduleBook();}
-        else if(env.stream?.includes('@trade')){const d=env.data;ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}
+
+        if(env.stream?.includes('@depth')){
+          book.bids=env.data.bids;
+          book.asks=env.data.asks;
+          scheduleBook();
+        }else if(env.stream?.includes('@trade')){
+          const d=env.data;
+          ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});
+        }
       }
     });
   }
@@ -508,197 +760,479 @@
   // 2. Binance Futures
   function connectBinanceFut(sym,id){
     return makeWS(id,`wss://fstream.binance.com/stream?streams=${sym}@aggTrade`,{
-      onmessage(ev){const env=JSON.parse(ev.data);if(env.stream?.includes('@aggTrade')){const d=env.data;ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}}
+      onmessage(ev){
+        const env=JSON.parse(ev.data);
+
+        if(env.stream?.includes('@aggTrade')){
+          const d=env.data;
+          ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});
+        }
+      }
     });
   }
 
   // 3. Bybit Spot
   function connectBybit(sym,id){
     return makeWS(id,'wss://stream.bybit.com/v5/public/spot',{
-      onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));},
-      onping(ws){ws.send(JSON.stringify({op:'ping'}));},pingMs:20000
+      onopen(ws){
+        ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.topic?.startsWith('publicTrade')){
+          (d.data||[]).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
+        }
+      },
+      onping(ws){
+        ws.send(JSON.stringify({op:'ping'}));
+      },
+      pingMs:20000
     });
   }
 
   // 4. Bybit Linear
   function connectBybitLin(sym,id){
     return makeWS(id,'wss://stream.bybit.com/v5/public/linear',{
-      onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));},
-      onping(ws){ws.send(JSON.stringify({op:'ping'}));},pingMs:20000
+      onopen(ws){
+        ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.topic?.startsWith('publicTrade')){
+          (d.data||[]).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
+        }
+      },
+      onping(ws){
+        ws.send(JSON.stringify({op:'ping'}));
+      },
+      pingMs:20000
     });
   }
 
   // 5. OKX Spot
   function connectOKX(sym,id){
     return makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{
-      onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));},
-      onping(ws){ws.send('ping');},pingMs:25000
+      onopen(ws){
+        ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.arg?.channel==='trades'){
+          (d.data||[]).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
+        }
+      },
+      onping(ws){
+        ws.send('ping');
+      },
+      pingMs:25000
     });
   }
 
   // 6. OKX Futures
   function connectOKXFut(sym,id){
     return makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{
-      onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));},
-      onping(ws){ws.send('ping');},pingMs:25000
+      onopen(ws){
+        ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.arg?.channel==='trades'){
+          (d.data||[]).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
+        }
+      },
+      onping(ws){
+        ws.send('ping');
+      },
+      pingMs:25000
     });
   }
 
   // 7. Gate.io
   function connectGate(sym,id){
     return makeWS(id,'wss://api.gateio.ws/ws/v4/',{
-      onopen(ws){ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.trades',event:'subscribe',payload:[sym]}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='spot.trades'&&d.event==='update'){const t=d.result;ingest({exchange:'GATE',price:+t.price,qty:+t.amount,isBuy:t.side==='buy',ts:t.create_time_ms||Date.now()});}},
-      onping(ws){ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.ping',event:'',payload:null}));},pingMs:20000
+      onopen(ws){
+        ws.send(JSON.stringify({
+          time:Math.floor(Date.now()/1000),
+          channel:'spot.trades',
+          event:'subscribe',
+          payload:[sym]
+        }));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.channel==='spot.trades' && d.event==='update'){
+          const t=d.result;
+          ingest({exchange:'GATE',price:+t.price,qty:+t.amount,isBuy:t.side==='buy',ts:t.create_time_ms||Date.now()});
+        }
+      },
+      onping(ws){
+        ws.send(JSON.stringify({
+          time:Math.floor(Date.now()/1000),
+          channel:'spot.ping',
+          event:'',
+          payload:null
+        }));
+      },
+      pingMs:20000
     });
   }
 
   // 8. MEXC
   function connectMEXC(sym,id){
     return makeWS(id,'wss://wbs.mexc.com/ws',{
-      onopen(ws){ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${sym}`]}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.c?.includes('deals'))(d.d?.deals||[]).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}));},
-      onping(ws){ws.send(JSON.stringify({method:'PING'}));},pingMs:20000
+      onopen(ws){
+        ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${sym}`]}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.c?.includes('deals')){
+          (d.d?.deals||[]).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}));
+        }
+      },
+      onping(ws){
+        ws.send(JSON.stringify({method:'PING'}));
+      },
+      pingMs:20000
     });
   }
 
   // 9. Bitget
   function connectBitget(sym,id){
     return makeWS(id,'wss://ws.bitget.com/v2/ws/public',{
-      onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:sym}]}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.action==='snapshot'||d.action==='update')(d.data||[]).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}));},
-      onping(ws){ws.send('ping');},pingMs:25000
+      onopen(ws){
+        ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:sym}]}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.action==='snapshot' || d.action==='update'){
+          (d.data||[]).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}));
+        }
+      },
+      onping(ws){
+        ws.send('ping');
+      },
+      pingMs:25000
     });
   }
 
-  // 10. KuCoin — bullet-public routed through SW /kucoin-proxy to bypass CORS
+  // 10. KuCoin — token fetched through server-side proxy
   async function connectKucoin(sym,id){
     setEx(id,'connecting');
+
     let td;
-    try {
-      // Use SW proxy path instead of direct fetch — KuCoin blocks browser CORS
-      const endpoint = swReady
-        ? '/kucoin-proxy/api/v1/bullet-public'
-        : 'https://api.kucoin.com/api/v1/bullet-public';
-      dbg('KUCOIN',`token fetch via ${swReady?'SW proxy':'direct'}`);
-      const r=await fetch(endpoint,{method:'POST'});
-      td=await r.json();
-    } catch(e){
-      dbg('KUCOIN','token fetch failed:',e.message);
+
+    try{
+      const endpoint = '/api/kucoin/bullet-public';
+
+      dbg('KUCOIN','token fetch via server proxy');
+
+      const r = await fetch(endpoint, { method:'POST' });
+      td = await r.json();
+    }catch(e){
+      dbg('KUCOIN','token fetch failed:', e.message);
       return Promise.reject(new Error('kucoin token'));
     }
-    const{token,instanceServers}=td.data;
-    const url=`${instanceServers[0].endpoint}?token=${token}`;
-    const pi=instanceServers[0].pingInterval;
+
+    if(!td?.data?.token || !Array.isArray(td.data.instanceServers) || !td.data.instanceServers.length){
+      dbg('KUCOIN','invalid bullet-public response', td);
+      return Promise.reject(new Error('kucoin bullet response invalid'));
+    }
+
+    const {token, instanceServers} = td.data;
+    const url = `${instanceServers[0].endpoint}?token=${token}`;
+    const pi = instanceServers[0].pingInterval;
+
     let mid=1;
+
     return makeWS(id,url,{
-      onopen(ws){ws.send(JSON.stringify({id:mid++,type:'subscribe',topic:`/market/match:${sym}`,privateChannel:false,response:true}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='message'&&d.topic?.includes('/market/match')){const t=d.data;ingest({exchange:'KUCOIN',price:+t.price,qty:+t.size,isBuy:t.side==='buy',ts:+t.time/1e6});}},
-      onping(ws){ws.send(JSON.stringify({id:mid++,type:'ping'}));},pingMs:pi||18000
+      onopen(ws){
+        ws.send(JSON.stringify({
+          id:mid++,
+          type:'subscribe',
+          topic:`/market/match:${sym}`,
+          privateChannel:false,
+          response:true
+        }));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.type==='message' && d.topic?.includes('/market/match')){
+          const t=d.data;
+          ingest({exchange:'KUCOIN',price:+t.price,qty:+t.size,isBuy:t.side==='buy',ts:+t.time/1e6});
+        }
+      },
+      onping(ws){
+        ws.send(JSON.stringify({id:mid++,type:'ping'}));
+      },
+      pingMs:pi||18000
     });
   }
 
   // 11. Bitstamp
   function connectBitstamp(sym,id){
     return makeWS(id,'wss://ws.bitstamp.net',{
-      onopen(ws){ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${sym}`}}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.event==='trade'){const t=d.data;ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000});}}
+      onopen(ws){
+        ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${sym}`}}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.event==='trade'){
+          const t=d.data;
+          ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000});
+        }
+      }
     });
   }
 
   // 12. Gemini
   function connectGemini(sym,id){
     return makeWS(id,`wss://api.gemini.com/v2/marketdata?symbols=${sym}`,{
-      onopen(ws){ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2',symbols:[sym]}]}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='trade')ingest({exchange:'GEMINI',price:+d.price,qty:+d.quantity,isBuy:d.side==='buy',ts:d.timestamp||Date.now()});}
+      onopen(ws){
+        ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2',symbols:[sym]}]}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.type==='trade'){
+          ingest({exchange:'GEMINI',price:+d.price,qty:+d.quantity,isBuy:d.side==='buy',ts:d.timestamp||Date.now()});
+        }
+      }
     });
   }
 
   // 13. Kraken v2
   function connectKraken(sym,id){
     return makeWS(id,'wss://ws.kraken.com/v2',{
-      onopen(ws){ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[sym]},req_id:1}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='trade'&&d.type==='update')(d.data||[]).forEach(t=>ingest({exchange:'KRAKEN',price:+t.price,qty:+t.qty,isBuy:t.side==='buy',ts:new Date(t.timestamp).getTime()}));},
-      onping(ws){ws.send(JSON.stringify({method:'ping'}));},pingMs:30000
+      onopen(ws){
+        ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[sym]},req_id:1}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.channel==='trade' && d.type==='update'){
+          (d.data||[]).forEach(t=>ingest({
+            exchange:'KRAKEN',
+            price:+t.price,
+            qty:+t.qty,
+            isBuy:t.side==='buy',
+            ts:new Date(t.timestamp).getTime()
+          }));
+        }
+      },
+      onping(ws){
+        ws.send(JSON.stringify({method:'ping'}));
+      },
+      pingMs:30000
     });
   }
 
   // 14. Coinbase Advanced Trade
   function connectCoinbase(sym,id){
     return makeWS(id,'wss://advanced-trade-ws.coinbase.com',{
-      onopen(ws){ws.send(JSON.stringify({type:'subscribe',product_ids:[sym],channel:'market_trades'}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='market_trades')(d.events||[]).forEach(e=>(e.trades||[]).forEach(t=>ingest({exchange:'COINBASE',price:+t.price,qty:+t.size,isBuy:t.side==='BUY',ts:new Date(t.time).getTime()})));}
+      onopen(ws){
+        ws.send(JSON.stringify({type:'subscribe',product_ids:[sym],channel:'market_trades'}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.channel==='market_trades'){
+          (d.events||[]).forEach(e=>{
+            (e.trades||[]).forEach(t=>ingest({
+              exchange:'COINBASE',
+              price:+t.price,
+              qty:+t.size,
+              isBuy:t.side==='BUY',
+              ts:new Date(t.time).getTime()
+            }));
+          });
+        }
+      }
     });
   }
 
   // 15. Bitfinex
   function connectBitfinex(sym,id){
     return makeWS(id,'wss://api-pub.bitfinex.com/ws/2',{
-      onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbol:sym}));},
+      onopen(ws){
+        ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbol:sym}));
+      },
       onmessage:async(ev)=>{
         let text;
-        if(ev.data instanceof ArrayBuffer){try{text=await gunzip(ev.data);}catch{text=new TextDecoder().decode(ev.data);}}else{text=ev.data;}
+
+        if(ev.data instanceof ArrayBuffer){
+          try{
+            text=await gunzip(ev.data);
+          }catch{
+            text=new TextDecoder().decode(ev.data);
+          }
+        }else{
+          text=ev.data;
+        }
+
         const d=JSON.parse(text);
-        if(Array.isArray(d)&&d[1]==='te'){const[,,[,ts,amt,price]]=d;ingest({exchange:'BITFINEX',price:+price,qty:Math.abs(+amt),isBuy:+amt>0,ts});}
+
+        if(Array.isArray(d) && d[1]==='te'){
+          const[,,[,ts,amt,price]]=d;
+          ingest({exchange:'BITFINEX',price:+price,qty:Math.abs(+amt),isBuy:+amt>0,ts});
+        }
       },
-      onping(ws){ws.send(JSON.stringify({event:'ping'}));},pingMs:30000
+      onping(ws){
+        ws.send(JSON.stringify({event:'ping'}));
+      },
+      pingMs:30000
     });
   }
 
   // 16. HTX (GZip)
   function connectHTX(sym,id){
     return makeWS(id,'wss://api.huobi.pro/ws',{
-      onopen(ws){ws.send(JSON.stringify({sub:`market.${sym}.trade.detail`,id:'omni'}));},
+      onopen(ws){
+        ws.send(JSON.stringify({sub:`market.${sym}.trade.detail`,id:'omni'}));
+      },
       onmessage:async(ev)=>{
-        let text; try{text=await gunzip(ev.data);}catch{return;}
+        let text;
+
+        try{
+          text=await gunzip(ev.data);
+        }catch{
+          return;
+        }
+
         const d=JSON.parse(text);
-        if(d.ping){sockets[id]?.send(JSON.stringify({pong:d.ping}));return;}
-        if(d.ch?.includes('trade.detail')&&d.tick)(d.tick.data||[]).forEach(t=>ingest({exchange:'HTX',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.ts}));
+
+        if(d.ping){
+          sockets[id]?.send(JSON.stringify({pong:d.ping}));
+          return;
+        }
+
+        if(d.ch?.includes('trade.detail') && d.tick){
+          (d.tick.data||[]).forEach(t=>ingest({
+            exchange:'HTX',
+            price:+t.price,
+            qty:+t.amount,
+            isBuy:t.direction==='buy',
+            ts:t.ts
+          }));
+        }
       }
     });
   }
 
-  // 17. Phemex — FIXED: new endpoint wss://vapi.phemex.com/ws (old wss://phemex.com/ws = 410 Gone)
+  // 17. Phemex — routed through same-origin server WebSocket proxy
   function connectPhemex(sym,id){
-    return makeWS(id,'wss://vapi.phemex.com/ws',{
-      onopen(ws){ws.send(JSON.stringify({id:1,method:'trade.subscribe',params:[sym]}));},
+    const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const url = `${proto}${location.host}/api/ws/phemex`;
+
+    return makeWS(id,url,{
+      onopen(ws){
+        ws.send(JSON.stringify({
+          id:1,
+          method:'trade.subscribe',
+          params:[sym]
+        }));
+      },
       onmessage(ev){
         const d=JSON.parse(ev.data);
+
         // Phemex pong
         if(d.result==='pong') return;
-        if(d.type==='snapshot'||d.type==='incremental'){
-          (d.trades||[]).forEach(t=>
+
+        if(d.type==='snapshot' || d.type==='incremental'){
+          (d.trades||[]).forEach(t=>{
             // [timestamp_ns, side, price_ep×10000, qty]
-            ingest({exchange:'PHEMEX',price:+t[2]/1e4,qty:+t[3],isBuy:t[1]==='Buy',ts:Math.floor(+t[0]/1e6)})
-          );
+            ingest({
+              exchange:'PHEMEX',
+              price:+t[2]/1e4,
+              qty:+t[3],
+              isBuy:t[1]==='Buy',
+              ts:Math.floor(+t[0]/1e6)
+            });
+          });
         }
       },
-      onping(ws){ws.send(JSON.stringify({id:99,method:'server.ping',params:[]}));},pingMs:20000
+      onping(ws){
+        ws.send(JSON.stringify({
+          id:99,
+          method:'server.ping',
+          params:[]
+        }));
+      },
+      pingMs:20000
     });
   }
 
   // 18. Poloniex
   function connectPoloniex(sym,id){
     return makeWS(id,'wss://ws.poloniex.com/ws/public',{
-      onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbols:[sym]}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='trades'&&d.data)d.data.forEach(t=>ingest({exchange:'POLONIEX',price:+t.price,qty:+t.quantity,isBuy:t.takerSide==='buy',ts:t.ts||Date.now()}));},
-      onping(ws){ws.send(JSON.stringify({event:'ping'}));},pingMs:30000
+      onopen(ws){
+        ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbols:[sym]}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.channel==='trades' && d.data){
+          d.data.forEach(t=>ingest({
+            exchange:'POLONIEX',
+            price:+t.price,
+            qty:+t.quantity,
+            isBuy:t.takerSide==='buy',
+            ts:t.ts||Date.now()
+          }));
+        }
+      },
+      onping(ws){
+        ws.send(JSON.stringify({event:'ping'}));
+      },
+      pingMs:30000
     });
   }
 
   // 19. BingX (may GZip)
   function connectBingX(sym,id){
     return makeWS(id,'wss://open-api-ws.bingx.com/market',{
-      onopen(ws){ws.send(JSON.stringify({id:'omni-bingx',reqType:'sub',dataType:`${sym}@trade`}));},
+      onopen(ws){
+        ws.send(JSON.stringify({id:'omni-bingx',reqType:'sub',dataType:`${sym}@trade`}));
+      },
       onmessage:async(ev)=>{
         let text;
-        if(ev.data instanceof ArrayBuffer){try{text=await gunzip(ev.data);}catch{text=new TextDecoder().decode(ev.data);}}else{text=ev.data;}
-        if(text==='Ping'){sockets[id]?.send('Pong');return;}
-        try{const d=JSON.parse(text);if(d.data)ingest({exchange:'BINGX',price:+d.data.p,qty:+d.data.q,isBuy:d.data.m===false,ts:d.data.T||Date.now()});}catch{}
+
+        if(ev.data instanceof ArrayBuffer){
+          try{
+            text=await gunzip(ev.data);
+          }catch{
+            text=new TextDecoder().decode(ev.data);
+          }
+        }else{
+          text=ev.data;
+        }
+
+        if(text==='Ping'){
+          sockets[id]?.send('Pong');
+          return;
+        }
+
+        try{
+          const d=JSON.parse(text);
+
+          if(d.data){
+            ingest({
+              exchange:'BINGX',
+              price:+d.data.p,
+              qty:+d.data.q,
+              isBuy:d.data.m===false,
+              ts:d.data.T||Date.now()
+            });
+          }
+        }catch{}
       }
     });
   }
@@ -706,18 +1240,57 @@
   // 20. WOO X
   function connectWooX(sym,id){
     return makeWS(id,'wss://wss.woo.org/ws/stream/broadcast',{
-      onopen(ws){ws.send(JSON.stringify({event:'subscribe',topic:`${sym}@trade`}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.includes('@trade')&&d.data)ingest({exchange:'WOOX',price:+d.data.price,qty:+d.data.size,isBuy:d.data.side==='BUY',ts:d.data.ts||Date.now()});},
-      onping(ws){ws.send(JSON.stringify({event:'ping'}));},pingMs:25000
+      onopen(ws){
+        ws.send(JSON.stringify({event:'subscribe',topic:`${sym}@trade`}));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.topic?.includes('@trade') && d.data){
+          ingest({
+            exchange:'WOOX',
+            price:+d.data.price,
+            qty:+d.data.size,
+            isBuy:d.data.side==='BUY',
+            ts:d.data.ts||Date.now()
+          });
+        }
+      },
+      onping(ws){
+        ws.send(JSON.stringify({event:'ping'}));
+      },
+      pingMs:25000
     });
   }
 
   // 21. Deribit
   function connectDeribit(sym,id){
     return makeWS(id,'wss://www.deribit.com/ws/api/v2',{
-      onopen(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:1,method:'public/subscribe',params:{channels:[`trades.${sym}.raw`]}}));},
-      onmessage(ev){const d=JSON.parse(ev.data);if(d.method==='subscription'&&d.params?.channel?.startsWith('trades'))(d.params.data||[]).forEach(t=>ingest({exchange:'DERIBIT',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.timestamp}));},
-      onping(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}}));},pingMs:30000
+      onopen(ws){
+        ws.send(JSON.stringify({
+          jsonrpc:'2.0',
+          id:1,
+          method:'public/subscribe',
+          params:{channels:[`trades.${sym}.raw`]}
+        }));
+      },
+      onmessage(ev){
+        const d=JSON.parse(ev.data);
+
+        if(d.method==='subscription' && d.params?.channel?.startsWith('trades')){
+          (d.params.data||[]).forEach(t=>ingest({
+            exchange:'DERIBIT',
+            price:+t.price,
+            qty:+t.amount,
+            isBuy:t.direction==='buy',
+            ts:t.timestamp
+          }));
+        }
+      },
+      onping(ws){
+        ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}}));
+      },
+      pingMs:30000
     });
   }
 
@@ -737,8 +1310,10 @@
 
   function launchAll(){
     EXCHANGES.forEach(({id})=>{
-      const f=ADAPTERS[id]; if(!f) return;
-      setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*2000);
+      const f=ADAPTERS[id];
+      if(!f) return;
+
+      setTimeout(()=>openStream(id,(s,x)=>f(s,x)), Math.random()*2000);
     });
   }
 
@@ -746,35 +1321,69 @@
   // SYMBOL SWITCH
   // ═══════════════════════════════════════════════════════════════════════
   function switchSymbol(b){
-    currentBase=b; tape=[]; stamps=[]; lastPrice=0; vol=0;
-    book.asks=[]; book.bids=[];
+    currentBase=b;
+
+    tape=[];
+    stamps=[];
+    lastPrice=0;
+    vol=0;
+
+    book.asks=[];
+    book.bids=[];
+
     document.getElementById('ticker-price').textContent='--';
     document.getElementById('dom-spread').textContent='SPREAD: --';
     document.getElementById('market-trades').innerHTML='';
     document.getElementById('dom-asks').innerHTML='';
     document.getElementById('dom-bids').innerHTML='';
-    closeAll(); updateChart(b); setTimeout(launchAll,300);
+
+    closeAll();
+    updateChart(b);
+
+    setTimeout(launchAll,300);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
   // AI — Key modal
   // ═══════════════════════════════════════════════════════════════════════
-  function openKeyModal(){document.getElementById('key-modal').classList.remove('hidden');document.getElementById('nim-key-input').value=nimKey||'';document.getElementById('key-err').classList.add('hidden');}
-  function dismissModal(){document.getElementById('key-modal').classList.add('hidden');}
+  function openKeyModal(){
+    document.getElementById('key-modal').classList.remove('hidden');
+    document.getElementById('nim-key-input').value=nimKey||'';
+    document.getElementById('key-err').classList.add('hidden');
+  }
+
+  function dismissModal(){
+    document.getElementById('key-modal').classList.add('hidden');
+  }
+
   function saveNimKey(){
     const v=document.getElementById('nim-key-input').value.trim();
     const err=document.getElementById('key-err');
-    if(!v.startsWith('nvapi-')){err.textContent='Key must start with nvapi-';err.classList.remove('hidden');return;}
-    nimKey=v; sessionStorage.setItem('nim_key',nimKey); dismissModal();
+
+    if(!v.startsWith('nvapi-')){
+      err.textContent='Key must start with nvapi-';
+      err.classList.remove('hidden');
+      return;
+    }
+
+    nimKey=v;
+    sessionStorage.setItem('nim_key',nimKey);
+
+    dismissModal();
+
     appendMsg('sys','✓ Key saved. GLM-5.2 ready.');
     dbg('KEY','saved to sessionStorage');
   }
 
   function toggleAiPanel(){
-    const panel=document.getElementById('ai-panel'),chev=document.getElementById('ai-chevron');
+    const panel=document.getElementById('ai-panel');
+    const chev=document.getElementById('ai-chevron');
+
     aiOpen=!aiOpen;
+
     panel.style.height=aiOpen?'310px':'32px';
     chev.textContent=aiOpen?'▼':'▲';
+
     ['ai-messages','ai-input-row','proxy-bar'].forEach(id=>{
       document.getElementById(id).style.display=aiOpen?'':'none';
     });
@@ -783,97 +1392,179 @@
   function appendMsg(role,text){
     const el=document.getElementById('ai-messages');
     const div=document.createElement('div');
+
     if(role==='user')       div.className='msg-user';
     else if(role==='think') div.className='msg-think';
     else if(role==='error') div.className='msg-err';
     else if(role==='sys')   div.className='msg-sys';
     else                    div.className='msg-ai';
+
     div.textContent=text;
-    el.appendChild(div); el.scrollTop=el.scrollHeight;
+
+    el.appendChild(div);
+    el.scrollTop=el.scrollHeight;
+
     return div;
   }
 
   function buildMarketCtx(){
     const recent=tape.slice(-30);
-    const buys=recent.filter(t=>t.isBuy).length,sells=recent.length-buys;
+
+    const buys=recent.filter(t=>t.isBuy).length;
+    const sells=recent.length-buys;
+
     const avgP=recent.length?(recent.reduce((a,t)=>a+t.price,0)/recent.length).toFixed(2):'N/A';
+
     const bestAsk=book.asks[0]?parseFloat(book.asks[0][0]).toFixed(2):'N/A';
     const bestBid=book.bids[0]?parseFloat(book.bids[0][0]).toFixed(2):'N/A';
     const spread=(book.asks[0]&&book.bids[0])?(parseFloat(book.asks[0][0])-parseFloat(book.bids[0][0])).toFixed(2):'N/A';
-    const active=Object.entries(exStatus).filter(([,s])=>s==='connected').map(([id])=>id).join(', ')||'none';
-    return `[Live Snapshot — ${currentBase} @ ${new Date().toISOString()}]\nLast: $${lastPrice>0?lastPrice.toFixed(2):'--'} | Ask: $${bestAsk} | Bid: $${bestBid} | Spread: $${spread}\nLast 30 trades → Buys: ${buys}, Sells: ${sells} | Avg: $${avgP}\nSession vol: ${vol>=1000?(vol/1000).toFixed(2)+'K':vol.toFixed(4)}\nFeeds active: ${active}\n`;
+
+    const active=Object.entries(exStatus)
+      .filter(([,s])=>s==='connected')
+      .map(([id])=>id)
+      .join(', ') || 'none';
+
+    return `[Live Snapshot — ${currentBase} @ ${new Date().toISOString()}]
+Last: $${lastPrice>0?lastPrice.toFixed(2):'--'} | Ask: $${bestAsk} | Bid: $${bestBid} | Spread: $${spread}
+Last 30 trades → Buys: ${buys}, Sells: ${sells} | Avg: $${avgP}
+Session vol: ${vol>=1000?(vol/1000).toFixed(2)+'K':vol.toFixed(4)}
+Feeds active: ${active}
+`;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // AI — Send to GLM-5.2 via SW proxy
+  // AI — Send to GLM-5.2 via server proxy
   // ═══════════════════════════════════════════════════════════════════════
   async function sendToGLM(){
     if(aiBusy) return;
-    if(!nimKey){openKeyModal();return;}
-    if(!swReady){appendMsg('error','⚠ SW proxy not ready yet. Wait a moment and retry.');return;}
+    if(!nimKey){
+      openKeyModal();
+      return;
+    }
 
-    const inp=document.getElementById('ai-input'),btn=document.getElementById('ai-send-btn');
-    const userMsg=inp.value.trim(); if(!userMsg) return;
-    inp.value=''; inp.style.height='auto';
-    aiBusy=true; btn.disabled=true;
+    const inp=document.getElementById('ai-input');
+    const btn=document.getElementById('ai-send-btn');
+
+    const userMsg=inp.value.trim();
+    if(!userMsg) return;
+
+    inp.value='';
+    inp.style.height='auto';
+
+    aiBusy=true;
+    btn.disabled=true;
+
     document.getElementById('nim-dot').classList.add('busy');
+
     appendMsg('user',userMsg);
 
     const messages=[
-      {role:'system',content:`You are a professional crypto market analyst in a live multi-exchange terminal.\nBe concise and analytical. Use bullets for lists.\n\n${buildMarketCtx()}`},
+      {
+        role:'system',
+        content:`You are a professional crypto market analyst in a live multi-exchange terminal.
+Be concise and analytical. Use bullets for lists.
+
+${buildMarketCtx()}`
+      },
       ...aiHistory,
       {role:'user',content:userMsg},
     ];
+
     aiHistory.push({role:'user',content:userMsg});
 
     const bubble=appendMsg('ai','');
-    let fullText='',thinkBubble=null,thinkText='';
+
+    let fullText='';
+    let thinkBubble=null;
+    let thinkText='';
+
     dbg('NIM',`→ POST ${NIM_PROXY}`);
 
     try{
       const resp=await fetch(NIM_PROXY,{
         method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':`Bearer ${nimKey}`},
-        body:JSON.stringify({model:NIM_MODEL,messages,temperature:0.6,top_p:0.9,max_tokens:1024,stream:true}),
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':`Bearer ${nimKey}`
+        },
+        body:JSON.stringify({
+          model:NIM_MODEL,
+          messages,
+          temperature:0.6,
+          top_p:0.9,
+          max_tokens:1024,
+          stream:true
+        }),
       });
 
       dbg('NIM',`← ${resp.status} ${resp.statusText}`);
 
       if(!resp.ok){
         let errBody='(no body)';
-        try{errBody=await resp.text();}catch{}
+
+        try{
+          errBody=await resp.text();
+        }catch{}
+
         dbg('NIM ERROR',`${resp.status}:`,errBody.slice(0,400));
+
         let msg=`HTTP ${resp.status} ${resp.statusText}`;
-        try{const p=JSON.parse(errBody);msg+='\n'+(p?.message||p?.detail||p?.error?.message||errBody.slice(0,300));}
-        catch{msg+='\n'+errBody.slice(0,300);}
+
+        try{
+          const p=JSON.parse(errBody);
+          msg+='\n'+(p?.message || p?.detail || p?.error?.message || errBody.slice(0,300));
+        }catch{
+          msg+='\n'+errBody.slice(0,300);
+        }
+
         if(resp.status===401) msg+='\n→ Invalid or expired nvapi- key.';
         if(resp.status===403) msg+='\n→ Key lacks access to this model.';
         if(resp.status===429) msg+='\n→ Rate limit hit. Wait and retry.';
         if(resp.status===422) msg+='\n→ Bad payload (check model name).';
-        bubble.remove(); aiHistory.pop();
-        appendMsg('error',msg); return;
+
+        bubble.remove();
+        aiHistory.pop();
+
+        appendMsg('error',msg);
+
+        return;
       }
 
-      const reader=resp.body.getReader(),decoder=new TextDecoder();
+      const reader=resp.body.getReader();
+      const decoder=new TextDecoder();
+
       let buf='';
+
       while(true){
-        const{done,value}=await reader.read(); if(done) break;
+        const{done,value}=await reader.read();
+        if(done) break;
+
         buf+=decoder.decode(value,{stream:true});
-        const lines=buf.split('\n'); buf=lines.pop();
+
+        const lines=buf.split('\n');
+        buf=lines.pop();
+
         for(const line of lines){
           if(!line.startsWith('data:')) continue;
+
           const payload=line.slice(5).trim();
           if(payload==='[DONE]') break;
+
           try{
             const chunk=JSON.parse(payload);
             const delta=chunk.choices?.[0]?.delta;
+
             if(!delta) continue;
+
             if(delta.reasoning_content){
               thinkText+=delta.reasoning_content;
+
               if(!thinkBubble) thinkBubble=appendMsg('think','');
+
               thinkBubble.textContent=`💭 Thinking…\n${thinkText}`;
               document.getElementById('ai-messages').scrollTop=9999;
             }
+
             if(delta.content){
               fullText+=delta.content;
               bubble.textContent=fullText;
@@ -884,21 +1575,36 @@
       }
 
       dbg('NIM',`stream done, ${fullText.length} chars`);
+
       aiHistory.push({role:'assistant',content:fullText});
+
       if(aiHistory.length>20) aiHistory.splice(0,2);
 
     }catch(err){
-      bubble.remove(); aiHistory.pop();
+      bubble.remove();
+      aiHistory.pop();
+
       dbg('NIM CATCH',err.message);
-      appendMsg('error',`Fetch failed: ${err.message}\n→ Check proxy-bar — SW may still be loading.`);
+
+      appendMsg('error',`Fetch failed: ${err.message}
+→ Check that server.js is running and /healthz returns OK.`);
     }finally{
-      aiBusy=false; btn.disabled=false;
+      aiBusy=false;
+      btn.disabled=false;
       document.getElementById('nim-dot').classList.remove('busy');
     }
   }
 
-  function handleAiKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendToGLM();}}
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')dismissModal();});
+  function handleAiKey(e){
+    if(e.key==='Enter' && !e.shiftKey){
+      e.preventDefault();
+      sendToGLM();
+    }
+  }
+
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape') dismissModal();
+  });
 
   // ═══════════════════════════════════════════════════════════════════════
   // BOOT
@@ -906,8 +1612,11 @@
   window.addEventListener('DOMContentLoaded',async()=>{
     buildStatusPanel();
     updateChart(currentBase);
-    await registerSW();   // must complete before launchAll so KuCoin proxy is ready
+
+    await registerSW();
+
     launchAll();
+
     if(nimKey){
       dismissModal();
       appendMsg('ai',`GLM-5.2 ready. Watching ${currentBase} across all active feeds.`);
