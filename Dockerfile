@@ -22,6 +22,6 @@ RUN apt-get update \
 
 COPY --from=builder /app/target/release/omni-stream-backend /usr/local/bin/omni-stream-backend
 
-EXPOSE 3000
+EXPOSE 10000
 
 CMD ["omni-stream-backend"]
