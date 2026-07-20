@@ -4,7 +4,6 @@ An ultra-lightweight, decoupled quantitative processing suite executing low-late
 
 ## Repository Component Matrix
 *   **Main Workspace Front-end:** Fully dynamic zero-dependency user workspace providing real-time canvas instrumentation and interactive order depth monitoring.
-*   **Asynchronous Processing Back-end:** Native structural runtime orchestrating signed testnet order transmission, REST aggregate mapping pipelines, and secure key operations.
 
 ## Repository Disclaimer
 > [!IMPORTANT]
