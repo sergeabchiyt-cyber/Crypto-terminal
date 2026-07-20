@@ -7,7 +7,7 @@ use axum::{
         State,
     },
     http::{header, HeaderMap, HeaderValue, Method, StatusCode},
-    response::{IntoResponse, Response},
+    response::Response,
     routing::{get, post},
     Json, Router,
 };
@@ -167,15 +167,19 @@ async fn kucoin_bullet(State(state): State<AppState>) -> Result<Response, AppErr
     let upstream = state
         .client
         .post(&url)
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(header::USER_AGENT, "OmniStream/1.0")
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .header(reqwest::header::USER_AGENT, "OmniStream/1.0")
         .body("{}")
         .send()
         .await
         .map_err(|e| bad_gateway(format!("KuCoin request failed: {e}")))?;
 
     let status = upstream.status();
-    let content_type = upstream.headers().get(header::CONTENT_TYPE).cloned();
+
+    let content_type = upstream
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| HeaderValue::from_bytes(v.as_bytes()).ok());
 
     let bytes = upstream
         .bytes()
@@ -208,12 +212,15 @@ async fn nim_chat(
     let mut req = state
         .client
         .post(&url)
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(header::ACCEPT, "text/event-stream")
-        .header(header::USER_AGENT, "OmniStream/1.0");
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .header(reqwest::header::ACCEPT, "text/event-stream")
+        .header(reqwest::header::USER_AGENT, "OmniStream/1.0");
 
     if let Some(auth) = headers.get(header::AUTHORIZATION) {
-        req = req.header(header::AUTHORIZATION, auth);
+        let auth_value = reqwest::header::HeaderValue::from_bytes(auth.as_bytes())
+            .map_err(|e| bad_gateway(format!("invalid Authorization header: {e}")))?;
+
+        req = req.header(reqwest::header::AUTHORIZATION, auth_value);
     }
 
     let upstream = req
@@ -223,7 +230,11 @@ async fn nim_chat(
         .map_err(|e| bad_gateway(format!("NIM request failed: {e}")))?;
 
     let status = upstream.status();
-    let content_type = upstream.headers().get(header::CONTENT_TYPE).cloned();
+
+    let content_type = upstream
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| HeaderValue::from_bytes(v.as_bytes()).ok());
 
     let stream = upstream.bytes_stream();
 
@@ -281,18 +292,20 @@ async fn handle_phemex(socket: WebSocket, state: AppState) {
 
     let client_to_upstream = async move {
         while let Some(Ok(msg)) = client_stream.next().await {
-            let out = axum_to_tungstenite(msg);
-            if upstream_sink.send(out).await.is_err() {
-                break;
+            if let Some(out) = axum_to_tungstenite(msg) {
+                if upstream_sink.send(out).await.is_err() {
+                    break;
+                }
             }
         }
     };
 
     let upstream_to_client = async move {
         while let Some(Ok(msg)) = upstream_stream.next().await {
-            let out = tungstenite_to_axum(msg);
-            if client_sink.send(out).await.is_err() {
-                break;
+            if let Some(out) = tungstenite_to_axum(msg) {
+                if client_sink.send(out).await.is_err() {
+                    break;
+                }
             }
         }
     };
@@ -303,22 +316,33 @@ async fn handle_phemex(socket: WebSocket, state: AppState) {
     }
 }
 
-fn axum_to_tungstenite(msg: AxumMessage) -> TungsteniteMessage {
+#[allow(unreachable_patterns)]
+fn axum_to_tungstenite(msg: AxumMessage) -> Option<TungsteniteMessage> {
     match msg {
-        AxumMessage::Text(s) => TungsteniteMessage::Text(s),
-        AxumMessage::Binary(b) => TungsteniteMessage::Binary(b),
-        AxumMessage::Ping(p) => TungsteniteMessage::Ping(p),
-        AxumMessage::Pong(p) => TungsteniteMessage::Pong(p),
-        AxumMessage::Close(_) => TungsteniteMessage::Close(None),
+        AxumMessage::Text(s) => Some(TungsteniteMessage::Text(s.to_string())),
+        AxumMessage::Binary(b) => Some(TungsteniteMessage::Binary(b.to_vec())),
+        AxumMessage::Ping(p) => Some(TungsteniteMessage::Ping(p.to_vec())),
+        AxumMessage::Pong(p) => Some(TungsteniteMessage::Pong(p.to_vec())),
+        AxumMessage::Close(_) => Some(TungsteniteMessage::Close(None)),
+
+        // Ignore unknown or raw frame variants.
+        _ => None,
     }
 }
 
-fn tungstenite_to_axum(msg: TungsteniteMessage) -> AxumMessage {
+#[allow(unreachable_patterns)]
+fn tungstenite_to_axum(msg: TungsteniteMessage) -> Option<AxumMessage> {
     match msg {
-        TungsteniteMessage::Text(s) => AxumMessage::Text(s),
-        TungsteniteMessage::Binary(b) => AxumMessage::Binary(b),
-        TungsteniteMessage::Ping(p) => AxumMessage::Ping(p),
-        TungsteniteMessage::Pong(p) => AxumMessage::Pong(p),
-        TungsteniteMessage::Close(_) => AxumMessage::Close(None),
+        TungsteniteMessage::Text(s) => Some(AxumMessage::Text(s.to_string().into())),
+        TungsteniteMessage::Binary(b) => Some(AxumMessage::Binary(b.to_vec().into())),
+        TungsteniteMessage::Ping(p) => Some(AxumMessage::Ping(p.to_vec().into())),
+        TungsteniteMessage::Pong(p) => Some(AxumMessage::Pong(p.to_vec().into())),
+        TungsteniteMessage::Close(_) => Some(AxumMessage::Close(None)),
+
+        // tungstenite 0.21 includes Frame(_), which Axum does not need to receive directly.
+        TungsteniteMessage::Frame(_) => None,
+
+        // Ignore unknown future variants.
+        _ => None,
     }
 }
