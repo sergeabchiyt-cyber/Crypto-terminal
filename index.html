@@ -11,86 +11,160 @@
     ::-webkit-scrollbar-track { background: #131722; }
     ::-webkit-scrollbar-thumb { background: #2a2e39; border-radius: 2px; }
 
-    /* Depth rows */
     .depth-row {
       position: relative;
       display: flex;
       justify-content: space-between;
-      padding: 1px 4px;
+      padding: 1px 6px;
       font-size: 11px;
-      line-height: 1.6;
+      line-height: 1.65;
     }
     .depth-bar {
       position: absolute; top: 0; bottom: 0; right: 0;
-      opacity: 0.12; pointer-events: none;
+      opacity: 0.13; pointer-events: none;
     }
     .depth-col { position: relative; z-index: 1; }
 
-    /* Exchange badge colours — one per exchange */
-    .ex-BINANCE      { color: #f0b90b; }
-    .ex-BINANCEFUT   { color: #f3d06d; }
-    .ex-BYBIT        { color: #ff6b35; }
-    .ex-BYBITLIN     { color: #ff9a6c; }
-    .ex-OKX          { color: #60a5fa; }
-    .ex-OKXFUT       { color: #93c5fd; }
-    .ex-GATE         { color: #34d399; }
-    .ex-MEXC         { color: #a78bfa; }
-    .ex-BITGET       { color: #fb923c; }
-    .ex-KUCOIN       { color: #22d3ee; }
-    .ex-CRYPTOCOM    { color: #6366f1; }
-    .ex-BITSTAMP     { color: #84cc16; }
-    .ex-GEMINI       { color: #e879f9; }
-    .ex-KRAKEN       { color: #7c3aed; }
-    .ex-COINBASE     { color: #0ea5e9; }
-    .ex-BITFINEX     { color: #f97316; }
-    .ex-HTX          { color: #10b981; }
-    .ex-PHEMEX       { color: #d946ef; }
-    .ex-POLONIEX     { color: #fcd34d; }
-    .ex-BINGX        { color: #38bdf8; }
-    .ex-WOOX         { color: #ec4899; }
-    .ex-DERIBIT      { color: #c084fc; }
+    /* Exchange accent colours — used on the left border of tape rows only */
+    .ex-BINANCE      { border-color: #f0b90b; }
+    .ex-BINANCEFUT   { border-color: #f3d06d; }
+    .ex-BYBIT        { border-color: #ff6b35; }
+    .ex-BYBITLIN     { border-color: #ff9a6c; }
+    .ex-OKX          { border-color: #60a5fa; }
+    .ex-OKXFUT       { border-color: #93c5fd; }
+    .ex-GATE         { border-color: #34d399; }
+    .ex-MEXC         { border-color: #a78bfa; }
+    .ex-BITGET       { border-color: #fb923c; }
+    .ex-KUCOIN       { border-color: #22d3ee; }
+    .ex-CRYPTOCOM    { border-color: #6366f1; }
+    .ex-BITSTAMP     { border-color: #84cc16; }
+    .ex-GEMINI       { border-color: #e879f9; }
+    .ex-KRAKEN       { border-color: #7c3aed; }
+    .ex-COINBASE     { border-color: #0ea5e9; }
+    .ex-BITFINEX     { border-color: #f97316; }
+    .ex-HTX          { border-color: #10b981; }
+    .ex-PHEMEX       { border-color: #d946ef; }
+    .ex-POLONIEX     { border-color: #fcd34d; }
+    .ex-BINGX        { border-color: #38bdf8; }
+    .ex-WOOX         { border-color: #ec4899; }
+    .ex-DERIBIT      { border-color: #c084fc; }
+
+    /* Exchange label colours — status panel only */
+    .exl-BINANCE      { color: #f0b90b; }
+    .exl-BINANCEFUT   { color: #f3d06d; }
+    .exl-BYBIT        { color: #ff6b35; }
+    .exl-BYBITLIN     { color: #ff9a6c; }
+    .exl-OKX          { color: #60a5fa; }
+    .exl-OKXFUT       { color: #93c5fd; }
+    .exl-GATE         { color: #34d399; }
+    .exl-MEXC         { color: #a78bfa; }
+    .exl-BITGET       { color: #fb923c; }
+    .exl-KUCOIN       { color: #22d3ee; }
+    .exl-CRYPTOCOM    { color: #6366f1; }
+    .exl-BITSTAMP     { color: #84cc16; }
+    .exl-GEMINI       { color: #e879f9; }
+    .exl-KRAKEN       { color: #7c3aed; }
+    .exl-COINBASE     { color: #0ea5e9; }
+    .exl-BITFINEX     { color: #f97316; }
+    .exl-HTX          { color: #10b981; }
+    .exl-PHEMEX       { color: #d946ef; }
+    .exl-POLONIEX     { color: #fcd34d; }
+    .exl-BINGX        { color: #38bdf8; }
+    .exl-WOOX         { color: #ec4899; }
+    .exl-DERIBIT      { color: #c084fc; }
 
     /* Status dot */
-    .status-dot { width:7px; height:7px; border-radius:50%; display:inline-block; flex-shrink:0; }
-    .status-dot.connected    { background:#22c55e; }
-    .status-dot.connecting   { background:#f59e0b; animation: pulse 1s infinite; }
-    .status-dot.disconnected { background:#ef4444; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      display: inline-block; flex-shrink: 0;
+    }
+    .status-dot.connected    { background: #22c55e; }
+    .status-dot.connecting   { background: #f59e0b; animation: pulse 1s infinite; }
+    .status-dot.disconnected { background: #ef4444; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
 
-    /* Exchange status grid */
-    #ex-status-panel { display:grid; grid-template-columns: repeat(3,1fr); gap:2px; }
+    /* Status grid */
+    #ex-status-panel {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+    }
     .ex-status-chip {
-      display:flex; align-items:center; gap:3px;
-      font-size:9px; padding:2px 4px;
-      background:#1c2030; border-radius:3px;
-      overflow:hidden;
+      display: flex; align-items: center; gap: 3px;
+      font-size: 8px; padding: 2px 3px;
+      background: #131722; border-radius: 3px;
+      overflow: hidden; white-space: nowrap;
     }
 
-    /* Scrollable trade tape */
-    #market-trades { overflow-y:hidden; }
+    /* Tape row — 3-column, exchange identified only by left border stripe */
+    .tape-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      align-items: center;
+      font-family: monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      padding: 1px 6px 1px 8px;
+      border-left: 3px solid transparent;
+      border-bottom: 1px solid #1a1d2e;
+    }
+    .tape-row .t-price  { }
+    .tape-row .t-qty    { text-align: right; }
+    .tape-row .t-time   { text-align: right; color: #6b7280; font-size: 10px; }
 
-    /* Chart iframe fills container */
-    #chart-frame { width:100%; height:100%; border:none; display:block; }
+    /* Tape buy/sell colour */
+    .tape-buy  { color: #4ade80; }
+    .tape-sell { color: #f87171; }
+
+    /* Chart fills its host */
+    #chart-container { width: 100%; height: 100%; }
+
+    /* DOM spread */
+    #dom-spread {
+      text-align: center;
+      font-family: monospace;
+      font-weight: 700;
+      font-size: 11px;
+      color: #facc15;
+      background: #1c2030;
+      border-radius: 3px;
+      padding: 2px 0;
+      margin: 2px 0;
+      flex-shrink: 0;
+    }
   </style>
 </head>
+
 <body class="flex h-screen w-screen font-sans antialiased">
 
-  <!-- ═══════════════════════════ LEFT: Chart (75%) ═══════════════════════════ -->
-  <div class="w-3/4 h-full relative border-r border-neutral-800 flex-shrink-0" id="chart-viewport">
-    <iframe id="chart-frame" src="" allowfullscreen></iframe>
+  <!-- ══════════════════════════════════════════════════════
+       LEFT — TradingView Chart (78%)
+  ══════════════════════════════════════════════════════ -->
+  <div class="flex-shrink-0 h-full relative border-r border-neutral-800"
+       style="width:78%;" id="chart-viewport">
+    <div id="chart-container"></div>
   </div>
 
-  <!-- ═══════════════════════════ RIGHT: Sidebar (25%) ═══════════════════════════ -->
-  <div class="w-1/4 h-full flex flex-col bg-[#131722] select-none overflow-hidden">
+  <!-- ══════════════════════════════════════════════════════
+       RIGHT — Sidebar (22%)
+  ══════════════════════════════════════════════════════ -->
+  <div class="h-full flex flex-col bg-[#131722] select-none overflow-hidden"
+       style="width:22%;">
 
-    <!-- Header: symbol picker + stats -->
-    <div class="p-2 border-b border-neutral-800 bg-[#1c2030] space-y-2 flex-shrink-0">
+    <!-- ── Header ── -->
+    <div class="flex-shrink-0 px-3 py-2 border-b border-neutral-800 bg-[#1c2030] space-y-2">
+
+      <!-- Symbol row -->
       <div class="flex items-center gap-2">
         <div class="flex-1">
-          <label class="block text-[9px] font-bold text-neutral-500 tracking-widest uppercase mb-0.5">Instrument</label>
+          <label class="block text-[9px] font-bold text-neutral-500 tracking-widest uppercase mb-0.5">
+            Instrument
+          </label>
           <select id="asset-selector"
                   onchange="switchSymbol(this.value)"
-                  class="w-full bg-[#131722] border border-neutral-800 text-xs text-yellow-400 font-mono font-bold py-1 px-2 rounded cursor-pointer focus:outline-none">
+                  class="w-full bg-[#131722] border border-neutral-800
+                         text-xs text-yellow-400 font-mono font-bold
+                         py-1 px-2 rounded cursor-pointer focus:outline-none">
             <option value="BTCUSDT">BTC / USDT</option>
             <option value="ETHUSDT">ETH / USDT</option>
             <option value="SOLUSDT">SOL / USDT</option>
@@ -98,266 +172,248 @@
             <option value="XRPUSDT">XRP / USDT</option>
           </select>
         </div>
-        <div class="text-right flex-shrink-0">
-          <div class="text-[9px] text-neutral-500 uppercase tracking-wider mb-0.5">Last</div>
-          <div id="ticker-price" class="font-mono font-bold text-sm text-neutral-100">--</div>
+        <div class="text-right flex-shrink-0 pt-4">
+          <div id="ticker-price"
+               class="font-mono font-bold text-base text-neutral-100 tabular-nums">
+            --
+          </div>
         </div>
       </div>
 
-      <!-- Mini stats row -->
+      <!-- Mini stats -->
       <div class="grid grid-cols-3 gap-1 text-[9px] font-mono">
-        <div class="bg-[#131722] rounded p-1">
+        <div class="bg-[#131722] rounded px-1.5 py-1">
           <div class="text-neutral-500">Streams</div>
           <div id="stat-streams" class="text-green-400 font-bold">0/22</div>
         </div>
-        <div class="bg-[#131722] rounded p-1">
+        <div class="bg-[#131722] rounded px-1.5 py-1">
           <div class="text-neutral-500">Trades/s</div>
           <div id="stat-tps" class="text-yellow-400 font-bold">0</div>
         </div>
-        <div class="bg-[#131722] rounded p-1">
+        <div class="bg-[#131722] rounded px-1.5 py-1">
           <div class="text-neutral-500">Volume</div>
           <div id="stat-vol" class="text-blue-400 font-bold">--</div>
         </div>
       </div>
     </div>
 
-    <!-- Orderbook DOM (Binance primary) -->
-    <div class="flex-shrink-0 px-2 pt-1 border-b border-neutral-800 pb-1" style="height:220px;">
-      <div class="grid grid-cols-2 text-[9px] text-neutral-500 pb-0.5 border-b border-neutral-800 mb-0.5">
-        <span class="font-mono">Price (USDT)</span>
-        <span class="font-mono text-right">Size</span>
+    <!-- ── Order Book DOM ── -->
+    <div class="flex-shrink-0 flex flex-col px-2 py-1 border-b border-neutral-800"
+         style="height:230px;">
+      <!-- Column headers -->
+      <div class="grid grid-cols-2 text-[9px] text-neutral-500 pb-0.5
+                  border-b border-neutral-800 mb-0.5 font-mono">
+        <span>Price (USDT)</span>
+        <span class="text-right">Size</span>
       </div>
-      <!-- Asks rendered bottom-up inside this fixed-height reverse column -->
-      <div id="dom-asks" class="flex flex-col-reverse overflow-hidden" style="height:87px;"></div>
-      <div id="dom-spread" class="py-0.5 text-center text-yellow-400 font-bold text-[10px] font-mono bg-[#1c2030] rounded my-0.5">
-        SPREAD: --
-      </div>
-      <div id="dom-bids" class="flex flex-col overflow-hidden" style="height:87px;"></div>
+      <!-- Asks — rendered bottom-up via flex-col-reverse -->
+      <div id="dom-asks" class="flex flex-col-reverse overflow-hidden flex-1"></div>
+      <!-- Spread -->
+      <div id="dom-spread">SPREAD: --</div>
+      <!-- Bids -->
+      <div id="dom-bids" class="flex flex-col overflow-hidden flex-1"></div>
     </div>
 
-    <!-- Unified Trade Tape -->
+    <!-- ── Unified Trade Tape ── -->
     <div class="flex-1 flex flex-col overflow-hidden">
-      <div class="grid grid-cols-4 text-[9px] text-neutral-500 px-2 py-1 border-b border-neutral-800 bg-[#1c2030] flex-shrink-0">
-        <span>Exch</span>
-        <span class="font-mono">Price</span>
-        <span class="font-mono text-right">Qty</span>
-        <span class="font-mono text-right">Time</span>
+      <!-- Tape column headers -->
+      <div class="flex-shrink-0 grid grid-cols-3 text-[9px] text-neutral-500
+                  px-2 py-1 border-b border-neutral-800 bg-[#1c2030] font-mono">
+        <span>Price</span>
+        <span class="text-right">Qty</span>
+        <span class="text-right">Time</span>
       </div>
-      <div id="market-trades" class="flex-1 overflow-hidden flex flex-col-reverse px-2 py-0.5 gap-0"></div>
+      <!-- Tape rows — newest at top via flex-col-reverse -->
+      <div id="market-trades"
+           class="flex-1 overflow-hidden flex flex-col-reverse"></div>
     </div>
 
-    <!-- Exchange status grid -->
-    <div class="border-t border-neutral-800 p-2 flex-shrink-0" style="max-height:130px;overflow-y:auto;">
-      <div class="text-[9px] text-neutral-500 uppercase tracking-widest mb-1">Stream Status</div>
+    <!-- ── Exchange Status Grid ── -->
+    <div class="flex-shrink-0 border-t border-neutral-800 p-2"
+         style="max-height:112px; overflow-y:auto;">
+      <div class="text-[8px] text-neutral-600 uppercase tracking-widest mb-1">
+        Stream Status
+      </div>
       <div id="ex-status-panel"></div>
     </div>
 
   </div><!-- /sidebar -->
 
   <script>
-  // ─────────────────────────────────────────────────────────────────────────────
-  // CONSTANTS & STATE
-  // ─────────────────────────────────────────────────────────────────────────────
-  const MAX_TAPE_ROWS  = 80;   // max trades held in ring buffer
-  const MAX_DOM_LEVELS = 10;   // visible book levels per side
-  const TPS_WINDOW_MS  = 2000; // window for trades-per-second calc
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONSTANTS
+  // ═══════════════════════════════════════════════════════════════════════════
+  const MAX_TAPE_ROWS  = 120;   // ring-buffer size
+  const MAX_DOM_LEVELS = 12;    // visible book levels per side
+  const TPS_WINDOW_MS  = 2000;  // window for trades-per-second calc
 
-  let currentBaseSymbol = 'BTCUSDT'; // e.g. "BTCUSDT"
-  let tapeBuffer    = [];    // ring buffer of unified trade objects
-  let tapeStamped   = [];    // timestamps for TPS calc
-  let lastPrice     = 0;
-  let rollingVolume = 0;
-  let activeConnCount = 0;
-  const sockets = {};        // { exchangeId: WebSocket }
-  const pingTimers = {};     // { exchangeId: intervalId }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+  let currentBaseSymbol = 'BTCUSDT';
+  let tapeBuffer   = [];   // ring buffer: unified trade objects
+  let tapeStamped  = [];   // timestamps for TPS
+  let lastPrice    = 0;
+  let rollingVol   = 0;
+  const sockets    = {};   // { id: WebSocket }
+  const pingTimers = {};   // { id: intervalId }
+  const book       = { asks: [], bids: [] };
 
-  // Primary orderbook state (Binance only)
-  const book = { asks: [], bids: [] };
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EXCHANGE REGISTRY
+  // ═══════════════════════════════════════════════════════════════════════════
+  const EXCHANGES = [
+    { id:'BINANCE',    label:'Binance'    },
+    { id:'BINANCEFUT', label:'BNB Fut'    },
+    { id:'BYBIT',      label:'Bybit'      },
+    { id:'BYBITLIN',   label:'Bybit Lin'  },
+    { id:'OKX',        label:'OKX'        },
+    { id:'OKXFUT',     label:'OKX Fut'    },
+    { id:'GATE',       label:'Gate.io'    },
+    { id:'MEXC',       label:'MEXC'       },
+    { id:'BITGET',     label:'Bitget'     },
+    { id:'KUCOIN',     label:'KuCoin'     },
+    { id:'CRYPTOCOM',  label:'Crypto.com' },
+    { id:'BITSTAMP',   label:'Bitstamp'   },
+    { id:'GEMINI',     label:'Gemini'     },
+    { id:'KRAKEN',     label:'Kraken'     },
+    { id:'COINBASE',   label:'Coinbase'   },
+    { id:'BITFINEX',   label:'Bitfinex'   },
+    { id:'HTX',        label:'HTX'        },
+    { id:'PHEMEX',     label:'Phemex'     },
+    { id:'POLONIEX',   label:'Poloniex'   },
+    { id:'BINGX',      label:'BingX'      },
+    { id:'WOOX',       label:'WOO X'      },
+    { id:'DERIBIT',    label:'Deribit'    },
+  ];
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // SYMBOL MAP  —  exchange-id → symbol string for that exchange
-  // ─────────────────────────────────────────────────────────────────────────────
+  const exStatus = {};
+  EXCHANGES.forEach(e => exStatus[e.id] = 'disconnected');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SYMBOL MAP — per-exchange symbol strings
+  // ═══════════════════════════════════════════════════════════════════════════
   const SYMBOL_MAP = {
     BTCUSDT: {
-      BINANCE:    'btcusdt',
-      BINANCEFUT: 'btcusdt',
-      BYBIT:      'BTCUSDT',
-      BYBITLIN:   'BTCUSDT',
-      OKX:        'BTC-USDT',
-      OKXFUT:     'BTC-USDT-SWAP',
-      GATE:       'BTC_USDT',
-      MEXC:       'BTCUSDT',
-      BITGET:     'BTCUSDT',
-      KUCOIN:     'BTC-USDT',
-      CRYPTOCOM:  'BTC_USDT',
-      BITSTAMP:   'btcusdt',
-      GEMINI:     'BTCUSD',
-      KRAKEN:     'BTC/USDT',
-      COINBASE:   'BTC-USDT',
-      BITFINEX:   'tBTCUSD',
-      HTX:        'btcusdt',
-      PHEMEX:     'BTCUSDT',
-      POLONIEX:   'BTC_USDT',
-      BINGX:      'BTC-USDT',
-      WOOX:       'SPOT_BTC_USDT',
-      DERIBIT:    'BTC_USDT',
+      BINANCE:'btcusdt', BINANCEFUT:'btcusdt',
+      BYBIT:'BTCUSDT',   BYBITLIN:'BTCUSDT',
+      OKX:'BTC-USDT',    OKXFUT:'BTC-USDT-SWAP',
+      GATE:'BTC_USDT',   MEXC:'BTCUSDT',
+      BITGET:'BTCUSDT',  KUCOIN:'BTC-USDT',
+      CRYPTOCOM:'BTC_USDT', BITSTAMP:'btcusdt',
+      GEMINI:'BTCUSD',   KRAKEN:'BTC/USDT',
+      COINBASE:'BTC-USDT', BITFINEX:'tBTCUSD',
+      HTX:'btcusdt',     PHEMEX:'BTCUSDT',
+      POLONIEX:'BTC_USDT', BINGX:'BTC-USDT',
+      WOOX:'SPOT_BTC_USDT', DERIBIT:'BTC_USDT',
     },
     ETHUSDT: {
-      BINANCE:    'ethusdt',
-      BINANCEFUT: 'ethusdt',
-      BYBIT:      'ETHUSDT',
-      BYBITLIN:   'ETHUSDT',
-      OKX:        'ETH-USDT',
-      OKXFUT:     'ETH-USDT-SWAP',
-      GATE:       'ETH_USDT',
-      MEXC:       'ETHUSDT',
-      BITGET:     'ETHUSDT',
-      KUCOIN:     'ETH-USDT',
-      CRYPTOCOM:  'ETH_USDT',
-      BITSTAMP:   'ethusdt',
-      GEMINI:     'ETHUSD',
-      KRAKEN:     'ETH/USDT',
-      COINBASE:   'ETH-USDT',
-      BITFINEX:   'tETHUSD',
-      HTX:        'ethusdt',
-      PHEMEX:     'ETHUSDT',
-      POLONIEX:   'ETH_USDT',
-      BINGX:      'ETH-USDT',
-      WOOX:       'SPOT_ETH_USDT',
-      DERIBIT:    'ETH_USDT',
+      BINANCE:'ethusdt', BINANCEFUT:'ethusdt',
+      BYBIT:'ETHUSDT',   BYBITLIN:'ETHUSDT',
+      OKX:'ETH-USDT',    OKXFUT:'ETH-USDT-SWAP',
+      GATE:'ETH_USDT',   MEXC:'ETHUSDT',
+      BITGET:'ETHUSDT',  KUCOIN:'ETH-USDT',
+      CRYPTOCOM:'ETH_USDT', BITSTAMP:'ethusdt',
+      GEMINI:'ETHUSD',   KRAKEN:'ETH/USDT',
+      COINBASE:'ETH-USDT', BITFINEX:'tETHUSD',
+      HTX:'ethusdt',     PHEMEX:'ETHUSDT',
+      POLONIEX:'ETH_USDT', BINGX:'ETH-USDT',
+      WOOX:'SPOT_ETH_USDT', DERIBIT:'ETH_USDT',
     },
     SOLUSDT: {
-      BINANCE:    'solusdt',
-      BINANCEFUT: 'solusdt',
-      BYBIT:      'SOLUSDT',
-      BYBITLIN:   'SOLUSDT',
-      OKX:        'SOL-USDT',
-      OKXFUT:     'SOL-USDT-SWAP',
-      GATE:       'SOL_USDT',
-      MEXC:       'SOLUSDT',
-      BITGET:     'SOLUSDT',
-      KUCOIN:     'SOL-USDT',
-      CRYPTOCOM:  'SOL_USDT',
-      BITSTAMP:   'solusd',
-      GEMINI:     'SOLUSD',
-      KRAKEN:     'SOL/USDT',
-      COINBASE:   'SOL-USDT',
-      BITFINEX:   'tSOLUSD',
-      HTX:        'solusdt',
-      PHEMEX:     'SOLUSDT',
-      POLONIEX:   'SOL_USDT',
-      BINGX:      'SOL-USDT',
-      WOOX:       'SPOT_SOL_USDT',
-      DERIBIT:    null,   // no SOL spot on Deribit
+      BINANCE:'solusdt', BINANCEFUT:'solusdt',
+      BYBIT:'SOLUSDT',   BYBITLIN:'SOLUSDT',
+      OKX:'SOL-USDT',    OKXFUT:'SOL-USDT-SWAP',
+      GATE:'SOL_USDT',   MEXC:'SOLUSDT',
+      BITGET:'SOLUSDT',  KUCOIN:'SOL-USDT',
+      CRYPTOCOM:'SOL_USDT', BITSTAMP:'solusd',
+      GEMINI:'SOLUSD',   KRAKEN:'SOL/USDT',
+      COINBASE:'SOL-USDT', BITFINEX:'tSOLUSD',
+      HTX:'solusdt',     PHEMEX:'SOLUSDT',
+      POLONIEX:'SOL_USDT', BINGX:'SOL-USDT',
+      WOOX:'SPOT_SOL_USDT', DERIBIT:null,
     },
     BNBUSDT: {
-      BINANCE:    'bnbusdt',
-      BINANCEFUT: 'bnbusdt',
-      BYBIT:      'BNBUSDT',
-      BYBITLIN:   'BNBUSDT',
-      OKX:        'BNB-USDT',
-      OKXFUT:     null,
-      GATE:       'BNB_USDT',
-      MEXC:       'BNBUSDT',
-      BITGET:     'BNBUSDT',
-      KUCOIN:     'BNB-USDT',
-      CRYPTOCOM:  'BNB_USDT',
-      BITSTAMP:   null,
-      GEMINI:     null,
-      KRAKEN:     null,
-      COINBASE:   null,
-      BITFINEX:   null,
-      HTX:        'bnbusdt',
-      PHEMEX:     'BNBUSDT',
-      POLONIEX:   'BNB_USDT',
-      BINGX:      'BNB-USDT',
-      WOOX:       'SPOT_BNB_USDT',
-      DERIBIT:    null,
+      BINANCE:'bnbusdt', BINANCEFUT:'bnbusdt',
+      BYBIT:'BNBUSDT',   BYBITLIN:'BNBUSDT',
+      OKX:'BNB-USDT',    OKXFUT:null,
+      GATE:'BNB_USDT',   MEXC:'BNBUSDT',
+      BITGET:'BNBUSDT',  KUCOIN:'BNB-USDT',
+      CRYPTOCOM:'BNB_USDT', BITSTAMP:null,
+      GEMINI:null,       KRAKEN:null,
+      COINBASE:null,     BITFINEX:null,
+      HTX:'bnbusdt',     PHEMEX:'BNBUSDT',
+      POLONIEX:'BNB_USDT', BINGX:'BNB-USDT',
+      WOOX:'SPOT_BNB_USDT', DERIBIT:null,
     },
     XRPUSDT: {
-      BINANCE:    'xrpusdt',
-      BINANCEFUT: 'xrpusdt',
-      BYBIT:      'XRPUSDT',
-      BYBITLIN:   'XRPUSDT',
-      OKX:        'XRP-USDT',
-      OKXFUT:     'XRP-USDT-SWAP',
-      GATE:       'XRP_USDT',
-      MEXC:       'XRPUSDT',
-      BITGET:     'XRPUSDT',
-      KUCOIN:     'XRP-USDT',
-      CRYPTOCOM:  'XRP_USDT',
-      BITSTAMP:   'xrpusdt',
-      GEMINI:     'XRPUSD',
-      KRAKEN:     'XRP/USDT',
-      COINBASE:   'XRP-USDT',
-      BITFINEX:   'tXRPUSD',
-      HTX:        'xrpusdt',
-      PHEMEX:     'XRPUSDT',
-      POLONIEX:   'XRP_USDT',
-      BINGX:      'XRP-USDT',
-      WOOX:       'SPOT_XRP_USDT',
-      DERIBIT:    null,
+      BINANCE:'xrpusdt', BINANCEFUT:'xrpusdt',
+      BYBIT:'XRPUSDT',   BYBITLIN:'XRPUSDT',
+      OKX:'XRP-USDT',    OKXFUT:'XRP-USDT-SWAP',
+      GATE:'XRP_USDT',   MEXC:'XRPUSDT',
+      BITGET:'XRPUSDT',  KUCOIN:'XRP-USDT',
+      CRYPTOCOM:'XRP_USDT', BITSTAMP:'xrpusdt',
+      GEMINI:'XRPUSD',   KRAKEN:'XRP/USDT',
+      COINBASE:'XRP-USDT', BITFINEX:'tXRPUSD',
+      HTX:'xrpusdt',     PHEMEX:'XRPUSDT',
+      POLONIEX:'XRP_USDT', BINGX:'XRP-USDT',
+      WOOX:'SPOT_XRP_USDT', DERIBIT:null,
     },
   };
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // EXCHANGE STATUS REGISTRY  (label, color class, connected flag)
-  // ─────────────────────────────────────────────────────────────────────────────
-  const EXCHANGES = [
-    { id:'BINANCE',    label:'Binance'     },
-    { id:'BINANCEFUT', label:'BNB Fut'     },
-    { id:'BYBIT',      label:'Bybit'       },
-    { id:'BYBITLIN',   label:'Bybit Lin'   },
-    { id:'OKX',        label:'OKX'         },
-    { id:'OKXFUT',     label:'OKX Fut'     },
-    { id:'GATE',       label:'Gate.io'     },
-    { id:'MEXC',       label:'MEXC'        },
-    { id:'BITGET',     label:'Bitget'      },
-    { id:'KUCOIN',     label:'KuCoin'      },
-    { id:'CRYPTOCOM',  label:'Crypto.com'  },
-    { id:'BITSTAMP',   label:'Bitstamp'    },
-    { id:'GEMINI',     label:'Gemini'      },
-    { id:'KRAKEN',     label:'Kraken'      },
-    { id:'COINBASE',   label:'Coinbase'    },
-    { id:'BITFINEX',   label:'Bitfinex'    },
-    { id:'HTX',        label:'HTX'         },
-    { id:'PHEMEX',     label:'Phemex'      },
-    { id:'POLONIEX',   label:'Poloniex'    },
-    { id:'BINGX',      label:'BingX'       },
-    { id:'WOOX',       label:'WOO X'       },
-    { id:'DERIBIT',    label:'Deribit'     },
-  ];
-
-  const exStatus = {};   // { id: 'connected'|'connecting'|'disconnected' }
-  EXCHANGES.forEach(e => exStatus[e.id] = 'disconnected');
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // CHART — TradingView iframe (recreated on symbol switch)
-  // ─────────────────────────────────────────────────────────────────────────────
-  function buildChartSrc(baseSymbol) {
-    const tvSymbol = encodeURIComponent(`BINANCE:${baseSymbol}`);
-    return `https://s3.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${tvSymbol}` +
-           `&interval=1&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=1c2030` +
-           `&theme=dark&style=1&timezone=Etc%2FUTC&studies=[]&locale=en` +
-           `&utm_source=omni&utm_medium=widget`;
-  }
-
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CHART — Official TradingView embed (script-tag injection)
+  // ═══════════════════════════════════════════════════════════════════════════
   function updateChart(baseSymbol) {
-    document.getElementById('chart-frame').src = buildChartSrc(baseSymbol);
+    const container = document.getElementById('chart-container');
+    container.innerHTML = '';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tradingview-widget-container';
+    wrapper.style.cssText = 'width:100%;height:100%;';
+
+    const inner = document.createElement('div');
+    inner.className = 'tradingview-widget-container__widget';
+    inner.style.cssText = 'width:100%;height:100%;';
+
+    const script = document.createElement('script');
+    script.type  = 'text/javascript';
+    script.src   = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.async = true;
+    script.textContent = JSON.stringify({
+      autosize:            true,
+      symbol:              `BINANCE:${baseSymbol}`,
+      interval:            '1',
+      timezone:            'Etc/UTC',
+      theme:               'dark',
+      style:               '1',
+      locale:              'en',
+      enable_publishing:   false,
+      hide_side_toolbar:   false,
+      allow_symbol_change: true,
+      calendar:            false,
+      hide_legend:         false,
+      support_host:        'https://www.tradingview.com',
+    });
+
+    wrapper.appendChild(inner);
+    wrapper.appendChild(script);
+    container.appendChild(wrapper);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
   // EXCHANGE STATUS PANEL
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
   function buildStatusPanel() {
     const panel = document.getElementById('ex-status-panel');
     panel.innerHTML = '';
-    EXCHANGES.forEach(e => {
+    EXCHANGES.forEach(({ id, label }) => {
       const chip = document.createElement('div');
       chip.className = 'ex-status-chip';
-      chip.id = `chip-${e.id}`;
-      chip.innerHTML = `<span class="status-dot connecting" id="dot-${e.id}"></span>
-                        <span class="ex-${e.id} truncate" style="font-size:8px">${e.label}</span>`;
+      chip.id = `chip-${id}`;
+      chip.innerHTML =
+        `<span class="status-dot connecting" id="dot-${id}"></span>` +
+        `<span class="exl-${id} truncate">${label}</span>`;
       panel.appendChild(chip);
     });
   }
@@ -365,155 +421,141 @@
   function setExStatus(id, state) {
     exStatus[id] = state;
     const dot = document.getElementById(`dot-${id}`);
-    if (dot) {
-      dot.className = `status-dot ${state}`;
-    }
-    // Update connected count
+    if (dot) dot.className = `status-dot ${state}`;
     const n = Object.values(exStatus).filter(s => s === 'connected').length;
     document.getElementById('stat-streams').textContent = `${n}/22`;
-    activeConnCount = n;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // UNIFIED TRADE INGESTION
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TRADE INGESTION
+  // ═══════════════════════════════════════════════════════════════════════════
   function ingestTrade({ exchange, price, qty, isBuy, ts }) {
-    const t = { exchange, price, qty, isBuy, ts: ts || Date.now() };
-    tapeBuffer.push(t);
+    tapeBuffer.push({ exchange, price, qty, isBuy, ts: ts || Date.now() });
     tapeStamped.push(Date.now());
     if (tapeBuffer.length > MAX_TAPE_ROWS) tapeBuffer.shift();
-
-    // Update last price & volume (simple rolling accumulator)
-    lastPrice = price;
-    rollingVolume += qty;
-
-    renderTape();
+    lastPrice  = price;
+    rollingVol += qty;
+    scheduleTapeRender();
     updateStats();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER FUNCTIONS
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Trades tape
-  let renderScheduled = false;
-  function renderTape() {
-    if (renderScheduled) return;
-    renderScheduled = true;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER — TAPE
+  // ═══════════════════════════════════════════════════════════════════════════
+  let tapeRafPending = false;
+  function scheduleTapeRender() {
+    if (tapeRafPending) return;
+    tapeRafPending = true;
     requestAnimationFrame(() => {
-      renderScheduled = false;
-      const el = document.getElementById('market-trades');
-      const frag = document.createDocumentFragment();
-      tapeBuffer.forEach(t => {
+      tapeRafPending = false;
+      renderTape();
+    });
+  }
+
+  function renderTape() {
+    const el   = document.getElementById('market-trades');
+    const frag = document.createDocumentFragment();
+
+    for (let i = 0; i < tapeBuffer.length; i++) {
+      const t   = tapeBuffer[i];
+      const row = document.createElement('div');
+      const sideClass = t.isBuy ? 'tape-buy' : 'tape-sell';
+
+      row.className = `tape-row ${sideClass} ex-${t.exchange}`;
+
+      const tm = new Date(t.ts).toLocaleTimeString([], {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+
+      row.innerHTML =
+        `<span class="t-price">${t.price.toFixed(2)}</span>` +
+        `<span class="t-qty">${t.qty.toFixed(4)}</span>` +
+        `<span class="t-time">${tm}</span>`;
+
+      frag.appendChild(row);
+    }
+
+    el.innerHTML = '';
+    el.appendChild(frag);
+
+    if (lastPrice > 0) {
+      document.getElementById('ticker-price').textContent =
+        `$${lastPrice.toLocaleString(undefined, {
+          minimumFractionDigits: 2, maximumFractionDigits: 2
+        })}`;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER — ORDER BOOK DOM
+  // ═══════════════════════════════════════════════════════════════════════════
+  let domRafPending = false;
+  function scheduleBookRender() {
+    if (domRafPending) return;
+    domRafPending = true;
+    requestAnimationFrame(() => {
+      domRafPending = false;
+      renderDOM();
+    });
+  }
+
+  function renderDOM() {
+    const asksEl   = document.getElementById('dom-asks');
+    const bidsEl   = document.getElementById('dom-bids');
+    const spreadEl = document.getElementById('dom-spread');
+
+    const visAsks = book.asks.slice(0, MAX_DOM_LEVELS);
+    const visBids = book.bids.slice(0, MAX_DOM_LEVELS);
+    const allQtys = [
+      ...visAsks.map(r => parseFloat(r[1])),
+      ...visBids.map(r => parseFloat(r[1])),
+    ];
+    const maxQty = allQtys.length ? Math.max(...allQtys) : 1;
+
+    const makeRows = (levels, side) => {
+      const frag      = document.createDocumentFragment();
+      const textColor = side === 'ask' ? 'text-red-400'   : 'text-green-400';
+      const barColor  = side === 'ask' ? 'bg-red-500'     : 'bg-green-500';
+      levels.forEach(([price, qty]) => {
+        const p   = parseFloat(price), q = parseFloat(qty);
+        const pct = Math.min(100, (q / maxQty) * 100).toFixed(1);
         const row = document.createElement('div');
-        const side = t.isBuy ? 'text-green-400' : 'text-red-400';
-        const tm   = new Date(t.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-        row.className = `grid grid-cols-4 gap-0 font-mono text-[10px] py-px border-b border-neutral-900 ${side}`;
+        row.className = `depth-row ${textColor}`;
         row.innerHTML =
-          `<span class="ex-${t.exchange} truncate font-bold text-[9px]">${t.exchange.slice(0,5)}</span>` +
-          `<span>${t.price.toFixed(2)}</span>` +
-          `<span class="text-right">${t.qty.toFixed(3)}</span>` +
-          `<span class="text-right text-neutral-500 text-[9px]">${tm}</span>`;
+          `<div class="depth-bar ${barColor}" style="width:${pct}%"></div>` +
+          `<span class="depth-col">${p.toFixed(2)}</span>` +
+          `<span class="depth-col">${q.toFixed(4)}</span>`;
         frag.appendChild(row);
       });
-      el.innerHTML = '';
-      el.appendChild(frag);
+      return frag;
+    };
 
-      // Update price ticker
-      if (lastPrice > 0) {
-        document.getElementById('ticker-price').textContent =
-          `$${lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      }
-    });
+    asksEl.innerHTML = ''; asksEl.appendChild(makeRows(visAsks, 'ask'));
+    bidsEl.innerHTML = ''; bidsEl.appendChild(makeRows(visBids, 'bid'));
+
+    if (book.asks.length && book.bids.length) {
+      const sp = parseFloat(book.asks[0][0]) - parseFloat(book.bids[0][0]);
+      spreadEl.textContent = `SPREAD: $${sp.toFixed(2)}`;
+    }
   }
 
-  // Orderbook DOM
-  let domScheduled = false;
-  function renderDOM() {
-    if (domScheduled) return;
-    domScheduled = true;
-    requestAnimationFrame(() => {
-      domScheduled = false;
-
-      const asksEl   = document.getElementById('dom-asks');
-      const bidsEl   = document.getElementById('dom-bids');
-      const spreadEl = document.getElementById('dom-spread');
-
-      // Normalise bar widths against visible max qty
-      const allQtys = [
-        ...book.asks.slice(0, MAX_DOM_LEVELS).map(r => parseFloat(r[1])),
-        ...book.bids.slice(0, MAX_DOM_LEVELS).map(r => parseFloat(r[1])),
-      ];
-      const maxQty = allQtys.length ? Math.max(...allQtys) : 1;
-
-      const makeRows = (levels, side) => {
-        const frag = document.createDocumentFragment();
-        const colorClass = side === 'ask' ? 'text-red-400' : 'text-green-400';
-        const barColor   = side === 'ask' ? 'bg-red-500'  : 'bg-green-500';
-        levels.slice(0, MAX_DOM_LEVELS).forEach(([price, qty]) => {
-          const p = parseFloat(price), q = parseFloat(qty);
-          const pct = Math.min(100, (q / maxQty) * 100).toFixed(1);
-          const row = document.createElement('div');
-          row.className = `depth-row ${colorClass}`;
-          row.innerHTML =
-            `<div class="depth-bar ${barColor}" style="width:${pct}%"></div>` +
-            `<span class="depth-col">${p.toFixed(2)}</span>` +
-            `<span class="depth-col">${q.toFixed(4)}</span>`;
-          frag.appendChild(row);
-        });
-        return frag;
-      };
-
-      asksEl.innerHTML = ''; asksEl.appendChild(makeRows(book.asks, 'ask'));
-      bidsEl.innerHTML = ''; bidsEl.appendChild(makeRows(book.bids, 'bid'));
-
-      if (book.asks.length && book.bids.length) {
-        const sp = parseFloat(book.asks[0][0]) - parseFloat(book.bids[0][0]);
-        spreadEl.textContent = `SPREAD: $${sp.toFixed(2)}`;
-      }
-    });
-  }
-
-  // Stats bar (TPS + volume)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATS BAR
+  // ═══════════════════════════════════════════════════════════════════════════
   function updateStats() {
     const now = Date.now();
     tapeStamped = tapeStamped.filter(t => now - t < TPS_WINDOW_MS);
-    const tps = (tapeStamped.length / (TPS_WINDOW_MS / 1000)).toFixed(1);
-    document.getElementById('stat-tps').textContent = tps;
+    document.getElementById('stat-tps').textContent =
+      (tapeStamped.length / (TPS_WINDOW_MS / 1000)).toFixed(1);
     document.getElementById('stat-vol').textContent =
-      rollingVolume > 1000
-        ? `${(rollingVolume / 1000).toFixed(1)}K`
-        : rollingVolume.toFixed(1);
+      rollingVol >= 1000
+        ? `${(rollingVol / 1000).toFixed(1)}K`
+        : rollingVol.toFixed(2);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // STREAM MANAGER  —  open / close / reconnect with exponential backoff
-  // ─────────────────────────────────────────────────────────────────────────────
-  function closeAll() {
-    Object.keys(sockets).forEach(id => {
-      const ws = sockets[id];
-      if (ws) { ws._dead = true; ws.onclose = null; ws.close(); }
-      delete sockets[id];
-    });
-    Object.keys(pingTimers).forEach(id => {
-      clearInterval(pingTimers[id]);
-      delete pingTimers[id];
-    });
-    EXCHANGES.forEach(e => setExStatus(e.id, 'disconnected'));
-  }
-
-  function openStream(id, factory, retryMs = 1500) {
-    const sym = SYMBOL_MAP[currentBaseSymbol]?.[id];
-    if (!sym) { setExStatus(id, 'disconnected'); return; }
-
-    setExStatus(id, 'connecting');
-    factory(sym, id).catch(() => {
-      setExStatus(id, 'disconnected');
-      const nextRetry = Math.min(retryMs * 1.6, 30000);
-      setTimeout(() => openStream(id, factory, nextRetry), retryMs);
-    });
-  }
-
-  // Helper to create a standard WebSocket with auto-reconnect glue
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WEBSOCKET FACTORY — auto-reconnect with exponential back-off
+  // ═══════════════════════════════════════════════════════════════════════════
   function makeWS(id, url, { onopen, onmessage, onping, pingIntervalMs } = {}) {
     return new Promise((resolve, reject) => {
       let ws;
@@ -534,22 +576,22 @@
         resolve(ws);
       };
 
-      ws.onmessage = (ev) => { try { onmessage(ev, ws); } catch(_) {} };
-
-      ws.onerror = () => {};
-
-      ws.onclose = () => {
+      ws.onmessage = ev => { try { onmessage(ev, ws); } catch (_) {} };
+      ws.onerror   = ()  => {};
+      ws.onclose   = ()  => {
         if (ws._dead) return;
         clearInterval(pingTimers[id]);
         setExStatus(id, 'disconnected');
-        reject(new Error('closed'));
+        reject(new Error('ws closed'));
       };
     });
   }
 
-  // GZip decompressor for HTX / Bitfinex using browser DecompressionStream
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GZIP HELPER (HTX, BingX, Bitfinex)
+  // ═══════════════════════════════════════════════════════════════════════════
   async function gunzip(ab) {
-    const ds = new DecompressionStream('gzip');
+    const ds     = new DecompressionStream('gzip');
     const writer = ds.writable.getWriter();
     writer.write(new Uint8Array(ab));
     writer.close();
@@ -561,49 +603,79 @@
       chunks.push(value);
     }
     const total = chunks.reduce((a, c) => a + c.length, 0);
-    const out = new Uint8Array(total);
-    let offset = 0;
-    chunks.forEach(c => { out.set(c, offset); offset += c.length; });
+    const out   = new Uint8Array(total);
+    let   off   = 0;
+    chunks.forEach(c => { out.set(c, off); off += c.length; });
     return new TextDecoder().decode(out);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // ADAPTER FACTORIES  —  one per exchange
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STREAM MANAGER
+  // ═══════════════════════════════════════════════════════════════════════════
+  function closeAll() {
+    Object.keys(sockets).forEach(id => {
+      const ws = sockets[id];
+      if (ws) { ws._dead = true; ws.onclose = null; ws.close(); }
+      delete sockets[id];
+    });
+    Object.keys(pingTimers).forEach(id => {
+      clearInterval(pingTimers[id]);
+      delete pingTimers[id];
+    });
+    EXCHANGES.forEach(e => setExStatus(e.id, 'disconnected'));
+  }
 
-  // 1. BINANCE SPOT  (combined depth + trade stream)
+  function openStream(id, factory, retryMs = 1500) {
+    const sym = SYMBOL_MAP[currentBaseSymbol]?.[id];
+    if (!sym) { setExStatus(id, 'disconnected'); return; }
+    setExStatus(id, 'connecting');
+    factory(sym, id).catch(() => {
+      const next = Math.min(retryMs * 1.6, 30000);
+      setTimeout(() => openStream(id, factory, next), retryMs);
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EXCHANGE ADAPTERS — 22 streams
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // 1. Binance Spot — depth20 + trade combined stream
   function connectBinance(sym, id) {
-    const url = `wss://stream.binance.com:9443/stream?streams=${sym}@depth20@100ms/${sym}@trade`;
-    return makeWS(id, url, {
-      onmessage(ev) {
-        const env = JSON.parse(ev.data);
-        if (env.stream?.includes('@depth')) {
-          book.bids = env.data.bids;
-          book.asks = env.data.asks;
-          renderDOM();
-        } else if (env.stream?.includes('@trade')) {
-          const d = env.data;
-          ingestTrade({ exchange:'BINANCE', price:+d.p, qty:+d.q, isBuy:!d.m, ts:d.T });
+    return makeWS(id,
+      `wss://stream.binance.com:9443/stream?streams=${sym}@depth20@100ms/${sym}@trade`,
+      {
+        onmessage(ev) {
+          const env = JSON.parse(ev.data);
+          if (env.stream?.includes('@depth')) {
+            book.bids = env.data.bids;
+            book.asks = env.data.asks;
+            scheduleBookRender();
+          } else if (env.stream?.includes('@trade')) {
+            const d = env.data;
+            ingestTrade({ exchange:'BINANCE', price:+d.p, qty:+d.q, isBuy:!d.m, ts:d.T });
+          }
         }
       }
-    });
+    );
   }
 
-  // 2. BINANCE FUTURES
+  // 2. Binance Futures — aggTrade
   function connectBinanceFut(sym, id) {
-    const url = `wss://fstream.binance.com/stream?streams=${sym}@aggTrade`;
-    return makeWS(id, url, {
-      onmessage(ev) {
-        const env = JSON.parse(ev.data);
-        if (env.stream?.includes('@aggTrade')) {
-          const d = env.data;
-          ingestTrade({ exchange:'BINANCEFUT', price:+d.p, qty:+d.q, isBuy:!d.m, ts:d.T });
+    return makeWS(id,
+      `wss://fstream.binance.com/stream?streams=${sym}@aggTrade`,
+      {
+        onmessage(ev) {
+          const env = JSON.parse(ev.data);
+          if (env.stream?.includes('@aggTrade')) {
+            const d = env.data;
+            ingestTrade({ exchange:'BINANCEFUT', price:+d.p, qty:+d.q, isBuy:!d.m, ts:d.T });
+          }
         }
       }
-    });
+    );
   }
 
-  // 3. BYBIT SPOT
+  // 3. Bybit Spot
   function connectBybit(sym, id) {
     return makeWS(id, 'wss://stream.bybit.com/v5/public/spot', {
       onopen(ws) {
@@ -622,7 +694,7 @@
     });
   }
 
-  // 4. BYBIT LINEAR (perp futures)
+  // 4. Bybit Linear (perpetual futures)
   function connectBybitLin(sym, id) {
     return makeWS(id, 'wss://stream.bybit.com/v5/public/linear', {
       onopen(ws) {
@@ -641,7 +713,7 @@
     });
   }
 
-  // 5. OKX SPOT
+  // 5. OKX Spot
   function connectOKX(sym, id) {
     return makeWS(id, 'wss://ws.okx.com:8443/ws/v5/public', {
       onopen(ws) {
@@ -660,7 +732,7 @@
     });
   }
 
-  // 6. OKX FUTURES (swap)
+  // 6. OKX Futures (swap)
   function connectOKXFut(sym, id) {
     return makeWS(id, 'wss://ws.okx.com:8443/ws/v5/public', {
       onopen(ws) {
@@ -679,26 +751,30 @@
     });
   }
 
-  // 7. GATE.IO SPOT
+  // 7. Gate.io
   function connectGate(sym, id) {
     return makeWS(id, 'wss://api.gateio.ws/ws/v4/', {
       onopen(ws) {
         ws.send(JSON.stringify({
-          time: Math.floor(Date.now()/1000),
+          time: Math.floor(Date.now() / 1000),
           channel: 'spot.trades',
           event: 'subscribe',
-          payload: [sym]
+          payload: [sym],
         }));
       },
       onmessage(ev) {
         const d = JSON.parse(ev.data);
         if (d.channel === 'spot.trades' && d.event === 'update') {
           const t = d.result;
-          ingestTrade({ exchange:'GATE', price:+t.price, qty:+t.amount, isBuy:t.side==='buy', ts:t.create_time_ms||Date.now() });
+          ingestTrade({ exchange:'GATE', price:+t.price, qty:+t.amount,
+            isBuy: t.side === 'buy', ts: t.create_time_ms || Date.now() });
         }
       },
       onping(ws) {
-        ws.send(JSON.stringify({ time:Math.floor(Date.now()/1000), channel:'spot.ping', event:'', payload:null }));
+        ws.send(JSON.stringify({
+          time: Math.floor(Date.now() / 1000),
+          channel: 'spot.ping', event: '', payload: null,
+        }));
       },
       pingIntervalMs: 20000,
     });
@@ -708,7 +784,10 @@
   function connectMEXC(sym, id) {
     return makeWS(id, 'wss://wbs.mexc.com/ws', {
       onopen(ws) {
-        ws.send(JSON.stringify({ method:'SUBSCRIPTION', params:[`spot@public.deals.v3.api@${sym}`] }));
+        ws.send(JSON.stringify({
+          method: 'SUBSCRIPTION',
+          params: [`spot@public.deals.v3.api@${sym}`],
+        }));
       },
       onmessage(ev) {
         const d = JSON.parse(ev.data);
@@ -723,11 +802,14 @@
     });
   }
 
-  // 9. BITGET
+  // 9. Bitget
   function connectBitget(sym, id) {
     return makeWS(id, 'wss://ws.bitget.com/v2/ws/public', {
       onopen(ws) {
-        ws.send(JSON.stringify({ op:'subscribe', args:[{ instType:'SPOT', channel:'trade', instId:sym }] }));
+        ws.send(JSON.stringify({
+          op: 'subscribe',
+          args: [{ instType:'SPOT', channel:'trade', instId:sym }],
+        }));
       },
       onmessage(ev) {
         const d = JSON.parse(ev.data);
@@ -742,7 +824,7 @@
     });
   }
 
-  // 10. KUCOIN  (needs REST token pre-fetch → dynamic WS URL)
+  // 10. KuCoin — REST token pre-fetch → dynamic WS URL
   async function connectKucoin(sym, id) {
     setExStatus(id, 'connecting');
     let tokenData;
@@ -753,22 +835,23 @@
       return Promise.reject(new Error('kucoin token fail'));
     }
     const { token, instanceServers } = tokenData.data;
-    const wsEndpoint = instanceServers[0].endpoint;
+    const url          = `${instanceServers[0].endpoint}?token=${token}`;
     const pingInterval = instanceServers[0].pingInterval;
-    const url = `${wsEndpoint}?token=${token}`;
     let msgId = 1;
     return makeWS(id, url, {
       onopen(ws) {
         ws.send(JSON.stringify({
-          id: msgId++, type:'subscribe',
-          topic:`/market/match:${sym}`, privateChannel:false, response:true
+          id: msgId++, type: 'subscribe',
+          topic: `/market/match:${sym}`,
+          privateChannel: false, response: true,
         }));
       },
       onmessage(ev) {
         const d = JSON.parse(ev.data);
         if (d.type === 'message' && d.topic?.includes('/market/match')) {
           const t = d.data;
-          ingestTrade({ exchange:'KUCOIN', price:+t.price, qty:+t.size, isBuy:t.side==='buy', ts:+t.time/1e6 });
+          ingestTrade({ exchange:'KUCOIN', price:+t.price, qty:+t.size,
+            isBuy: t.side === 'buy', ts: +t.time / 1e6 });
         }
       },
       onping(ws) { ws.send(JSON.stringify({ id:msgId++, type:'ping' })); },
@@ -776,71 +859,84 @@
     });
   }
 
-  // 11. CRYPTO.COM
+  // 11. Crypto.com
   function connectCryptoCom(sym, id) {
     return makeWS(id, 'wss://stream.crypto.com/exchange/v1/market', {
       onopen(ws) {
-        ws.send(JSON.stringify({ id:1, method:'subscribe', params:{ channels:[`trade.${sym}`] }, nonce:Date.now() }));
+        ws.send(JSON.stringify({
+          id: 1, method: 'subscribe',
+          params: { channels: [`trade.${sym}`] },
+          nonce: Date.now(),
+        }));
       },
-      onmessage(ev) {
+      onmessage(ev, ws) {
         const d = JSON.parse(ev.data);
         if (d.method === 'public/heartbeat') {
-          ws.send(JSON.stringify({ id:d.id, method:'public/respond-heartbeat' }));
+          ws.send(JSON.stringify({ id: d.id, method: 'public/respond-heartbeat' }));
           return;
         }
-        const trades = d.result?.data;
-        if (trades) {
-          trades.forEach(t =>
-            ingestTrade({ exchange:'CRYPTOCOM', price:+t.p, qty:+t.q, isBuy:t.s==='BUY', ts:t.t })
-          );
-        }
+        (d.result?.data || []).forEach(t =>
+          ingestTrade({ exchange:'CRYPTOCOM', price:+t.p, qty:+t.q, isBuy:t.s==='BUY', ts:t.t })
+        );
       }
     });
   }
 
-  // 12. BITSTAMP
+  // 12. Bitstamp
   function connectBitstamp(sym, id) {
     return makeWS(id, 'wss://ws.bitstamp.net', {
       onopen(ws) {
-        ws.send(JSON.stringify({ event:'bts:subscribe', data:{ channel:`live_trades_${sym}` } }));
+        ws.send(JSON.stringify({
+          event: 'bts:subscribe',
+          data: { channel: `live_trades_${sym}` },
+        }));
       },
       onmessage(ev) {
         const d = JSON.parse(ev.data);
         if (d.event === 'trade') {
           const t = d.data;
-          ingestTrade({ exchange:'BITSTAMP', price:+t.price, qty:+t.amount, isBuy:t.type===0, ts:+t.microtimestamp/1000 });
+          ingestTrade({ exchange:'BITSTAMP', price:+t.price, qty:+t.amount,
+            isBuy: t.type === 0, ts: +t.microtimestamp / 1000 });
         }
       }
     });
   }
 
-  // 13. GEMINI
+  // 13. Gemini
   function connectGemini(sym, id) {
-    const url = `wss://api.gemini.com/v2/marketdata?symbols=${sym}`;
-    return makeWS(id, url, {
+    return makeWS(id, `wss://api.gemini.com/v2/marketdata?symbols=${sym}`, {
       onopen(ws) {
-        ws.send(JSON.stringify({ type:'subscribe', subscriptions:[{ name:'l2', symbols:[sym] }] }));
+        ws.send(JSON.stringify({
+          type: 'subscribe',
+          subscriptions: [{ name:'l2', symbols:[sym] }],
+        }));
       },
       onmessage(ev) {
         const d = JSON.parse(ev.data);
         if (d.type === 'trade') {
-          ingestTrade({ exchange:'GEMINI', price:+d.price, qty:+d.quantity, isBuy:d.side==='buy', ts:d.timestamp||Date.now() });
+          ingestTrade({ exchange:'GEMINI', price:+d.price, qty:+d.quantity,
+            isBuy: d.side === 'buy', ts: d.timestamp || Date.now() });
         }
       }
     });
   }
 
-  // 14. KRAKEN  v2 WS
+  // 14. Kraken v2
   function connectKraken(sym, id) {
     return makeWS(id, 'wss://ws.kraken.com/v2', {
       onopen(ws) {
-        ws.send(JSON.stringify({ method:'subscribe', params:{ channel:'trade', symbol:[sym] }, req_id:1 }));
+        ws.send(JSON.stringify({
+          method: 'subscribe',
+          params: { channel:'trade', symbol:[sym] },
+          req_id: 1,
+        }));
       },
       onmessage(ev) {
         const d = JSON.parse(ev.data);
         if (d.channel === 'trade' && d.type === 'update') {
           (d.data || []).forEach(t =>
-            ingestTrade({ exchange:'KRAKEN', price:+t.price, qty:+t.qty, isBuy:t.side==='buy', ts:new Date(t.timestamp).getTime() })
+            ingestTrade({ exchange:'KRAKEN', price:+t.price, qty:+t.qty,
+              isBuy: t.side === 'buy', ts: new Date(t.timestamp).getTime() })
           );
         }
       },
@@ -849,26 +945,31 @@
     });
   }
 
-  // 15. COINBASE ADVANCED TRADE
+  // 15. Coinbase Advanced Trade
   function connectCoinbase(sym, id) {
     return makeWS(id, 'wss://advanced-trade-ws.coinbase.com', {
       onopen(ws) {
-        ws.send(JSON.stringify({ type:'subscribe', product_ids:[sym], channel:'market_trades' }));
+        ws.send(JSON.stringify({
+          type: 'subscribe',
+          product_ids: [sym],
+          channel: 'market_trades',
+        }));
       },
       onmessage(ev) {
         const d = JSON.parse(ev.data);
         if (d.channel === 'market_trades') {
-          (d.events || []).forEach(ev => {
-            (ev.trades || []).forEach(t =>
-              ingestTrade({ exchange:'COINBASE', price:+t.price, qty:+t.size, isBuy:t.side==='BUY', ts:new Date(t.time).getTime() })
-            );
-          });
+          (d.events || []).forEach(e =>
+            (e.trades || []).forEach(t =>
+              ingestTrade({ exchange:'COINBASE', price:+t.price, qty:+t.size,
+                isBuy: t.side === 'BUY', ts: new Date(t.time).getTime() })
+            )
+          );
         }
       }
     });
   }
 
-  // 16. BITFINEX  (GZip compressed)
+  // 16. Bitfinex (may use GZip)
   function connectBitfinex(sym, id) {
     return makeWS(id, 'wss://api-pub.bitfinex.com/ws/2', {
       onopen(ws) {
@@ -883,7 +984,7 @@
           text = ev.data;
         }
         const d = JSON.parse(text);
-        // Bitfinex: [CHANID, 'te', [ID, TS, AMOUNT, PRICE]]
+        // [CHANID, 'te', [ID, TS, AMOUNT, PRICE]]
         if (Array.isArray(d) && d[1] === 'te') {
           const [,, [, ts, amt, price]] = d;
           ingestTrade({ exchange:'BITFINEX', price:+price, qty:Math.abs(+amt), isBuy:+amt>0, ts });
@@ -897,10 +998,12 @@
   // 17. HTX (GZip compressed)
   function connectHTX(sym, id) {
     return makeWS(id, 'wss://api.huobi.pro/ws', {
+      onopen(ws) {
+        ws.send(JSON.stringify({ sub:`market.${sym}.trade.detail`, id:'omni' }));
+      },
       onmessage: async (ev) => {
         let text;
-        try { text = await gunzip(ev.data); }
-        catch { return; }
+        try { text = await gunzip(ev.data); } catch { return; }
         const d = JSON.parse(text);
         if (d.ping) {
           sockets[id]?.send(JSON.stringify({ pong: d.ping }));
@@ -908,17 +1011,15 @@
         }
         if (d.ch?.includes('trade.detail') && d.tick) {
           (d.tick.data || []).forEach(t =>
-            ingestTrade({ exchange:'HTX', price:+t.price, qty:+t.amount, isBuy:t.direction==='buy', ts:t.ts })
+            ingestTrade({ exchange:'HTX', price:+t.price, qty:+t.amount,
+              isBuy: t.direction === 'buy', ts: t.ts })
           );
         }
-      },
-      onopen(ws) {
-        ws.send(JSON.stringify({ sub:`market.${sym}.trade.detail`, id:'omni' }));
       }
     });
   }
 
-  // 18. PHEMEX
+  // 18. Phemex
   function connectPhemex(sym, id) {
     return makeWS(id, 'wss://phemex.com/ws', {
       onopen(ws) {
@@ -928,8 +1029,9 @@
         const d = JSON.parse(ev.data);
         if (d.type === 'snapshot' || d.type === 'incremental') {
           (d.trades || []).forEach(t =>
-            // t: [timestamp_ns, side, price_ep, qty]
-            ingestTrade({ exchange:'PHEMEX', price:+t[2]/1e4, qty:+t[3], isBuy:t[1]==='Buy', ts:Math.floor(+t[0]/1e6) })
+            // [timestamp_ns, side, price_ep, qty]
+            ingestTrade({ exchange:'PHEMEX', price:+t[2]/1e4, qty:+t[3],
+              isBuy: t[1] === 'Buy', ts: Math.floor(+t[0] / 1e6) })
           );
         }
       },
@@ -938,7 +1040,7 @@
     });
   }
 
-  // 19. POLONIEX
+  // 19. Poloniex
   function connectPoloniex(sym, id) {
     return makeWS(id, 'wss://ws.poloniex.com/ws/public', {
       onopen(ws) {
@@ -948,7 +1050,8 @@
         const d = JSON.parse(ev.data);
         if (d.channel === 'trades' && d.data) {
           d.data.forEach(t =>
-            ingestTrade({ exchange:'POLONIEX', price:+t.price, qty:+t.quantity, isBuy:t.takerSide==='buy', ts:t.ts||Date.now() })
+            ingestTrade({ exchange:'POLONIEX', price:+t.price, qty:+t.quantity,
+              isBuy: t.takerSide === 'buy', ts: t.ts || Date.now() })
           );
         }
       },
@@ -957,9 +1060,9 @@
     });
   }
 
-  // 20. BINGX
+  // 20. BingX (may use GZip)
   function connectBingX(sym, id) {
-    return makeWS(id, `wss://open-api-ws.bingx.com/market`, {
+    return makeWS(id, 'wss://open-api-ws.bingx.com/market', {
       onopen(ws) {
         ws.send(JSON.stringify({ id:'omni-bingx', reqType:'sub', dataType:`${sym}@trade` }));
       },
@@ -975,10 +1078,10 @@
         try {
           const d = JSON.parse(text);
           if (d.data) {
-            const t = d.data;
-            ingestTrade({ exchange:'BINGX', price:+t.p, qty:+t.q, isBuy:t.m===false, ts:t.T||Date.now() });
+            ingestTrade({ exchange:'BINGX', price:+d.data.p, qty:+d.data.q,
+              isBuy: d.data.m === false, ts: d.data.T || Date.now() });
           }
-        } catch {}
+        } catch (_) {}
       }
     });
   }
@@ -992,8 +1095,8 @@
       onmessage(ev) {
         const d = JSON.parse(ev.data);
         if (d.topic?.includes('@trade') && d.data) {
-          const t = d.data;
-          ingestTrade({ exchange:'WOOX', price:+t.price, qty:+t.size, isBuy:t.side==='BUY', ts:t.ts||Date.now() });
+          ingestTrade({ exchange:'WOOX', price:+d.data.price, qty:+d.data.size,
+            isBuy: d.data.side === 'BUY', ts: d.data.ts || Date.now() });
         }
       },
       onping(ws) { ws.send(JSON.stringify({ event:'ping' })); },
@@ -1001,21 +1104,22 @@
     });
   }
 
-  // 22. DERIBIT
+  // 22. Deribit
   function connectDeribit(sym, id) {
-    // Deribit uses instrument name like BTC_USDT (spot) — limited pairs
     return makeWS(id, 'wss://www.deribit.com/ws/api/v2', {
       onopen(ws) {
         ws.send(JSON.stringify({
-          jsonrpc:'2.0', id:1, method:'public/subscribe',
-          params:{ channels:[`trades.${sym}.raw`] }
+          jsonrpc: '2.0', id: 1,
+          method: 'public/subscribe',
+          params: { channels: [`trades.${sym}.raw`] },
         }));
       },
       onmessage(ev) {
         const d = JSON.parse(ev.data);
         if (d.method === 'subscription' && d.params?.channel?.startsWith('trades')) {
           (d.params.data || []).forEach(t =>
-            ingestTrade({ exchange:'DERIBIT', price:+t.price, qty:+t.amount, isBuy:t.direction==='buy', ts:t.timestamp })
+            ingestTrade({ exchange:'DERIBIT', price:+t.price, qty:+t.amount,
+              isBuy: t.direction === 'buy', ts: t.timestamp })
           );
         }
       },
@@ -1026,9 +1130,9 @@
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // STREAM ORCHESTRATOR
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ADAPTER MAP
+  // ═══════════════════════════════════════════════════════════════════════════
   const ADAPTER_MAP = {
     BINANCE:    connectBinance,
     BINANCEFUT: connectBinanceFut,
@@ -1054,51 +1158,51 @@
     DERIBIT:    connectDeribit,
   };
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STREAM ORCHESTRATOR
+  // ═══════════════════════════════════════════════════════════════════════════
   function launchAllStreams() {
     EXCHANGES.forEach(({ id }) => {
       const factory = ADAPTER_MAP[id];
       if (!factory) return;
-      // stagger connection attempts to avoid thundering-herd
       const jitter = Math.random() * 2000;
       setTimeout(() => openStream(id, (sym, xid) => factory(sym, xid)), jitter);
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
   // SYMBOL SWITCH
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
   function switchSymbol(newBase) {
     currentBaseSymbol = newBase;
-    tapeBuffer = [];
+    tapeBuffer  = [];
     tapeStamped = [];
-    lastPrice = 0;
-    rollingVolume = 0;
-    book.asks = [];
-    book.bids = [];
-    document.getElementById('ticker-price').textContent = '--';
-    document.getElementById('dom-spread').textContent = 'SPREAD: --';
-    document.getElementById('market-trades').innerHTML = '';
-    document.getElementById('dom-asks').innerHTML = '';
-    document.getElementById('dom-bids').innerHTML = '';
+    lastPrice   = 0;
+    rollingVol  = 0;
+    book.asks   = [];
+    book.bids   = [];
+
+    document.getElementById('ticker-price').textContent   = '--';
+    document.getElementById('dom-spread').textContent     = 'SPREAD: --';
+    document.getElementById('market-trades').innerHTML    = '';
+    document.getElementById('dom-asks').innerHTML         = '';
+    document.getElementById('dom-bids').innerHTML         = '';
 
     closeAll();
     updateChart(newBase);
-    // Short delay to let sockets fully drain before reopening
     setTimeout(launchAllStreams, 300);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // KEYBOARD: ESC closes any future modals (extension point)
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // KEYBOARD
+  // ═══════════════════════════════════════════════════════════════════════════
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      // no modals in this build, but handler is wired for extensions
-    }
+    if (e.key === 'Escape') { /* reserved for future modals */ }
   });
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
   // BOOT
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
   window.addEventListener('DOMContentLoaded', () => {
     buildStatusPanel();
     updateChart(currentBaseSymbol);
