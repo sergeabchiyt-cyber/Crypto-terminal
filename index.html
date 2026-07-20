@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid Trading Workspace - V2+V1</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; background-color: #131722; color: #ffffff; overflow: hidden; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #131722; }
+        ::-webkit-scrollbar-thumb { background: #2a2e39; border-radius: 2px; }
+        .depth-row { position: relative; display: flex; justify-content: space-between; padding: 1px 4px; font-size: 11px; }
+        .depth-bar { position: absolute; top: 0; bottom: 0; right: 0; opacity: 0.1; pointer-events: none; }
+    </style>
+</head>
+<body class="flex h-screen w-screen font-sans antialiased">
+
+    <!-- STATUS LAYER -->
+    <div id="status-screen" class="fixed inset-0 bg-[#131722] z-50 flex items-center justify-center p-4">
+        <div class="bg-[#1c2030] border border-neutral-700 p-8 rounded-lg max-w-md w-full shadow-2xl">
+            <h2 class="text-lg font-bold text-yellow-500 mb-2">Connect to Trading Engine</h2>
+            <p class="text-xs text-neutral-400 mb-6 leading-relaxed">Enter your Rust backend URI to initialize the trading workspace. The interface will verify <code>/health</code> before proceeding.</p>
+            
+            <div class="mb-4">
+                <label class="block text-[10px] font-bold text-neutral-500 tracking-wider uppercase mb-1">Backend URL</label>
+                <input type="text" id="backend-url" value="http://127.0.0.1:10000" class="w-full bg-[#131722] border border-neutral-700 text-xs text-neutral-200 font-mono py-2 px-3 rounded outline-none focus:border-yellow-600 transition-colors">
+            </div>
+            
+            <button id="verify-btn" onclick="verifyBackendConnection()" class="w-full bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-black text-xs font-bold py-2.5 rounded transition-all cursor-pointer">
+                Verify & Initialize Workspace
+            </button>
+            
+            <div id="connection-log" class="mt-4 text-[11px] font-mono text-center min-h-[16px]"></div>
+        </div>
+    </div>
+
+    <!-- WORKSPACE LAYER -->
+    <div id="workspace" class="hidden w-screen h-screen flex">
+        <!-- LEFT: TradingView Chart (80%) -->
+        <div class="w-4/5 h-full relative border-r border-neutral-800" id="chart-viewport">
+            <div class="tradingview-widget-container w-full h-full">
+                <div class="tradingview-widget-container__widget w-full h-full"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+                {
+                    "autosize": true,
+                    "symbol": "BINANCE:BTCUSDT",
+                    "interval": "1",
+                    "timezone": "Etc/UTC",
+                    "theme": "dark",
+                    "style": "1",
+                    "locale": "en",
+                    "enable_publishing": false,
+                    "hide_side_toolbar": false, 
+                    "allow_symbol_change": true,
+                    "calendar": false,
+                    "support_host": "https://www.tradingview.com"
+                }
+                </script>
+            </div>
+        </div>
+
+        <!-- RIGHT: Live Microstructure DOM Sidebar (20%) -->
+        <div class="w-1/5 h-full flex flex-col bg-[#131722] select-none justify-between">
+            <div class="flex flex-col h-full overflow-hidden">
+                <div class="p-3 border-b border-neutral-800 bg-[#1c2030] flex justify-between items-center">
+                    <div class="flex-1">
+                        <label class="block text-[10px] font-bold text-neutral-500 tracking-widest uppercase mb-1">Instrument</label>
+                        <select id="asset-selector" onchange="switchTradingAsset(this.value)" class="w-full bg-[#131722] border border-neutral-800 text-xs text-yellow-500 font-mono font-bold py-1.5 px-2.5 rounded cursor-pointer focus:outline-none">
+                            <option value="BINANCE:BTCUSDT">BTC / USDT</option>
+                            <option value="BINANCE:ETHUSDT">ETH / USDT</option>
+                        </select>
+                    </div>
+                    <button onclick="toggleSettingsModal()" class="p-2 bg-[#131722] border border-neutral-800 rounded hover:border-neutral-600 transition-colors cursor-pointer text-neutral-400 hover:text-white text-xs font-bold ml-2">
+                        ⚙
+                    </button>
+                </div>
+
+                <!-- Live Ticker Stats -->
+                <div id="binance-stats" class="bg-[#1c2030] p-3 m-3 rounded border border-neutral-800 space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-neutral-500">Last Price:</span>
+                        <span id="ticker-price" class="font-mono font-bold text-neutral-300">Connecting...</span>
+                    </div>
+                </div>
+
+                <!-- Orderbook Ladder -->
+                <div class="flex-1 overflow-hidden flex flex-col font-mono px-3">
+                    <div class="grid grid-cols-2 text-[10px] text-neutral-500 py-1 border-b border-neutral-800">
+                        <span>Price (USDT)</span>
+                        <span class="text-right">Size</span>
+                    </div>
+                    
+                    <div id="dom-asks" class="flex-1 overflow-hidden flex flex-col-reverse text-red-400"></div>
+                    
+                    <div id="dom-spread" class="py-1.5 border-y border-neutral-800 my-0.5 text-center bg-[#1c2030] text-yellow-500 font-bold text-xs">
+                        SPREAD: --
+                    </div>
+                    
+                    <div id="dom-bids" class="flex-1 overflow-hidden flex flex-col text-green-400"></div>
+                </div>
+
+                <!-- Market Trades Tape -->
+                <div class="h-1/4 border-t border-neutral-800 flex flex-col font-mono px-3">
+                    <div class="grid grid-cols-3 text-[10px] text-neutral-500 py-1 border-b border-neutral-800 bg-[#1c2030]">
+                        <span>Price</span>
+                        <span class="text-right">Size</span>
+                        <span class="text-right">Time</span>
+                    </div>
+                    <div id="market-trades" class="flex-1 overflow-hidden flex flex-col-reverse text-[10px]"></div>
+                </div>
+            </div>
+
+            <div class="p-3 bg-[#1c2030] border-t border-neutral-800 text-[10px] font-mono text-neutral-500 flex justify-between">
+                <span>Engine Link:</span>
+                <span id="active-endpoint-node" class="text-green-500 truncate ml-2">None</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS PANEL OVERLAY -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-[#1c2030] border border-neutral-800 p-6 rounded-lg max-w-md w-full shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-bold text-neutral-200">Binance Testnet API Keys</h3>
+                <button onclick="toggleSettingsModal()" class="text-neutral-500 hover:text-neutral-200 font-mono text-xs cursor-pointer">[ESC]</button>
+            </div>
+            <p class="text-[11px] text-neutral-400 mb-4 leading-relaxed">Keys are encrypted using RSA-OAEP in the browser before transmission to prevent raw memory exposure.</p>
+            
+            <div class="space-y-3 mb-6">
+                <div>
+                    <label class="block text-[9px] font-bold text-neutral-500 tracking-wider uppercase mb-1">Binance Testnet API Key</label>
+                    <input type="password" id="binance-api-key" class="w-full bg-[#131722] border border-neutral-800 text-xs text-neutral-200 font-mono py-1.5 px-3 rounded outline-none focus:border-neutral-600 transition-colors">
+                </div>
+                <div>
+                    <label class="block text-[9px] font-bold text-neutral-500 tracking-wider uppercase mb-1">Binance Testnet Secret Key</label>
+                    <input type="password" id="binance-secret-key" class="w-full bg-[#131722] border border-neutral-800 text-xs text-neutral-200 font-mono py-1.5 px-3 rounded outline-none focus:border-neutral-600 transition-colors">
+                </div>
+            </div>
+
+            <button onclick="dispatchSecureKeys()" class="w-full bg-neutral-200 hover:bg-white text-black text-xs font-bold py-2 rounded transition-all cursor-pointer">
+                Encrypt & Save Keys to Backend
+            </button>
+            <div id="settings-log" class="mt-3 text-[10px] font-mono text-center min-h-[14px]"></div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        let backendUrl = null;
+        let backendPublicKeyJwk = null;
+        let marketSocket = null;
+        let reconnectTimer = null;
+        let activeTrades = [];
+        let currentSymbol = "BINANCE:BTCUSDT";
+
+        const EXCHANGE_CONFIG = {
+            'BINANCE': {
+                depthStream: (ticker) => `${ticker.toLowerCase()}@depth20@100ms`,
+                tradeStream: (ticker) => `${ticker.toLowerCase()}@trade`
+            }
+        };
+
+        const state = { asks: [], bids: [], lastPrice: 0 };
+
+        // =========================================================
+        // BACKEND CONNECTION & AUTHENTICATION (V2)
+        // =========================================================
+        window.onload = () => {
+            const savedUrl = localStorage.getItem('active_trading_backend');
+            if (savedUrl) {
+                document.getElementById('backend-url').value = savedUrl;
+                verifyBackendConnection();
+            }
+        };
+
+        async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                return await fetch(url, { ...options, signal: controller.signal });
+            } finally {
+                clearTimeout(id);
+            }
+        }
+
+        async function verifyBackendConnection() {
+            const logElement = document.getElementById('connection-log');
+            const verifyBtn = document.getElementById('verify-btn');
+            const rawUrl = document.getElementById('backend-url').value.trim().replace(/\/$/, "");
+
+            verifyBtn.disabled = true;
+            logElement.className = "mt-4 text-[11px] font-mono text-center text-neutral-400";
+            logElement.innerText = "Pinging engine health metrics...";
+
+            try {
+                const healthResponse = await fetchWithTimeout(`${rawUrl}/health`, { method: 'GET', mode: 'cors' }, 60000);
+                const parsed = await healthResponse.json();
+
+                if (healthResponse.ok && parsed.status === "ok") {
+                    logElement.innerText = "Health OK. Fetching cryptographic manifest...";
+
+                    const keyResponse = await fetchWithTimeout(`${rawUrl}/public-key`, { method: 'GET', mode: 'cors' });
+                    if (!keyResponse.ok) throw new Error('public-key endpoint failed');
+                    backendPublicKeyJwk = await keyResponse.json();
+
+                    logElement.className = "mt-4 text-[11px] font-mono text-center text-green-400";
+                    logElement.innerText = "Verified! Initializing workspace...";
+
+                    backendUrl = rawUrl;
+                    localStorage.setItem('active_trading_backend', rawUrl);
+                    document.getElementById('active-endpoint-node').innerText = rawUrl;
+
+                    setTimeout(() => {
+                        document.getElementById('status-screen').classList.add('hidden');
+                        document.getElementById('workspace').classList.remove('hidden');
+                        connectMarketStreams(currentSymbol);
+                    }, 600);
+                } else {
+                    throw new Error('health check returned non-ok status');
+                }
+            } catch (err) {
+                console.error('[verifyBackendConnection]', err);
+                logElement.className = "mt-4 text-[11px] font-mono text-center text-red-400";
+                logElement.innerText = err.name === 'AbortError'
+                    ? "Timed out waiting for engine"
+                    : "Connection Failed: Engine offline or CORS blocked.";
+            } finally {
+                verifyBtn.disabled = false;
+            }
+        }
+
+        async function dispatchSecureKeys() {
+            const statusLog = document.getElementById('settings-log');
+            const apiKey = document.getElementById('binance-api-key').value.trim();
+            const secretKey = document.getElementById('binance-secret-key').value.trim();
+
+            if (!apiKey || !secretKey) {
+                statusLog.className = "mt-3 text-[10px] font-mono text-red-400";
+                statusLog.innerText = "Validation Error: Fields missing.";
+                return;
+            }
+
+            if (!backendPublicKeyJwk) {
+                statusLog.className = "mt-3 text-[10px] font-mono text-red-400";
+                statusLog.innerText = "Crypto Failure: Backend key not loaded.";
+                return;
+            }
+
+            statusLog.className = "mt-3 text-[10px] font-mono text-neutral-400";
+            statusLog.innerText = "Encrypting with RSA-OAEP...";
+
+            try {
+                const importedPublicKey = await window.crypto.subtle.importKey(
+                    "jwk", backendPublicKeyJwk,
+                    { name: "RSA-OAEP", hash: "SHA-256" },
+                    false, ["encrypt"]
+                );
+
+                const payloadString = JSON.stringify({ api_key: apiKey, secret_key: secretKey });
+                const enc = new TextEncoder();
+                const encodedPayload = enc.encode(payloadString);
+
+                const cipherBuffer = await window.crypto.subtle.encrypt(
+                    { name: "RSA-OAEP" }, importedPublicKey, encodedPayload
+                );
+
+                const base64Cipher = btoa(String.fromCharCode(...new Uint8Array(cipherBuffer)));
+
+                const response = await fetchWithTimeout(`${backendUrl}/configure-keys`, {
+                    method: 'POST', mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ encrypted_payload: base64Cipher })
+                });
+
+                if (response.ok) {
+                    statusLog.className = "mt-3 text-[10px] font-mono text-green-400";
+                    statusLog.innerText = "Keys encrypted & saved successfully.";
+                    setTimeout(() => toggleSettingsModal(), 1200);
+                } else {
+                    throw new Error(`backend responded ${response.status}`);
+                }
+            } catch (e) {
+                console.error('[dispatchSecureKeys]', e);
+                statusLog.className = "mt-3 text-[10px] font-mono text-red-400";
+                statusLog.innerText = "Transmission Error: Payload rejected.";
+            }
+        }
+
+        function toggleSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            modal.classList.toggle('hidden');
+            document.getElementById('settings-log').innerText = '';
+        }
+
+        // =========================================================
+        // MARKET DATA MANAGER (Direct Binance Streams)
+        // =========================================================
+        function connectMarketStreams(symbol) {
+            if (marketSocket) { marketSocket.onclose = null; marketSocket.close(); }
+            activeTrades = [];
+            document.getElementById('market-trades').innerHTML = '';
+
+            const [exchange, ticker] = symbol.split(':');
+            const config = EXCHANGE_CONFIG[exchange] || EXCHANGE_CONFIG['BINANCE'];
+            const streams = `${config.depthStream(ticker)}/${config.tradeStream(ticker)}`;
+            const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`;
+            
+            marketSocket = new WebSocket(wsUrl);
+
+            marketSocket.onopen = () => console.log('[market-ws] connected depth & trades');
+            
+            marketSocket.onmessage = (event) => {
+                try {
+                    const envelope = JSON.parse(event.data);
+                    const streamName = envelope.stream;
+                    const data = envelope.data;
+
+                    if (streamName.includes('@depth')) {
+                        renderOrderbook(data.bids, data.asks);
+                    } else if (streamName.includes('@trade')) {
+                        addTrade(data);
+                    }
+                } catch (err) { console.error('[market-ws] parse error:', err); }
+            };
+
+            marketSocket.onerror = (err) => console.error('[market-ws] error:', err);
+            marketSocket.onclose = () => {
+                console.warn('[market-ws] closed. Reconnecting...');
+                setTimeout(() => connectMarketStreams(symbol), 3000);
+            };
+        }
+
+        function renderOrderbook(bids, asks) {
+            state.asks = asks.slice(0, 8);
+            state.bids = bids.slice(0, 8);
+
+            renderDOMEngine();
+        }
+
+        function renderDOMEngine() {
+            const asksContainer = document.getElementById('dom-asks');
+            const bidsContainer = document.getElementById('dom-bids');
+            const spreadContainer = document.getElementById('dom-spread');
+            const priceContainer = document.getElementById('ticker-price');
+
+            if (state.lastPrice > 0) {
+                priceContainer.innerText = `$${state.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+            }
+
+            // Render Asks (DocumentFragment optimization)
+            const asksFragment = document.createDocumentFragment();
+            state.asks.forEach(([price, qty]) => {
+                const row = document.createElement('div');
+                row.className = "depth-row text-red-400";
+                row.innerHTML = `<div class="depth-bar bg-red-500" style="width: ${(parseFloat(qty) / 10 * 100).toFixed(0)}%"></div>
+                                 <span class="z-10">${parseFloat(price).toFixed(2)}</span>
+                                 <span class="z-10">${parseFloat(qty).toFixed(4)}</span>`;
+                asksFragment.appendChild(row);
+            });
+            asksContainer.innerHTML = '';
+            asksContainer.appendChild(asksFragment);
+
+            // Render Bids (DocumentFragment optimization)
+            const bidsFragment = document.createDocumentFragment();
+            state.bids.forEach(([price, qty]) => {
+                const row = document.createElement('div');
+                row.className = "depth-row text-green-400";
+                row.innerHTML = `<div class="depth-bar bg-green-500" style="width: ${(parseFloat(qty) / 10 * 100).toFixed(0)}%"></div>
+                                 <span class="z-10">${parseFloat(price).toFixed(2)}</span>
+                                 <span class="z-10">${parseFloat(qty).toFixed(4)}</span>`;
+                bidsFragment.appendChild(row);
+            });
+            bidsContainer.innerHTML = '';
+            bidsContainer.appendChild(bidsFragment);
+
+            // Compute spread
+            if (state.asks.length > 0 && state.bids.length > 0) {
+                const spread = parseFloat(state.asks[0][0]) - parseFloat(state.bids[0][0]);
+                spreadContainer.innerText = `SPREAD: $${spread.toFixed(2)}`;
+            }
+        }
+
+        function addTrade(trade) {
+            activeTrades.push(trade);
+            if (activeTrades.length > 15) activeTrades.shift();
+
+            const tradesEl = document.getElementById('market-trades');
+            const tradesFragment = document.createDocumentFragment();
+            
+            activeTrades.forEach(t => {
+                const c = t.m ? 'text-red-400' : 'text-green-400';
+                const tm = new Date(t.T).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                const row = document.createElement('div');
+                row.className = `depth-row ${c}`;
+                row.innerHTML = `<span>${parseFloat(t.p).toFixed(2)}</span>
+                                 <span class="text-right">${parseFloat(t.q).toFixed(4)}</span>
+                                 <span class="text-right text-neutral-500">${tm}</span>`;
+                tradesFragment.appendChild(row);
+            });
+
+            tradesEl.innerHTML = '';
+            tradesEl.appendChild(tradesFragment);
+
+            // Update last price
+            if (activeTrades.length > 0) {
+                state.lastPrice = parseFloat(activeTrades[activeTrades.length - 1].p);
+                document.getElementById('ticker-price').innerText = `$${state.lastPrice.toFixed(2)}`;
+            }
+        }
+
+        function switchTradingAsset(targetAsset) {
+            currentSymbol = targetAsset;
+            connectMarketStreams(targetAsset);
+        }
+    </script>
+</body>
+</html>
