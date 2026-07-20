@@ -92,6 +92,11 @@
     #proxy-bar.bad     { background:#1f0a0a; color:#f87171; }
     #proxy-bar.loading { background:#1a1505; color:#facc15; }
 
+    /* ── Backend modal ── */
+    #backend-modal { position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:70; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
+    #backend-modal.hidden { display:none; }
+    #backend-modal-box { background:#111827; border:1px solid #374151; border-radius:12px; padding:28px; width:480px; max-width:92vw; box-shadow:0 25px 80px rgba(0,0,0,.7); }
+
     /* ── Key modal ── */
     #key-modal { position:fixed; inset:0; background:rgba(0,0,0,.78); z-index:60; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
     #key-modal.hidden { display:none; }
@@ -106,8 +111,58 @@
 
 <body class="flex h-screen w-screen font-sans antialiased">
 
+  <!-- ══════════════ BACKEND STATUS / CONNECT PAGE ══════════════ -->
+  <div id="backend-modal">
+    <div id="backend-modal-box">
+      <div class="flex items-center gap-3 mb-1">
+        <span class="text-green-400 font-black tracking-widest text-xs">OMNI STREAM</span>
+        <span class="text-neutral-500 text-xs">×</span>
+        <span class="text-purple-400 font-bold text-xs tracking-wider">Backend Status</span>
+      </div>
+
+      <p class="text-[11px] text-neutral-400 leading-relaxed mt-2">
+        This is an open-source static frontend. It connects to a self-hosted proxy backend for
+        NVIDIA NIM, KuCoin, and Phemex.
+        <br /><br />
+        Enter your backend URL below.
+      </p>
+
+      <label class="block text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1 mt-4">Backend URL</label>
+      <input id="backend-url-input" type="url" placeholder="https://your-backend.onrender.com"
+             class="w-full bg-[#131722] border border-neutral-700 text-xs font-mono text-neutral-200 py-2 px-3 rounded outline-none focus:border-green-600 transition-colors" />
+
+      <div id="backend-status" class="text-[10px] font-mono my-3 px-3 py-2 rounded border bg-[#131722] text-neutral-500 border-neutral-800">
+        Idle. Enter a backend URL and click Test.
+      </div>
+
+      <label class="flex items-center gap-2 text-[10px] text-neutral-500 mt-1 mb-4 cursor-pointer select-none">
+        <input id="allow-no-backend" type="checkbox" class="accent-purple-600" />
+        Allow limited mode without backend (disables NIM, KuCoin, Phemex)
+      </label>
+
+      <div class="flex gap-2">
+        <button onclick="testBackend()" class="px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold py-2 rounded transition-colors cursor-pointer">
+          Test Connection
+        </button>
+        <button onclick="connectBackend()" class="flex-1 bg-green-700 hover:bg-green-600 text-white text-xs font-bold py-2 rounded transition-colors cursor-pointer">
+          Launch Terminal
+        </button>
+      </div>
+
+      <p class="mt-4 text-[9px] text-neutral-600 leading-relaxed">
+        Expected backend health endpoint:
+        <code class="text-green-500">/healthz</code>
+        <br />
+        Expected proxy routes:
+        <code class="text-neutral-400">/api/nim/chat/completions</code>,
+        <code class="text-neutral-400">/api/kucoin/bullet-public</code>,
+        <code class="text-neutral-400">/api/ws/phemex</code>
+      </p>
+    </div>
+  </div>
+
   <!-- ══════════════ KEY MODAL ══════════════ -->
-  <div id="key-modal">
+  <div id="key-modal" class="hidden">
     <div id="key-modal-box">
       <div class="flex items-center gap-3 mb-1">
         <span class="nim-logo">NVIDIA NIM</span>
@@ -118,12 +173,8 @@
       <p class="text-[10px] text-neutral-500 mb-1 leading-relaxed mt-2">
         Enter your <code class="text-green-400">nvapi-</code> key from
         <a href="https://build.nvidia.com" target="_blank" class="text-blue-400 underline">build.nvidia.com</a>.
-        Stored in <code>sessionStorage</code> only. Routed through the server proxy.
+        Stored in <code>sessionStorage</code> only. Routed through your configured backend proxy.
       </p>
-
-      <div id="sw-status" class="text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-yellow-400">
-        ⏳ Checking proxy…
-      </div>
 
       <label class="block text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1 mt-3">NVIDIA API Key</label>
       <input id="nim-key-input" type="password" placeholder="nvapi-..."
@@ -175,7 +226,7 @@
       </div>
 
       <div class="grid grid-cols-3 gap-1 text-[9px] font-mono">
-        <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Streams</div><div id="stat-streams" class="text-green-400 font-bold">0/21</div></div>
+        <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Streams</div><div id="stat-streams" class="text-green-400 font-bold">0/0</div></div>
         <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Trades/s</div><div id="stat-tps" class="text-yellow-400 font-bold">0</div></div>
         <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Volume</div><div id="stat-vol" class="text-blue-400 font-bold">--</div></div>
       </div>
@@ -205,12 +256,13 @@
         <span class="ai-badge"><span class="nim-dot" id="nim-dot"></span>NVIDIA NIM · GLM-5.2</span>
         <div class="flex items-center gap-3">
           <button onclick="event.stopPropagation();toggleDebug()" class="text-neutral-600 hover:text-neutral-300 text-[9px] font-mono cursor-pointer">dbg</button>
+          <button onclick="event.stopPropagation();openBackendModal()" class="text-neutral-600 hover:text-neutral-300 text-[9px] font-mono cursor-pointer">⚙ backend</button>
           <button onclick="event.stopPropagation();openKeyModal()" class="text-neutral-600 hover:text-neutral-300 text-[9px] font-mono cursor-pointer">⚙ key</button>
           <span id="ai-chevron" class="text-neutral-500 text-[10px]">▼</span>
         </div>
       </div>
 
-      <div id="proxy-bar" class="loading">⏳ starting proxy…</div>
+      <div id="proxy-bar" class="loading">⏳ waiting for backend…</div>
 
       <div id="ai-messages"></div>
 
@@ -231,13 +283,9 @@
   const MAX_TAPE   = 120;
   const MAX_LEVELS = 12;
   const TPS_WIN    = 2000;
-
-  // Server-side proxy routes.
-  // These require the accompanying server.js backend.
-  const NIM_PROXY  = '/api/nim/chat/completions';
   const NIM_MODEL  = 'z-ai/glm-5.2';
 
-  let TOTAL_EX = 21; // recalculated after DISABLED_EX is defined
+  let TOTAL_EX = 21;
 
   // ═══════════════════════════════════════════════════════════════════════
   // STATE
@@ -252,8 +300,9 @@
   let aiOpen    = true;
   let aiBusy    = false;
 
-  // Kept for compatibility, but the app no longer depends on a service worker proxy.
-  let swReady = false;
+  let BACKEND_URL = loadBackendUrl();
+  let backendHealthy = false;
+  let terminalStarted = false;
 
   // ═══════════════════════════════════════════════════════════════════════
   // EXCHANGE REGISTRY
@@ -275,14 +324,14 @@
   const exStatus={};
   EXCHANGES.forEach(e => exStatus[e.id] = 'disconnected');
 
-  // If your server.js Phemex WebSocket proxy is deployed, leave this empty.
-  // If you are NOT running the backend Phemex proxy, add 'PHEMEX' here:
-  //
-  //   const DISABLED_EX = new Set(['PHEMEX']);
-  //
-  const DISABLED_EX = new Set([]);
+  // KuCoin and Phemex require backend proxy.
+  // They are enabled only when backend is healthy.
+  const DISABLED_EX = new Set(['KUCOIN', 'PHEMEX']);
 
-  TOTAL_EX = EXCHANGES.filter(e => !DISABLED_EX.has(e.id)).length;
+  function recalcTotalEx(){
+    TOTAL_EX = EXCHANGES.filter(e => !DISABLED_EX.has(e.id)).length;
+    refreshStreamCount();
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
   // SYMBOL MAP
@@ -294,6 +343,49 @@
     BNBUSDT:{BINANCE:'bnbusdt',BINANCEFUT:'bnbusdt',BYBIT:'BNBUSDT',BYBITLIN:'BNBUSDT',OKX:'BNB-USDT',OKXFUT:null,GATE:'BNB_USDT',MEXC:'BNBUSDT',BITGET:'BNBUSDT',KUCOIN:'BNB-USDT',BITSTAMP:null,GEMINI:null,KRAKEN:null,COINBASE:null,BITFINEX:null,HTX:'bnbusdt',PHEMEX:'BNBUSDT',POLONIEX:'BNB_USDT',BINGX:'BNB-USDT',WOOX:'SPOT_BNB_USDT',DERIBIT:null},
     XRPUSDT:{BINANCE:'xrpusdt',BINANCEFUT:'xrpusdt',BYBIT:'XRPUSDT',BYBITLIN:'XRPUSDT',OKX:'XRP-USDT',OKXFUT:'XRP-USDT-SWAP',GATE:'XRP_USDT',MEXC:'XRPUSDT',BITGET:'XRPUSDT',KUCOIN:'XRP-USDT',BITSTAMP:'xrpusdt',GEMINI:'XRPUSD',KRAKEN:'XRP/USDT',COINBASE:'XRP-USDT',BITFINEX:'tXRPUSD',HTX:'xrpusdt',PHEMEX:'XRPUSDT',POLONIEX:'XRP_USDT',BINGX:'XRP-USDT',WOOX:'SPOT_XRP_USDT',DERIBIT:null},
   };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // BACKEND STORAGE
+  // ═══════════════════════════════════════════════════════════════════════
+  function loadBackendUrl(){
+    try {
+      return localStorage.getItem('backend_url') || '';
+    } catch {
+      return '';
+    }
+  }
+
+  function saveBackendUrl(url){
+    try {
+      if (url) localStorage.setItem('backend_url', url);
+      else localStorage.removeItem('backend_url');
+    } catch {}
+  }
+
+  function normalizeBackendUrl(raw){
+    let u = (raw || '').trim();
+    if (!u) return '';
+
+    if (!/^https?:\/\//i.test(u)) {
+      u = 'https://' + u;
+    }
+
+    try {
+      const parsed = new URL(u);
+      return parsed.origin;
+    } catch {
+      return '';
+    }
+  }
+
+  function wsBaseFromHttpUrl(raw){
+    try {
+      const u = new URL(raw);
+      return (u.protocol === 'https:' ? 'wss://' : 'ws://') + u.host;
+    } catch {
+      return '';
+    }
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
   // DEBUG
@@ -320,66 +412,161 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // PROXY CHECK
+  // BACKEND STATUS PAGE
   // ═══════════════════════════════════════════════════════════════════════
-  async function registerSW(){
-    const swStatusEl=document.getElementById('sw-status');
+  function setBackendStatus(state, msg){
+    const el = document.getElementById('backend-status');
+    if (!el) return;
 
-    if(swStatusEl){
-      swStatusEl.textContent='⏳ Checking server proxy…';
-      swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-yellow-400';
+    const base = 'text-[10px] font-mono my-3 px-3 py-2 rounded border';
+
+    if (state === 'ok') {
+      el.className = `${base} bg-[#0a1f0a] text-green-400 border-green-900`;
+      el.textContent = `✓ ${msg}`;
+    } else if (state === 'bad') {
+      el.className = `${base} bg-[#1f0a0a] text-red-400 border-red-900`;
+      el.textContent = `✗ ${msg}`;
+    } else if (state === 'loading') {
+      el.className = `${base} bg-[#1a1505] text-yellow-400 border-yellow-900`;
+      el.textContent = `⏳ ${msg}`;
+    } else {
+      el.className = `${base} bg-[#131722] text-neutral-500 border-neutral-800`;
+      el.textContent = msg;
     }
+  }
 
-    updateProxyBar('loading','Checking server proxy…');
-
-    // Register the no-op service worker only to replace old proxy SW versions.
-    if('serviceWorker' in navigator){
-      navigator.serviceWorker.register('/sw.js', { scope:'/' })
-        .catch(err => dbg('SW', `no-op SW registration failed: ${err.message}`));
-    }
-
-    try{
+  async function checkBackend(url){
+    try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 2500);
+      const timer = setTimeout(() => controller.abort(), 4000);
 
-      const r = await fetch('/healthz', {
-        cache:'no-store',
-        signal: controller.signal
+      const r = await fetch(`${url}/healthz`, {
+        cache: 'no-store',
+        signal: controller.signal,
       });
 
       clearTimeout(timer);
 
-      if(!r.ok) throw new Error(`health ${r.status}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
 
-      swReady = true;
-      updateProxyBar(true,'Server proxy active (/api) — NIM + KuCoin routed');
-      dbg('PROXY','/healthz OK');
-
-      if(swStatusEl){
-        swStatusEl.textContent='✓ Server proxy active';
-        swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-green-400';
-      }
-    }catch(err){
-      swReady = false;
-      updateProxyBar(false,'Server proxy not responding at /healthz');
-      dbg('PROXY ERROR', err.message);
-
-      if(swStatusEl){
-        swStatusEl.textContent='✗ Server proxy not responding';
-        swStatusEl.className='text-[9px] font-mono my-2 px-2 py-1 rounded bg-[#131722] text-red-400';
-      }
+      const j = await r.json();
+      return j?.ok === true;
+    } catch (err) {
+      dbg('BACKEND', `health check failed: ${err.message}`);
+      return false;
     }
   }
 
-  function updateProxyBar(ok,msg){
-    const bar=document.getElementById('proxy-bar');
-    if(!bar) return;
+  async function testBackend(){
+    const raw = document.getElementById('backend-url-input').value;
+    const url = normalizeBackendUrl(raw);
 
-    if(ok === 'loading'){
-      bar.className='loading';
-      bar.textContent=`⏳ ${msg}`;
+    if (!url) {
+      setBackendStatus('bad', 'Enter a valid backend URL. Example: https://your-backend.onrender.com');
       return;
     }
+
+    setBackendStatus('loading', `Checking ${url}/healthz ...`);
+
+    const ok = await checkBackend(url);
+
+    if (ok) {
+      setBackendStatus('ok', `Backend healthy: ${url}`);
+    } else {
+      setBackendStatus('bad', `Backend not reachable or CORS blocked: ${url}`);
+    }
+  }
+
+  async function connectBackend(){
+    const raw = document.getElementById('backend-url-input').value;
+    const allowNoBackend = document.getElementById('allow-no-backend').checked;
+    const url = normalizeBackendUrl(raw);
+
+    if (!url) {
+      if (allowNoBackend) {
+        BACKEND_URL = '';
+        backendHealthy = false;
+        saveBackendUrl('');
+        applyBackendToStreams();
+        updateProxyBar(false, 'Limited mode — no backend configured');
+        dismissBackendModal();
+        startTerminal();
+        return;
+      }
+
+      setBackendStatus('bad', 'Enter a valid backend URL or enable limited mode.');
+      return;
+    }
+
+    setBackendStatus('loading', `Checking ${url}/healthz ...`);
+
+    const ok = await checkBackend(url);
+    backendHealthy = ok;
+    BACKEND_URL = url;
+    saveBackendUrl(url);
+
+    if (!ok && !allowNoBackend) {
+      setBackendStatus('bad', `Backend not reachable. Enable limited mode or fix backend/CORS.`);
+      return;
+    }
+
+    applyBackendToStreams();
+
+    if (ok) {
+      updateProxyBar(true, `Backend connected: ${BACKEND_URL}`);
+      setBackendStatus('ok', `Backend healthy: ${BACKEND_URL}`);
+    } else {
+      updateProxyBar(false, `Backend unhealthy: ${BACKEND_URL}`);
+      setBackendStatus('bad', `Backend unhealthy, launching limited mode: ${BACKEND_URL}`);
+    }
+
+    dismissBackendModal();
+    startTerminal();
+  }
+
+  function openBackendModal(){
+    document.getElementById('backend-modal').classList.remove('hidden');
+    document.getElementById('backend-url-input').value = BACKEND_URL || '';
+  }
+
+  function dismissBackendModal(){
+    document.getElementById('backend-modal').classList.add('hidden');
+  }
+
+  function applyBackendToStreams(){
+    if (backendHealthy && BACKEND_URL) {
+      DISABLED_EX.delete('KUCOIN');
+      DISABLED_EX.delete('PHEMEX');
+    } else {
+      DISABLED_EX.add('KUCOIN');
+      DISABLED_EX.add('PHEMEX');
+    }
+
+    recalcTotalEx();
+
+    if (terminalStarted) {
+      closeAll();
+      setTimeout(launchAll, 300);
+    }
+  }
+
+  async function unregisterOldServiceWorkers(){
+    if (!('serviceWorker' in navigator)) return;
+
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const reg of regs) {
+        await reg.unregister();
+      }
+      if (regs.length) dbg('SW', `unregistered ${regs.length} old service worker(s)`);
+    } catch (err) {
+      dbg('SW', err.message);
+    }
+  }
+
+  function updateProxyBar(ok, msg){
+    const bar = document.getElementById('proxy-bar');
+    if (!bar) return;
 
     bar.className = ok ? 'ok' : 'bad';
     bar.textContent = ok ? `✓ ${msg}` : `✗ ${msg}`;
@@ -389,22 +576,22 @@
   // CHART
   // ═══════════════════════════════════════════════════════════════════════
   function updateChart(base){
-    const c=document.getElementById('chart-container');
-    c.innerHTML='';
+    const c = document.getElementById('chart-container');
+    c.innerHTML = '';
 
-    const wrap=document.createElement('div');
-    wrap.className='tradingview-widget-container';
-    wrap.style.cssText='width:100%;height:100%;';
+    const wrap = document.createElement('div');
+    wrap.className = 'tradingview-widget-container';
+    wrap.style.cssText = 'width:100%;height:100%;';
 
-    const inner=document.createElement('div');
-    inner.className='tradingview-widget-container__widget';
-    inner.style.cssText='width:100%;height:100%;';
+    const inner = document.createElement('div');
+    inner.className = 'tradingview-widget-container__widget';
+    inner.style.cssText = 'width:100%;height:100%;';
 
-    const s=document.createElement('script');
-    s.type='text/javascript';
-    s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    s.async=true;
-    s.textContent=JSON.stringify({
+    const s = document.createElement('script');
+    s.type = 'text/javascript';
+    s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    s.async = true;
+    s.textContent = JSON.stringify({
       autosize:true,
       symbol:`BINANCE:${base}`,
       interval:'1',
@@ -429,30 +616,33 @@
   // STATUS PANEL — visible names removed
   // ═══════════════════════════════════════════════════════════════════════
   function buildStatusPanel(){
-    const p=document.getElementById('ex-status-panel');
-    if(!p) return;
+    const p = document.getElementById('ex-status-panel');
+    if (!p) return;
 
-    p.innerHTML='';
+    p.innerHTML = '';
 
-    // Stream status names removed.
-    // Keep hidden dots only so setEx() and stream counting still work.
     EXCHANGES.forEach(({id})=>{
-      const dot=document.createElement('span');
-      dot.id=`dot-${id}`;
-      dot.className='status-dot connecting';
-      dot.style.display='none';
+      const dot = document.createElement('span');
+      dot.id = `dot-${id}`;
+      dot.className = 'status-dot connecting';
+      dot.style.display = 'none';
       p.appendChild(dot);
     });
   }
 
+  function refreshStreamCount(){
+    const n = Object.values(exStatus).filter(s => s === 'connected').length;
+    const el = document.getElementById('stat-streams');
+    if (el) el.textContent = `${n}/${TOTAL_EX}`;
+  }
+
   function setEx(id,state){
-    exStatus[id]=state;
+    exStatus[id] = state;
 
-    const d=document.getElementById(`dot-${id}`);
-    if(d) d.className=`status-dot ${state}`;
+    const d = document.getElementById(`dot-${id}`);
+    if (d) d.className = `status-dot ${state}`;
 
-    const n=Object.values(exStatus).filter(s=>s==='connected').length;
-    document.getElementById('stat-streams').textContent=`${n}/${TOTAL_EX}`;
+    refreshStreamCount();
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -462,10 +652,10 @@
     tape.push({exchange,price,qty,isBuy,ts:ts||Date.now()});
     stamps.push(Date.now());
 
-    if(tape.length>MAX_TAPE) tape.shift();
+    if (tape.length > MAX_TAPE) tape.shift();
 
-    lastPrice=price;
-    vol+=qty;
+    lastPrice = price;
+    vol += qty;
 
     scheduleTape();
     updateStats();
@@ -474,32 +664,32 @@
   // ═══════════════════════════════════════════════════════════════════════
   // RENDER — TAPE
   // ═══════════════════════════════════════════════════════════════════════
-  let tapeRaf=false;
+  let tapeRaf = false;
 
   function scheduleTape(){
-    if(tapeRaf) return;
-    tapeRaf=true;
+    if (tapeRaf) return;
+    tapeRaf = true;
 
     requestAnimationFrame(()=>{
-      tapeRaf=false;
+      tapeRaf = false;
 
-      const el=document.getElementById('market-trades');
-      const frag=document.createDocumentFragment();
+      const el = document.getElementById('market-trades');
+      const frag = document.createDocumentFragment();
 
       tape.forEach(t=>{
-        const row=document.createElement('div');
-        row.className=`tape-row ${t.isBuy?'tape-buy':'tape-sell'} ex-${t.exchange}`;
+        const row = document.createElement('div');
+        row.className = `tape-row ${t.isBuy ? 'tape-buy' : 'tape-sell'} ex-${t.exchange}`;
 
-        const tm=new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-        row.innerHTML=`<span>${t.price.toFixed(2)}</span><span class="t-qty">${t.qty.toFixed(4)}</span><span class="t-time">${tm}</span>`;
+        const tm = new Date(t.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        row.innerHTML = `<span>${t.price.toFixed(2)}</span><span class="t-qty">${t.qty.toFixed(4)}</span><span class="t-time">${tm}</span>`;
 
         frag.appendChild(row);
       });
 
-      el.innerHTML='';
+      el.innerHTML = '';
       el.appendChild(frag);
 
-      if(lastPrice>0){
+      if (lastPrice > 0) {
         document.getElementById('ticker-price').textContent =
           `$${lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
       }
@@ -509,38 +699,38 @@
   // ═══════════════════════════════════════════════════════════════════════
   // RENDER — ORDER BOOK
   // ═══════════════════════════════════════════════════════════════════════
-  let bookRaf=false;
+  let bookRaf = false;
 
   function scheduleBook(){
-    if(bookRaf) return;
-    bookRaf=true;
+    if (bookRaf) return;
+    bookRaf = true;
 
     requestAnimationFrame(()=>{
-      bookRaf=false;
+      bookRaf = false;
 
-      const aEl=document.getElementById('dom-asks');
-      const bEl=document.getElementById('dom-bids');
-      const sp=document.getElementById('dom-spread');
+      const aEl = document.getElementById('dom-asks');
+      const bEl = document.getElementById('dom-bids');
+      const sp = document.getElementById('dom-spread');
 
-      const va=book.asks.slice(0,MAX_LEVELS);
-      const vb=book.bids.slice(0,MAX_LEVELS);
+      const va = book.asks.slice(0, MAX_LEVELS);
+      const vb = book.bids.slice(0, MAX_LEVELS);
 
-      const all=[...va.map(r=>parseFloat(r[1])),...vb.map(r=>parseFloat(r[1]))];
-      const mx=all.length?Math.max(...all):1;
+      const all = [...va.map(r=>parseFloat(r[1])), ...vb.map(r=>parseFloat(r[1]))];
+      const mx = all.length ? Math.max(...all) : 1;
 
-      const makeRows=(levels,side)=>{
-        const f=document.createDocumentFragment();
-        const tc=side==='ask'?'text-red-400':'text-green-400';
-        const bc=side==='ask'?'bg-red-500':'bg-green-500';
+      const makeRows = (levels, side)=>{
+        const f = document.createDocumentFragment();
+        const tc = side === 'ask' ? 'text-red-400' : 'text-green-400';
+        const bc = side === 'ask' ? 'bg-red-500' : 'bg-green-500';
 
         levels.forEach(([price,qty])=>{
-          const p=parseFloat(price);
-          const q=parseFloat(qty);
-          const pct=Math.min(100,(q/mx)*100).toFixed(1);
+          const p = parseFloat(price);
+          const q = parseFloat(qty);
+          const pct = Math.min(100, (q / mx) * 100).toFixed(1);
 
-          const r=document.createElement('div');
-          r.className=`depth-row ${tc}`;
-          r.innerHTML=`<div class="depth-bar ${bc}" style="width:${pct}%"></div><span class="depth-col">${p.toFixed(2)}</span><span class="depth-col">${q.toFixed(4)}</span>`;
+          const r = document.createElement('div');
+          r.className = `depth-row ${tc}`;
+          r.innerHTML = `<div class="depth-bar ${bc}" style="width:${pct}%"></div><span class="depth-col">${p.toFixed(2)}</span><span class="depth-col">${q.toFixed(4)}</span>`;
 
           f.appendChild(r);
         });
@@ -548,25 +738,25 @@
         return f;
       };
 
-      aEl.innerHTML='';
-      aEl.appendChild(makeRows(va,'ask'));
+      aEl.innerHTML = '';
+      aEl.appendChild(makeRows(va, 'ask'));
 
-      bEl.innerHTML='';
-      bEl.appendChild(makeRows(vb,'bid'));
+      bEl.innerHTML = '';
+      bEl.appendChild(makeRows(vb, 'bid'));
 
-      if(book.asks.length && book.bids.length){
-        const s=parseFloat(book.asks[0][0])-parseFloat(book.bids[0][0]);
-        sp.textContent=`SPREAD: $${s.toFixed(2)}`;
+      if (book.asks.length && book.bids.length) {
+        const s = parseFloat(book.asks[0][0]) - parseFloat(book.bids[0][0]);
+        sp.textContent = `SPREAD: $${s.toFixed(2)}`;
       }
     });
   }
 
   function updateStats(){
-    const now=Date.now();
-    stamps=stamps.filter(t=>now-t<TPS_WIN);
+    const now = Date.now();
+    stamps = stamps.filter(t => now - t < TPS_WIN);
 
-    document.getElementById('stat-tps').textContent=(stamps.length/(TPS_WIN/1000)).toFixed(1);
-    document.getElementById('stat-vol').textContent=vol>=1000?`${(vol/1000).toFixed(1)}K`:vol.toFixed(2);
+    document.getElementById('stat-tps').textContent = (stamps.length / (TPS_WIN / 1000)).toFixed(1);
+    document.getElementById('stat-vol').textContent = vol >= 1000 ? `${(vol / 1000).toFixed(1)}K` : vol.toFixed(2);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -580,82 +770,81 @@
     return new Promise((res,rej)=>{
       let ws;
 
-      try{
-        ws=new WebSocket(url);
-      }catch(e){
+      try {
+        ws = new WebSocket(url);
+      } catch(e) {
         return rej(e);
       }
 
-      ws.binaryType='arraybuffer';
-      sockets[id]=ws;
+      ws.binaryType = 'arraybuffer';
+      sockets[id] = ws;
 
-      let settled=false;
+      let settled = false;
 
-      ws.onopen=()=>{
-        settled=true;
+      ws.onopen = ()=>{
+        settled = true;
 
-        failCount[id]=0;
-        retryDelay[id]=1500;
+        failCount[id] = 0;
+        retryDelay[id] = 1500;
 
-        setEx(id,'connected');
+        setEx(id, 'connected');
 
-        if(onopen) onopen(ws);
+        if (onopen) onopen(ws);
 
-        if(onping && pingMs){
-          pings[id]=setInterval(()=>{
-            if(ws.readyState===1) onping(ws);
+        if (onping && pingMs) {
+          pings[id] = setInterval(()=>{
+            if (ws.readyState === 1) onping(ws);
           }, pingMs);
         }
 
         res(ws);
       };
 
-      ws.onmessage=ev=>{
-        try{
-          onmessage(ev,ws);
-        }catch(_){}
+      ws.onmessage = ev => {
+        try {
+          onmessage(ev, ws);
+        } catch(_) {}
       };
 
-      ws.onerror=()=>{};
+      ws.onerror = ()=>{};
 
-      ws.onclose=()=>{
-        if(ws._dead) return;
+      ws.onclose = ()=>{
+        if (ws._dead) return;
 
         clearInterval(pings[id]);
-        setEx(id,'disconnected');
+        setEx(id, 'disconnected');
 
-        if(!settled){
+        if (!settled) {
           return rej(new Error('closed'));
         }
 
-        // If an already-open stream drops, reconnect it.
         scheduleReconnect(id, 1500);
       };
     });
   }
 
   async function gunzip(ab){
-    const ds=new DecompressionStream('gzip');
-    const w=ds.writable.getWriter();
+    const ds = new DecompressionStream('gzip');
+    const w = ds.writable.getWriter();
     w.write(new Uint8Array(ab));
     w.close();
 
-    const chunks=[];
-    const r=ds.readable.getReader();
+    const chunks = [];
+    const r = ds.readable.getReader();
 
-    while(true){
-      const{done,value}=await r.read();
-      if(done) break;
+    while (true) {
+      const {done,value} = await r.read();
+      if (done) break;
       chunks.push(value);
     }
 
-    const tot=chunks.reduce((a,c)=>a+c.length,0);
-    const out=new Uint8Array(tot);
+    const tot = chunks.reduce((a,c)=>a+c.length,0);
+    const out = new Uint8Array(tot);
 
-    let off=0;
+    let off = 0;
     chunks.forEach(c=>{
-      out.set(c,off);
-      off+=c.length;
+      out.set(c, off);
+      off += c.length;
     });
 
     return new TextDecoder().decode(out);
@@ -666,10 +855,10 @@
   // ═══════════════════════════════════════════════════════════════════════
   function closeAll(){
     Object.keys(sockets).forEach(id=>{
-      const ws=sockets[id];
-      if(ws){
-        ws._dead=true;
-        ws.onclose=null;
+      const ws = sockets[id];
+      if (ws) {
+        ws._dead = true;
+        ws.onclose = null;
         ws.close();
       }
       delete sockets[id];
@@ -688,13 +877,13 @@
       delete retryDelay[id];
     });
 
-    EXCHANGES.forEach(e=>setEx(e.id,'disconnected'));
+    EXCHANGES.forEach(e=>setEx(e.id, 'disconnected'));
   }
 
   function scheduleReconnect(id, delay=1500){
     const factory = streamFactories[id];
 
-    if(!factory || DISABLED_EX.has(id)) return;
+    if (!factory || DISABLED_EX.has(id)) return;
 
     const next = Math.min(retryDelay[id] || delay, 30000);
     retryDelay[id] = next * 1.6;
@@ -708,12 +897,12 @@
 
     const sym = SYM[currentBase]?.[id];
 
-    if(!sym || DISABLED_EX.has(id)){
-      setEx(id,'disconnected');
+    if (!sym || DISABLED_EX.has(id)) {
+      setEx(id, 'disconnected');
       return;
     }
 
-    setEx(id,'connecting');
+    setEx(id, 'connecting');
 
     factory(sym,id)
       .then(()=>{
@@ -725,9 +914,9 @@
 
         dbg('WS FAIL', `${id} attempt ${failCount[id]}: ${err?.message || err}`);
 
-        if(failCount[id] >= 6){
+        if (failCount[id] >= 6) {
           dbg('WS DISABLE', `${id} disabled after ${failCount[id]} failed handshake attempts`);
-          setEx(id,'disconnected');
+          setEx(id, 'disconnected');
           return;
         }
 
@@ -743,14 +932,14 @@
   function connectBinance(sym,id){
     return makeWS(id,`wss://stream.binance.com:9443/stream?streams=${sym}@depth20@100ms/${sym}@trade`,{
       onmessage(ev){
-        const env=JSON.parse(ev.data);
+        const env = JSON.parse(ev.data);
 
-        if(env.stream?.includes('@depth')){
-          book.bids=env.data.bids;
-          book.asks=env.data.asks;
+        if (env.stream?.includes('@depth')) {
+          book.bids = env.data.bids;
+          book.asks = env.data.asks;
           scheduleBook();
-        }else if(env.stream?.includes('@trade')){
-          const d=env.data;
+        } else if (env.stream?.includes('@trade')) {
+          const d = env.data;
           ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});
         }
       }
@@ -761,10 +950,10 @@
   function connectBinanceFut(sym,id){
     return makeWS(id,`wss://fstream.binance.com/stream?streams=${sym}@aggTrade`,{
       onmessage(ev){
-        const env=JSON.parse(ev.data);
+        const env = JSON.parse(ev.data);
 
-        if(env.stream?.includes('@aggTrade')){
-          const d=env.data;
+        if (env.stream?.includes('@aggTrade')) {
+          const d = env.data;
           ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});
         }
       }
@@ -778,10 +967,10 @@
         ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.topic?.startsWith('publicTrade')){
-          (d.data||[]).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
+        if (d.topic?.startsWith('publicTrade')) {
+          (d.data || []).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
         }
       },
       onping(ws){
@@ -798,10 +987,10 @@
         ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.topic?.startsWith('publicTrade')){
-          (d.data||[]).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
+        if (d.topic?.startsWith('publicTrade')) {
+          (d.data || []).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
         }
       },
       onping(ws){
@@ -818,10 +1007,10 @@
         ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.arg?.channel==='trades'){
-          (d.data||[]).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
+        if (d.arg?.channel === 'trades') {
+          (d.data || []).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
         }
       },
       onping(ws){
@@ -838,10 +1027,10 @@
         ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.arg?.channel==='trades'){
-          (d.data||[]).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
+        if (d.arg?.channel === 'trades') {
+          (d.data || []).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
         }
       },
       onping(ws){
@@ -863,10 +1052,10 @@
         }));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.channel==='spot.trades' && d.event==='update'){
-          const t=d.result;
+        if (d.channel === 'spot.trades' && d.event === 'update') {
+          const t = d.result;
           ingest({exchange:'GATE',price:+t.price,qty:+t.amount,isBuy:t.side==='buy',ts:t.create_time_ms||Date.now()});
         }
       },
@@ -889,10 +1078,10 @@
         ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${sym}`]}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.c?.includes('deals')){
-          (d.d?.deals||[]).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}));
+        if (d.c?.includes('deals')) {
+          (d.d?.deals || []).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}));
         }
       },
       onping(ws){
@@ -909,10 +1098,10 @@
         ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:sym}]}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.action==='snapshot' || d.action==='update'){
-          (d.data||[]).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}));
+        if (d.action === 'snapshot' || d.action === 'update') {
+          (d.data || []).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}));
         }
       },
       onping(ws){
@@ -922,26 +1111,30 @@
     });
   }
 
-  // 10. KuCoin — token fetched through server-side proxy
+  // 10. KuCoin — requires backend proxy
   async function connectKucoin(sym,id){
-    setEx(id,'connecting');
+    if (!BACKEND_URL) {
+      return Promise.reject(new Error('backend not configured'));
+    }
+
+    setEx(id, 'connecting');
 
     let td;
 
-    try{
-      const endpoint = '/api/kucoin/bullet-public';
+    try {
+      const endpoint = `${BACKEND_URL}/api/kucoin/bullet-public`;
 
-      dbg('KUCOIN','token fetch via server proxy');
+      dbg('KUCOIN', `token fetch via backend: ${endpoint}`);
 
       const r = await fetch(endpoint, { method:'POST' });
       td = await r.json();
-    }catch(e){
-      dbg('KUCOIN','token fetch failed:', e.message);
+    } catch(e) {
+      dbg('KUCOIN', 'token fetch failed:', e.message);
       return Promise.reject(new Error('kucoin token'));
     }
 
-    if(!td?.data?.token || !Array.isArray(td.data.instanceServers) || !td.data.instanceServers.length){
-      dbg('KUCOIN','invalid bullet-public response', td);
+    if (!td?.data?.token || !Array.isArray(td.data.instanceServers) || !td.data.instanceServers.length) {
+      dbg('KUCOIN', 'invalid bullet-public response', td);
       return Promise.reject(new Error('kucoin bullet response invalid'));
     }
 
@@ -949,7 +1142,7 @@
     const url = `${instanceServers[0].endpoint}?token=${token}`;
     const pi = instanceServers[0].pingInterval;
 
-    let mid=1;
+    let mid = 1;
 
     return makeWS(id,url,{
       onopen(ws){
@@ -962,10 +1155,10 @@
         }));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.type==='message' && d.topic?.includes('/market/match')){
-          const t=d.data;
+        if (d.type === 'message' && d.topic?.includes('/market/match')) {
+          const t = d.data;
           ingest({exchange:'KUCOIN',price:+t.price,qty:+t.size,isBuy:t.side==='buy',ts:+t.time/1e6});
         }
       },
@@ -983,10 +1176,10 @@
         ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${sym}`}}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.event==='trade'){
-          const t=d.data;
+        if (d.event === 'trade') {
+          const t = d.data;
           ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000});
         }
       }
@@ -1000,9 +1193,9 @@
         ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2',symbols:[sym]}]}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.type==='trade'){
+        if (d.type === 'trade') {
           ingest({exchange:'GEMINI',price:+d.price,qty:+d.quantity,isBuy:d.side==='buy',ts:d.timestamp||Date.now()});
         }
       }
@@ -1016,10 +1209,10 @@
         ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[sym]},req_id:1}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.channel==='trade' && d.type==='update'){
-          (d.data||[]).forEach(t=>ingest({
+        if (d.channel === 'trade' && d.type === 'update') {
+          (d.data || []).forEach(t=>ingest({
             exchange:'KRAKEN',
             price:+t.price,
             qty:+t.qty,
@@ -1042,11 +1235,11 @@
         ws.send(JSON.stringify({type:'subscribe',product_ids:[sym],channel:'market_trades'}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.channel==='market_trades'){
-          (d.events||[]).forEach(e=>{
-            (e.trades||[]).forEach(t=>ingest({
+        if (d.channel === 'market_trades') {
+          (d.events || []).forEach(e=>{
+            (e.trades || []).forEach(t=>ingest({
               exchange:'COINBASE',
               price:+t.price,
               qty:+t.size,
@@ -1068,20 +1261,20 @@
       onmessage:async(ev)=>{
         let text;
 
-        if(ev.data instanceof ArrayBuffer){
-          try{
-            text=await gunzip(ev.data);
-          }catch{
-            text=new TextDecoder().decode(ev.data);
+        if (ev.data instanceof ArrayBuffer) {
+          try {
+            text = await gunzip(ev.data);
+          } catch {
+            text = new TextDecoder().decode(ev.data);
           }
-        }else{
-          text=ev.data;
+        } else {
+          text = ev.data;
         }
 
-        const d=JSON.parse(text);
+        const d = JSON.parse(text);
 
-        if(Array.isArray(d) && d[1]==='te'){
-          const[,,[,ts,amt,price]]=d;
+        if (Array.isArray(d) && d[1] === 'te') {
+          const[,,[,ts,amt,price]] = d;
           ingest({exchange:'BITFINEX',price:+price,qty:Math.abs(+amt),isBuy:+amt>0,ts});
         }
       },
@@ -1101,21 +1294,21 @@
       onmessage:async(ev)=>{
         let text;
 
-        try{
-          text=await gunzip(ev.data);
-        }catch{
+        try {
+          text = await gunzip(ev.data);
+        } catch {
           return;
         }
 
-        const d=JSON.parse(text);
+        const d = JSON.parse(text);
 
-        if(d.ping){
+        if (d.ping) {
           sockets[id]?.send(JSON.stringify({pong:d.ping}));
           return;
         }
 
-        if(d.ch?.includes('trade.detail') && d.tick){
-          (d.tick.data||[]).forEach(t=>ingest({
+        if (d.ch?.includes('trade.detail') && d.tick) {
+          (d.tick.data || []).forEach(t=>ingest({
             exchange:'HTX',
             price:+t.price,
             qty:+t.amount,
@@ -1127,10 +1320,18 @@
     });
   }
 
-  // 17. Phemex — routed through same-origin server WebSocket proxy
+  // 17. Phemex — requires backend WebSocket proxy
   function connectPhemex(sym,id){
-    const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-    const url = `${proto}${location.host}/api/ws/phemex`;
+    if (!BACKEND_URL) {
+      return Promise.reject(new Error('backend not configured'));
+    }
+
+    const wsBase = wsBaseFromHttpUrl(BACKEND_URL);
+    if (!wsBase) {
+      return Promise.reject(new Error('invalid backend URL'));
+    }
+
+    const url = `${wsBase}/api/ws/phemex`;
 
     return makeWS(id,url,{
       onopen(ws){
@@ -1141,14 +1342,12 @@
         }));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        // Phemex pong
-        if(d.result==='pong') return;
+        if (d.result === 'pong') return;
 
-        if(d.type==='snapshot' || d.type==='incremental'){
-          (d.trades||[]).forEach(t=>{
-            // [timestamp_ns, side, price_ep×10000, qty]
+        if (d.type === 'snapshot' || d.type === 'incremental') {
+          (d.trades || []).forEach(t=>{
             ingest({
               exchange:'PHEMEX',
               price:+t[2]/1e4,
@@ -1177,9 +1376,9 @@
         ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbols:[sym]}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.channel==='trades' && d.data){
+        if (d.channel === 'trades' && d.data) {
           d.data.forEach(t=>ingest({
             exchange:'POLONIEX',
             price:+t.price,
@@ -1205,25 +1404,25 @@
       onmessage:async(ev)=>{
         let text;
 
-        if(ev.data instanceof ArrayBuffer){
-          try{
-            text=await gunzip(ev.data);
-          }catch{
-            text=new TextDecoder().decode(ev.data);
+        if (ev.data instanceof ArrayBuffer) {
+          try {
+            text = await gunzip(ev.data);
+          } catch {
+            text = new TextDecoder().decode(ev.data);
           }
-        }else{
-          text=ev.data;
+        } else {
+          text = ev.data;
         }
 
-        if(text==='Ping'){
+        if (text === 'Ping') {
           sockets[id]?.send('Pong');
           return;
         }
 
-        try{
-          const d=JSON.parse(text);
+        try {
+          const d = JSON.parse(text);
 
-          if(d.data){
+          if (d.data) {
             ingest({
               exchange:'BINGX',
               price:+d.data.p,
@@ -1232,7 +1431,7 @@
               ts:d.data.T||Date.now()
             });
           }
-        }catch{}
+        } catch {}
       }
     });
   }
@@ -1244,9 +1443,9 @@
         ws.send(JSON.stringify({event:'subscribe',topic:`${sym}@trade`}));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.topic?.includes('@trade') && d.data){
+        if (d.topic?.includes('@trade') && d.data) {
           ingest({
             exchange:'WOOX',
             price:+d.data.price,
@@ -1275,10 +1474,10 @@
         }));
       },
       onmessage(ev){
-        const d=JSON.parse(ev.data);
+        const d = JSON.parse(ev.data);
 
-        if(d.method==='subscription' && d.params?.channel?.startsWith('trades')){
-          (d.params.data||[]).forEach(t=>ingest({
+        if (d.method === 'subscription' && d.params?.channel?.startsWith('trades')) {
+          (d.params.data || []).forEach(t=>ingest({
             exchange:'DERIBIT',
             price:+t.price,
             qty:+t.amount,
@@ -1294,7 +1493,7 @@
     });
   }
 
-  const ADAPTERS={
+  const ADAPTERS = {
     BINANCE:connectBinance, BINANCEFUT:connectBinanceFut,
     BYBIT:connectBybit,     BYBITLIN:connectBybitLin,
     OKX:connectOKX,         OKXFUT:connectOKXFut,
@@ -1310,10 +1509,10 @@
 
   function launchAll(){
     EXCHANGES.forEach(({id})=>{
-      const f=ADAPTERS[id];
-      if(!f) return;
+      const f = ADAPTERS[id];
+      if (!f) return;
 
-      setTimeout(()=>openStream(id,(s,x)=>f(s,x)), Math.random()*2000);
+      setTimeout(()=>openStream(id,(s,x)=>f(s,x)), Math.random() * 2000);
     });
   }
 
@@ -1321,26 +1520,26 @@
   // SYMBOL SWITCH
   // ═══════════════════════════════════════════════════════════════════════
   function switchSymbol(b){
-    currentBase=b;
+    currentBase = b;
 
-    tape=[];
-    stamps=[];
-    lastPrice=0;
-    vol=0;
+    tape = [];
+    stamps = [];
+    lastPrice = 0;
+    vol = 0;
 
-    book.asks=[];
-    book.bids=[];
+    book.asks = [];
+    book.bids = [];
 
-    document.getElementById('ticker-price').textContent='--';
-    document.getElementById('dom-spread').textContent='SPREAD: --';
-    document.getElementById('market-trades').innerHTML='';
-    document.getElementById('dom-asks').innerHTML='';
-    document.getElementById('dom-bids').innerHTML='';
+    document.getElementById('ticker-price').textContent = '--';
+    document.getElementById('dom-spread').textContent = 'SPREAD: --';
+    document.getElementById('market-trades').innerHTML = '';
+    document.getElementById('dom-asks').innerHTML = '';
+    document.getElementById('dom-bids').innerHTML = '';
 
     closeAll();
     updateChart(b);
 
-    setTimeout(launchAll,300);
+    setTimeout(launchAll, 300);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -1348,7 +1547,7 @@
   // ═══════════════════════════════════════════════════════════════════════
   function openKeyModal(){
     document.getElementById('key-modal').classList.remove('hidden');
-    document.getElementById('nim-key-input').value=nimKey||'';
+    document.getElementById('nim-key-input').value = nimKey || '';
     document.getElementById('key-err').classList.add('hidden');
   }
 
@@ -1357,108 +1556,116 @@
   }
 
   function saveNimKey(){
-    const v=document.getElementById('nim-key-input').value.trim();
-    const err=document.getElementById('key-err');
+    const v = document.getElementById('nim-key-input').value.trim();
+    const err = document.getElementById('key-err');
 
-    if(!v.startsWith('nvapi-')){
-      err.textContent='Key must start with nvapi-';
+    if (!v.startsWith('nvapi-')) {
+      err.textContent = 'Key must start with nvapi-';
       err.classList.remove('hidden');
       return;
     }
 
-    nimKey=v;
-    sessionStorage.setItem('nim_key',nimKey);
+    nimKey = v;
+    sessionStorage.setItem('nim_key', nimKey);
 
     dismissModal();
 
-    appendMsg('sys','✓ Key saved. GLM-5.2 ready.');
-    dbg('KEY','saved to sessionStorage');
+    appendMsg('sys', '✓ Key saved. GLM-5.2 ready.');
+    dbg('KEY', 'saved to sessionStorage');
   }
 
   function toggleAiPanel(){
-    const panel=document.getElementById('ai-panel');
-    const chev=document.getElementById('ai-chevron');
+    const panel = document.getElementById('ai-panel');
+    const chev = document.getElementById('ai-chevron');
 
-    aiOpen=!aiOpen;
+    aiOpen = !aiOpen;
 
-    panel.style.height=aiOpen?'310px':'32px';
-    chev.textContent=aiOpen?'▼':'▲';
+    panel.style.height = aiOpen ? '310px' : '32px';
+    chev.textContent = aiOpen ? '▼' : '▲';
 
     ['ai-messages','ai-input-row','proxy-bar'].forEach(id=>{
-      document.getElementById(id).style.display=aiOpen?'':'none';
+      document.getElementById(id).style.display = aiOpen ? '' : 'none';
     });
   }
 
   function appendMsg(role,text){
-    const el=document.getElementById('ai-messages');
-    const div=document.createElement('div');
+    const el = document.getElementById('ai-messages');
+    const div = document.createElement('div');
 
-    if(role==='user')       div.className='msg-user';
-    else if(role==='think') div.className='msg-think';
-    else if(role==='error') div.className='msg-err';
-    else if(role==='sys')   div.className='msg-sys';
-    else                    div.className='msg-ai';
+    if (role === 'user')       div.className = 'msg-user';
+    else if (role === 'think') div.className = 'msg-think';
+    else if (role === 'error') div.className = 'msg-err';
+    else if (role === 'sys')   div.className = 'msg-sys';
+    else                       div.className = 'msg-ai';
 
-    div.textContent=text;
+    div.textContent = text;
 
     el.appendChild(div);
-    el.scrollTop=el.scrollHeight;
+    el.scrollTop = el.scrollHeight;
 
     return div;
   }
 
   function buildMarketCtx(){
-    const recent=tape.slice(-30);
+    const recent = tape.slice(-30);
 
-    const buys=recent.filter(t=>t.isBuy).length;
-    const sells=recent.length-buys;
+    const buys = recent.filter(t=>t.isBuy).length;
+    const sells = recent.length - buys;
 
-    const avgP=recent.length?(recent.reduce((a,t)=>a+t.price,0)/recent.length).toFixed(2):'N/A';
+    const avgP = recent.length ? (recent.reduce((a,t)=>a+t.price,0)/recent.length).toFixed(2) : 'N/A';
 
-    const bestAsk=book.asks[0]?parseFloat(book.asks[0][0]).toFixed(2):'N/A';
-    const bestBid=book.bids[0]?parseFloat(book.bids[0][0]).toFixed(2):'N/A';
-    const spread=(book.asks[0]&&book.bids[0])?(parseFloat(book.asks[0][0])-parseFloat(book.bids[0][0])).toFixed(2):'N/A';
+    const bestAsk = book.asks[0] ? parseFloat(book.asks[0][0]).toFixed(2) : 'N/A';
+    const bestBid = book.bids[0] ? parseFloat(book.bids[0][0]).toFixed(2) : 'N/A';
+    const spread = (book.asks[0] && book.bids[0]) ? (parseFloat(book.asks[0][0]) - parseFloat(book.bids[0][0])).toFixed(2) : 'N/A';
 
-    const active=Object.entries(exStatus)
-      .filter(([,s])=>s==='connected')
-      .map(([id])=>id)
+    const active = Object.entries(exStatus)
+      .filter(([,s]) => s === 'connected')
+      .map(([id]) => id)
       .join(', ') || 'none';
 
     return `[Live Snapshot — ${currentBase} @ ${new Date().toISOString()}]
-Last: $${lastPrice>0?lastPrice.toFixed(2):'--'} | Ask: $${bestAsk} | Bid: $${bestBid} | Spread: $${spread}
+Last: $${lastPrice > 0 ? lastPrice.toFixed(2) : '--'} | Ask: $${bestAsk} | Bid: $${bestBid} | Spread: $${spread}
 Last 30 trades → Buys: ${buys}, Sells: ${sells} | Avg: $${avgP}
-Session vol: ${vol>=1000?(vol/1000).toFixed(2)+'K':vol.toFixed(4)}
+Session vol: ${vol >= 1000 ? (vol / 1000).toFixed(2) + 'K' : vol.toFixed(4)}
 Feeds active: ${active}
+Backend: ${BACKEND_URL || 'not configured'} (${backendHealthy ? 'healthy' : 'unhealthy'})
 `;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // AI — Send to GLM-5.2 via server proxy
+  // AI — Send to GLM-5.2 via configured backend
   // ═══════════════════════════════════════════════════════════════════════
   async function sendToGLM(){
-    if(aiBusy) return;
-    if(!nimKey){
+    if (aiBusy) return;
+
+    if (!BACKEND_URL) {
+      openBackendModal();
+      appendMsg('error', 'No backend configured. Configure a backend URL first.');
+      return;
+    }
+
+    if (!nimKey) {
       openKeyModal();
       return;
     }
 
-    const inp=document.getElementById('ai-input');
-    const btn=document.getElementById('ai-send-btn');
+    const inp = document.getElementById('ai-input');
+    const btn = document.getElementById('ai-send-btn');
 
-    const userMsg=inp.value.trim();
-    if(!userMsg) return;
+    const userMsg = inp.value.trim();
+    if (!userMsg) return;
 
-    inp.value='';
-    inp.style.height='auto';
+    inp.value = '';
+    inp.style.height = 'auto';
 
-    aiBusy=true;
-    btn.disabled=true;
+    aiBusy = true;
+    btn.disabled = true;
 
     document.getElementById('nim-dot').classList.add('busy');
 
-    appendMsg('user',userMsg);
+    appendMsg('user', userMsg);
 
-    const messages=[
+    const messages = [
       {
         role:'system',
         content:`You are a professional crypto market analyst in a live multi-exchange terminal.
@@ -1472,16 +1679,18 @@ ${buildMarketCtx()}`
 
     aiHistory.push({role:'user',content:userMsg});
 
-    const bubble=appendMsg('ai','');
+    const bubble = appendMsg('ai', '');
 
-    let fullText='';
-    let thinkBubble=null;
-    let thinkText='';
+    let fullText = '';
+    let thinkBubble = null;
+    let thinkText = '';
 
-    dbg('NIM',`→ POST ${NIM_PROXY}`);
+    const nimUrl = `${BACKEND_URL}/api/nim/chat/completions`;
 
-    try{
-      const resp=await fetch(NIM_PROXY,{
+    dbg('NIM', `→ POST ${nimUrl}`);
+
+    try {
+      const resp = await fetch(nimUrl, {
         method:'POST',
         headers:{
           'Content-Type':'application/json',
@@ -1497,129 +1706,166 @@ ${buildMarketCtx()}`
         }),
       });
 
-      dbg('NIM',`← ${resp.status} ${resp.statusText}`);
+      dbg('NIM', `← ${resp.status} ${resp.statusText}`);
 
-      if(!resp.ok){
-        let errBody='(no body)';
+      if (!resp.ok) {
+        let errBody = '(no body)';
 
-        try{
-          errBody=await resp.text();
-        }catch{}
+        try {
+          errBody = await resp.text();
+        } catch {}
 
-        dbg('NIM ERROR',`${resp.status}:`,errBody.slice(0,400));
+        dbg('NIM ERROR', `${resp.status}:`, errBody.slice(0,400));
 
-        let msg=`HTTP ${resp.status} ${resp.statusText}`;
+        let msg = `HTTP ${resp.status} ${resp.statusText}`;
 
-        try{
-          const p=JSON.parse(errBody);
-          msg+='\n'+(p?.message || p?.detail || p?.error?.message || errBody.slice(0,300));
-        }catch{
-          msg+='\n'+errBody.slice(0,300);
+        try {
+          const p = JSON.parse(errBody);
+          msg += '\n' + (p?.message || p?.detail || p?.error?.message || errBody.slice(0,300));
+        } catch {
+          msg += '\n' + errBody.slice(0,300);
         }
 
-        if(resp.status===401) msg+='\n→ Invalid or expired nvapi- key.';
-        if(resp.status===403) msg+='\n→ Key lacks access to this model.';
-        if(resp.status===429) msg+='\n→ Rate limit hit. Wait and retry.';
-        if(resp.status===422) msg+='\n→ Bad payload (check model name).';
+        if (resp.status === 401) msg += '\n→ Invalid or expired nvapi- key.';
+        if (resp.status === 403) msg += '\n→ Key lacks access to this model.';
+        if (resp.status === 429) msg += '\n→ Rate limit hit. Wait and retry.';
+        if (resp.status === 422) msg += '\n→ Bad payload (check model name).';
 
         bubble.remove();
         aiHistory.pop();
 
-        appendMsg('error',msg);
+        appendMsg('error', msg);
 
         return;
       }
 
-      const reader=resp.body.getReader();
-      const decoder=new TextDecoder();
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
 
-      let buf='';
+      let buf = '';
 
-      while(true){
-        const{done,value}=await reader.read();
-        if(done) break;
+      while (true) {
+        const {done,value} = await reader.read();
+        if (done) break;
 
-        buf+=decoder.decode(value,{stream:true});
+        buf += decoder.decode(value, {stream:true});
 
-        const lines=buf.split('\n');
-        buf=lines.pop();
+        const lines = buf.split('\n');
+        buf = lines.pop();
 
-        for(const line of lines){
-          if(!line.startsWith('data:')) continue;
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
 
-          const payload=line.slice(5).trim();
-          if(payload==='[DONE]') break;
+          const payload = line.slice(5).trim();
+          if (payload === '[DONE]') break;
 
-          try{
-            const chunk=JSON.parse(payload);
-            const delta=chunk.choices?.[0]?.delta;
+          try {
+            const chunk = JSON.parse(payload);
+            const delta = chunk.choices?.[0]?.delta;
 
-            if(!delta) continue;
+            if (!delta) continue;
 
-            if(delta.reasoning_content){
-              thinkText+=delta.reasoning_content;
+            if (delta.reasoning_content) {
+              thinkText += delta.reasoning_content;
 
-              if(!thinkBubble) thinkBubble=appendMsg('think','');
+              if (!thinkBubble) thinkBubble = appendMsg('think', '');
 
-              thinkBubble.textContent=`💭 Thinking…\n${thinkText}`;
-              document.getElementById('ai-messages').scrollTop=9999;
+              thinkBubble.textContent = `💭 Thinking…\n${thinkText}`;
+              document.getElementById('ai-messages').scrollTop = 9999;
             }
 
-            if(delta.content){
-              fullText+=delta.content;
-              bubble.textContent=fullText;
-              document.getElementById('ai-messages').scrollTop=9999;
+            if (delta.content) {
+              fullText += delta.content;
+              bubble.textContent = fullText;
+              document.getElementById('ai-messages').scrollTop = 9999;
             }
-          }catch{}
+          } catch {}
         }
       }
 
-      dbg('NIM',`stream done, ${fullText.length} chars`);
+      dbg('NIM', `stream done, ${fullText.length} chars`);
 
       aiHistory.push({role:'assistant',content:fullText});
 
-      if(aiHistory.length>20) aiHistory.splice(0,2);
+      if (aiHistory.length > 20) aiHistory.splice(0,2);
 
-    }catch(err){
+    } catch(err) {
       bubble.remove();
       aiHistory.pop();
 
-      dbg('NIM CATCH',err.message);
+      dbg('NIM CATCH', err.message);
 
-      appendMsg('error',`Fetch failed: ${err.message}
-→ Check that server.js is running and /healthz returns OK.`);
-    }finally{
-      aiBusy=false;
-      btn.disabled=false;
+      appendMsg('error', `Fetch failed: ${err.message}
+→ Check backend URL, backend CORS, and backend logs.`);
+    } finally {
+      aiBusy = false;
+      btn.disabled = false;
       document.getElementById('nim-dot').classList.remove('busy');
     }
   }
 
   function handleAiKey(e){
-    if(e.key==='Enter' && !e.shiftKey){
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendToGLM();
     }
   }
 
-  document.addEventListener('keydown',e=>{
-    if(e.key==='Escape') dismissModal();
+  document.addEventListener('keydown', e=>{
+    if (e.key === 'Escape') {
+      dismissModal();
+    }
   });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // TERMINAL START
+  // ═══════════════════════════════════════════════════════════════════════
+  function startTerminal(){
+    if (terminalStarted) return;
+
+    terminalStarted = true;
+
+    updateProxyBar(
+      backendHealthy && !!BACKEND_URL,
+      backendHealthy && BACKEND_URL
+        ? `Backend connected: ${BACKEND_URL}`
+        : `Limited mode — backend not connected`
+    );
+
+    updateChart(currentBase);
+    launchAll();
+
+    if (nimKey) {
+      dismissModal();
+      appendMsg('ai', `GLM-5.2 ready. Watching ${currentBase} across all active feeds.`);
+    } else {
+      appendMsg('sys', 'Set your NVIDIA NIM key to enable AI analysis.');
+    }
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
   // BOOT
   // ═══════════════════════════════════════════════════════════════════════
-  window.addEventListener('DOMContentLoaded',async()=>{
+  window.addEventListener('DOMContentLoaded', async ()=>{
+    await unregisterOldServiceWorkers();
+
     buildStatusPanel();
-    updateChart(currentBase);
+    recalcTotalEx();
 
-    await registerSW();
+    const input = document.getElementById('backend-url-input');
+    if (input && BACKEND_URL) input.value = BACKEND_URL;
 
-    launchAll();
+    if (BACKEND_URL) {
+      setBackendStatus('loading', `Checking saved backend: ${BACKEND_URL}`);
+      backendHealthy = await checkBackend(BACKEND_URL);
 
-    if(nimKey){
-      dismissModal();
-      appendMsg('ai',`GLM-5.2 ready. Watching ${currentBase} across all active feeds.`);
+      if (backendHealthy) {
+        setBackendStatus('ok', `Saved backend healthy: ${BACKEND_URL}`);
+      } else {
+        setBackendStatus('bad', `Saved backend not reachable: ${BACKEND_URL}`);
+      }
+    } else {
+      setBackendStatus('idle', 'Enter a backend URL and click Test.');
     }
   });
   </script>
