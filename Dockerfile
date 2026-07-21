@@ -1,29 +1,39 @@
 FROM rust:1.86-slim AS builder
 
+# 1. Fix the OpenSSL / pkg-config build error
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Copy Cargo files.
-# If you commit Cargo.lock, it will be used automatically.
-COPY Cargo.* ./
+# 2. Copy Cargo.toml first to cache dependencies
+COPY Cargo.toml ./
 
-# Build dependencies first for better Docker caching.
+# 3. Create a dummy main.rs to build dependencies
 RUN mkdir src \
     && echo "fn main() {}" > src/main.rs \
     && cargo build --release \
     && rm -rf src
 
+# 4. Copy the actual source code and build the real binary
 COPY src ./src
+RUN cargo build --release
 
-RUN touch src/main.rs && cargo build --release
-
+# --- Runtime Stage ---
 FROM debian:bookworm-slim
 
-RUN apt-get update \
-    && apt-get install -y ca-certificates \
+# 5. Install runtime SSL libraries and CA certificates for Upstash Redis TLS
+RUN apt-get update && apt-get install -y \
+    libssl3 \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/omni-stream-backend /usr/local/bin/omni-stream-backend
+WORKDIR /app
+COPY --from=builder /app/target/release/crypto-terminal-backend /app/crypto-terminal-backend
 
-EXPOSE 3000
+ENV PORT=10000
+EXPOSE 10000
 
-CMD ["omni-stream-backend"]
+CMD ["/app/crypto-terminal-backend"]
