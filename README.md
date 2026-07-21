@@ -1,5 +1,3 @@
-Here is a full `README.md` for the Rust backend.
-
 ```md
 # Omni Stream Backend — Rust Proxy
 
