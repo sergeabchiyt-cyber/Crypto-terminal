@@ -4,14 +4,15 @@ use axum::{
     body::Body,
     extract::{
         ws::{Message as AxumMessage, WebSocket, WebSocketUpgrade},
-        State,
+        Path, Query, State,
     },
     http::{header, HeaderMap, HeaderValue, Method, StatusCode},
-    response::Response,
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
 use futures::{SinkExt, StreamExt};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::time::{Duration, MissedTickBehavior};
 use tokio_stream::wrappers::ReceiverStream;
@@ -23,6 +24,12 @@ use tokio_tungstenite::{
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::info;
 
+// --- NEW IMPORTS ---
+use redis::AsyncCommands;
+use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Key, Nonce};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use chrono::Utc;
+
 #[derive(Clone)]
 struct AppState {
     client: reqwest::Client,
@@ -30,6 +37,10 @@ struct AppState {
     kucoin_base: String,
     phemex_ws: String,
     phemex_origin: String,
+    // --- NEW STATE ---
+    redis: redis::Client,
+    aes_key: Vec<u8>,
+    backend_url: String,
 }
 
 type AppError = (StatusCode, Json<Value>);
@@ -60,20 +71,29 @@ async fn main() {
 
     let nim_base = std::env::var("NIM_BASE")
         .unwrap_or_else(|_| "https://integrate.api.nvidia.com/v1".to_string());
-
     let kucoin_base = std::env::var("KUCOIN_BASE")
         .unwrap_or_else(|_| "https://api.kucoin.com".to_string());
-
     let phemex_ws = std::env::var("PHEMEX_WS")
         .unwrap_or_else(|_| "wss://vapi.phemex.com/ws".to_string());
-
     let phemex_origin = std::env::var("PHEMEX_ORIGIN")
         .unwrap_or_else(|_| "https://phemex.com".to_string());
+
+    // --- NEW ENV VARS ---
+    let redis_url = std::env::var("REDIS_URL")
+        .unwrap_or_else(|_| "rediss://default:password@rested-tomcat-183412.upstash.io:6379".to_string());
+    let aes_hex = std::env::var("AES_SECRET_HEX")
+        .unwrap_or_else(|_| "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string());
+    let backend_url = std::env::var("BACKEND_URL")
+        .unwrap_or_else(|_| "http://localhost:8080".to_string());
 
     let client = reqwest::Client::builder()
         .pool_max_idle_per_host(5)
         .build()
         .expect("failed to build reqwest client");
+
+    let redis_client = redis::Client::open(redis_url.as_str())
+        .expect("Failed to create Redis client");
+    let aes_key = hex::decode(&aes_hex).expect("Invalid AES hex");
 
     let state = AppState {
         client,
@@ -81,6 +101,9 @@ async fn main() {
         kucoin_base,
         phemex_ws,
         phemex_origin,
+        redis: redis_client,
+        aes_key,
+        backend_url,
     };
 
     let cors = build_cors();
@@ -88,43 +111,41 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/healthz", get(healthz))
+        // --- EXISTING ROUTES ---
         .route("/api/kucoin/bullet-public", post(kucoin_bullet))
         .route("/api/nim/chat/completions", post(nim_chat))
         .route("/api/ws/phemex", get(phemex_ws_handler))
+        // --- NEW ROUTES ---
+        .route("/api/config/keys", post(set_api_keys))
+        .route("/api/chart/save", post(save_chart_state))
+        .route("/api/chart/load", get(load_chart_state))
+        .route("/tv-proxy/{*path}", get(tv_http_proxy))
+        .route("/api/ws/tv-proxy", get(tv_ws_proxy))
         .layer(cors)
         .with_state(state);
 
     let addr = ("0.0.0.0", port);
-
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .expect("failed to bind port");
 
     info!("Omni Stream Rust backend listening on {}", port);
-    info!("Health: http://0.0.0.0:{}/healthz", port);
-
-    axum::serve(listener, app)
-        .await
-        .expect("server failed");
+    axum::serve(listener, app).await.expect("server failed");
 }
+
+// ==========================================
+// EXISTING LOGIC (CORS, ROOT, HEALTHZ, ETC)
+// ==========================================
 
 fn build_cors() -> CorsLayer {
     let raw = std::env::var("ALLOWED_ORIGINS").unwrap_or_default();
-
-    let origins: Vec<String> = raw
-        .split(',')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
+    let origins: Vec<String> = raw.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
 
     if origins.is_empty() || origins.iter().any(|s| s == "*") {
         return CorsLayer::permissive();
     }
 
-    let headers: Vec<HeaderValue> = origins
-        .iter()
-        .filter_map(|s| HeaderValue::from_str(s).ok())
-        .collect();
+    let headers: Vec<HeaderValue> = origins.iter().filter_map(|s| HeaderValue::from_str(s).ok()).collect();
 
     CorsLayer::new()
         .allow_origin(AllowOrigin::list(headers))
@@ -136,72 +157,43 @@ async fn root() -> Json<Value> {
     Json(json!({
         "ok": true,
         "service": "omni-stream-backend-rust",
-        "health": "/healthz",
         "routes": {
             "kucoin": "/api/kucoin/bullet-public",
             "nim": "/api/nim/chat/completions",
             "phemex_ws": "/api/ws/phemex",
+            "tv_proxy": "/tv-proxy/{*path}",
+            "tv_ws": "/api/ws/tv-proxy",
+            "redis_save": "/api/chart/save"
         }
     }))
 }
 
 async fn healthz() -> Json<Value> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-
-    Json(json!({
-        "ok": true,
-        "service": "omni-stream-backend-rust",
-        "time": now,
-        "routes": {
-            "kucoin": "/api/kucoin/bullet-public",
-            "nim": "/api/nim/chat/completions",
-            "phemex_ws": "/api/ws/phemex",
-        }
-    }))
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    Json(json!({ "ok": true, "time": now }))
 }
 
 async fn kucoin_bullet(State(state): State<AppState>) -> Result<Response, AppError> {
     let url = format!("{}/api/v1/bullet-public", state.kucoin_base);
-
-    let upstream = state
-        .client
-        .post(&url)
+    let upstream = state.client.post(&url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .header(reqwest::header::USER_AGENT, "OmniStream/1.0")
         .body("{}")
-        .send()
-        .await
+        .send().await
         .map_err(|e| bad_gateway(format!("KuCoin request failed: {e}")))?;
 
     let status = upstream.status();
-
-    let content_type = upstream
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|v| HeaderValue::from_bytes(v.as_bytes()).ok());
-
-    let bytes = upstream
-        .bytes()
-        .await
-        .map_err(|e| bad_gateway(format!("KuCoin body read failed: {e}")))?;
+    let content_type = upstream.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| HeaderValue::from_bytes(v.as_bytes()).ok());
+    let bytes = upstream.bytes().await.map_err(|e| bad_gateway(format!("KuCoin body read failed: {e}")))?;
 
     let mut builder = Response::builder().status(status.as_u16());
-
     builder = match content_type {
         Some(ct) => builder.header(header::CONTENT_TYPE, ct),
         None => builder.header(header::CONTENT_TYPE, "application/json"),
     };
-
     builder = builder.header(header::CACHE_CONTROL, "no-store");
 
-    let resp = builder
-        .body(Body::from(bytes))
-        .map_err(|e| bad_gateway(format!("response build failed: {e}")))?;
-
-    Ok(resp)
+    Ok(builder.body(Body::from(bytes)).map_err(|e| bad_gateway(format!("response build failed: {e}")))?)
 }
 
 async fn nim_chat(
@@ -210,81 +202,43 @@ async fn nim_chat(
     Json(payload): Json<Value>,
 ) -> Result<Response, AppError> {
     info!("NIM proxy: opening early SSE stream");
-
-    let auth = headers
-        .get(header::AUTHORIZATION)
-        .map(|v| v.as_bytes().to_vec());
-
+    let auth = headers.get(header::AUTHORIZATION).map(|v| v.as_bytes().to_vec());
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Vec<u8>, std::io::Error>>(32);
 
-    // Send something immediately so Render/reverse proxies do not timeout
-    // while waiting for NVIDIA NIM's first byte.
     let _ = tx.send(Ok(b": connected\n\n".to_vec())).await;
 
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(5));
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
-
         let mut req_fut = Box::pin(send_nim_request(state, auth, payload));
 
-        // Wait for upstream response while sending heartbeat comments.
         let upstream_result = loop {
             tokio::select! {
-                _ = interval.tick() => {
-                    if tx.send(Ok(b": ping\n\n".to_vec())).await.is_err() {
-                        return;
-                    }
-                }
+                _ = interval.tick() => { if tx.send(Ok(b": ping\n\n".to_vec())).await.is_err() { return; } }
                 res = req_fut.as_mut() => break res,
             }
         };
 
         let upstream = match upstream_result {
             Ok(upstream) => upstream,
-            Err(e) => {
-                send_backend_error(&tx, &format!("NIM request failed: {e}")).await;
-                return;
-            }
+            Err(e) => { send_backend_error(&tx, &format!("NIM request failed: {e}")).await; return; }
         };
 
         let status = upstream.status();
-        info!("NIM proxy: upstream status {}", status.as_u16());
-
         if !status.is_success() {
             let body = upstream.text().await.unwrap_or_default();
-            send_backend_error(
-                &tx,
-                &format!(
-                    "NIM returned HTTP {}: {}",
-                    status.as_u16(),
-                    truncate_for_error(&body)
-                ),
-            )
-            .await;
+            send_backend_error(&tx, &format!("NIM returned HTTP {}: {}", status.as_u16(), truncate_for_error(&body))).await;
             return;
         }
 
         let mut stream = upstream.bytes_stream();
-
-        // Stream NIM bytes to the browser while continuing heartbeat.
         loop {
             tokio::select! {
-                _ = interval.tick() => {
-                    if tx.send(Ok(b": ping\n\n".to_vec())).await.is_err() {
-                        return;
-                    }
-                }
+                _ = interval.tick() => { if tx.send(Ok(b": ping\n\n".to_vec())).await.is_err() { return; } }
                 chunk = stream.next() => {
                     match chunk {
-                        Some(Ok(bytes)) => {
-                            if tx.send(Ok(bytes.to_vec())).await.is_err() {
-                                return;
-                            }
-                        }
-                        Some(Err(e)) => {
-                            send_backend_error(&tx, &format!("NIM stream error: {e}")).await;
-                            return;
-                        }
+                        Some(Ok(bytes)) => { if tx.send(Ok(bytes.to_vec())).await.is_err() { return; } }
+                        Some(Err(e)) => { send_backend_error(&tx, &format!("NIM stream error: {e}")).await; return; }
                         None => break,
                     }
                 }
@@ -293,28 +247,18 @@ async fn nim_chat(
     });
 
     let body_stream = ReceiverStream::new(rx).map(|item| item.map(bytes::Bytes::from));
-
-    let resp = Response::builder()
+    Ok(Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/event-stream")
         .header(header::CACHE_CONTROL, "no-cache, no-transform")
         .header("X-Accel-Buffering", "no")
         .body(Body::from_stream(body_stream))
-        .map_err(|e| bad_gateway(format!("response build failed: {e}")))?;
-
-    Ok(resp)
+        .map_err(|e| bad_gateway(format!("response build failed: {e}")))?)
 }
 
-async fn send_nim_request(
-    state: AppState,
-    auth: Option<Vec<u8>>,
-    payload: Value,
-) -> Result<reqwest::Response, reqwest::Error> {
+async fn send_nim_request(state: AppState, auth: Option<Vec<u8>>, payload: Value) -> Result<reqwest::Response, reqwest::Error> {
     let url = format!("{}/chat/completions", state.nim_base);
-
-    let mut req = state
-        .client
-        .post(&url)
+    let mut req = state.client.post(&url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .header(reqwest::header::ACCEPT, "text/event-stream")
         .header(reqwest::header::USER_AGENT, "OmniStream/1.0");
@@ -324,81 +268,39 @@ async fn send_nim_request(
             req = req.header(reqwest::header::AUTHORIZATION, value);
         }
     }
-
     req.json(&payload).send().await
 }
 
-async fn send_backend_error(
-    tx: &tokio::sync::mpsc::Sender<Result<Vec<u8>, std::io::Error>>,
-    msg: &str,
-) {
-    let error_event = json!({
-        "ok": false,
-        "error": msg,
-    });
+async fn send_backend_error(tx: &tokio::sync::mpsc::Sender<Result<Vec<u8>, std::io::Error>>, msg: &str) {
+    let error_event = json!({ "ok": false, "error": msg });
+    let error_str = serde_json::to_string(&error_event).unwrap_or_default();
+    let _ = tx.send(Ok(format!("event: error\ndata: {error_str}\n\n").into_bytes())).await;
 
-    let error_event = serde_json::to_string(&error_event)
-        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"serialization failed\"}".to_string());
-
-    // SSE error event for future frontend handling.
-    let _ = tx
-        .send(Ok(format!("event: error\ndata: {error_event}\n\n").into_bytes()))
-        .await;
-
-    // Also inject a visible message into the normal chat stream so existing
-    // frontends that only parse `data:` chunks will show the error.
-    let visible = json!({
-        "choices": [{
-            "delta": {
-                "content": format!("\n\n⚠ {msg}")
-            }
-        }]
-    });
-
-    let visible = serde_json::to_string(&visible)
-        .unwrap_or_else(|_| "{\"choices\":[{\"delta\":{\"content\":\"Backend error\"}}]}".to_string());
-
-    let _ = tx
-        .send(Ok(format!("data: {visible}\n\n").into_bytes()))
-        .await;
-
+    let visible = json!({ "choices": [{ "delta": { "content": format!("\n\n⚠ {msg}") } }] });
+    let visible_str = serde_json::to_string(&visible).unwrap_or_default();
+    let _ = tx.send(Ok(format!("data: {visible_str}\n\n").into_bytes())).await;
     let _ = tx.send(Ok(b"data: [DONE]\n\n".to_vec())).await;
 }
 
-fn truncate_for_error(s: &str) -> String {
-    s.chars().take(400).collect()
-}
+fn truncate_for_error(s: &str) -> String { s.chars().take(400).collect() }
 
-async fn phemex_ws_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<AppState>,
-) -> Response {
+async fn phemex_ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
     ws.on_upgrade(move |socket| handle_phemex(socket, state))
 }
 
 async fn handle_phemex(socket: WebSocket, state: AppState) {
     let mut request = match state.phemex_ws.as_str().into_client_request() {
         Ok(r) => r,
-        Err(e) => {
-            tracing::warn!("Phemex client request build failed: {e}");
-            return;
-        }
+        Err(e) => { tracing::warn!("Phemex client request build failed: {e}"); return; }
     };
 
-    let origin = HeaderValue::from_str(&state.phemex_origin)
-        .unwrap_or_else(|_| HeaderValue::from_static("https://phemex.com"));
-
+    let origin = HeaderValue::from_str(&state.phemex_origin).unwrap_or_else(|_| HeaderValue::from_static("https://phemex.com"));
     request.headers_mut().insert(header::ORIGIN, origin);
-    request
-        .headers_mut()
-        .insert(header::USER_AGENT, HeaderValue::from_static("OmniStream/1.0"));
+    request.headers_mut().insert(header::USER_AGENT, HeaderValue::from_static("OmniStream/1.0"));
 
     let upstream = match connect_async(request).await {
         Ok((ws, _)) => ws,
-        Err(e) => {
-            tracing::warn!("Phemex upstream WebSocket failed: {e}");
-            return;
-        }
+        Err(e) => { tracing::warn!("Phemex upstream WebSocket failed: {e}"); return; }
     };
 
     let (mut client_sink, mut client_stream) = socket.split();
@@ -407,9 +309,7 @@ async fn handle_phemex(socket: WebSocket, state: AppState) {
     let client_to_upstream = async move {
         while let Some(Ok(msg)) = client_stream.next().await {
             if let Some(out) = axum_to_tungstenite(msg) {
-                if upstream_sink.send(out).await.is_err() {
-                    break;
-                }
+                if upstream_sink.send(out).await.is_err() { break; }
             }
         }
     };
@@ -417,17 +317,12 @@ async fn handle_phemex(socket: WebSocket, state: AppState) {
     let upstream_to_client = async move {
         while let Some(Ok(msg)) = upstream_stream.next().await {
             if let Some(out) = tungstenite_to_axum(msg) {
-                if client_sink.send(out).await.is_err() {
-                    break;
-                }
+                if client_sink.send(out).await.is_err() { break; }
             }
         }
     };
 
-    tokio::select! {
-        _ = client_to_upstream => {},
-        _ = upstream_to_client => {},
-    }
+    tokio::select! { _ = client_to_upstream => {}, _ = upstream_to_client => {}, }
 }
 
 #[allow(unreachable_patterns)]
@@ -438,8 +333,6 @@ fn axum_to_tungstenite(msg: AxumMessage) -> Option<TungsteniteMessage> {
         AxumMessage::Ping(p) => Some(TungsteniteMessage::Ping(p.to_vec())),
         AxumMessage::Pong(p) => Some(TungsteniteMessage::Pong(p.to_vec())),
         AxumMessage::Close(_) => Some(TungsteniteMessage::Close(None)),
-
-        // Ignore unknown or raw frame variants.
         _ => None,
     }
 }
@@ -452,11 +345,194 @@ fn tungstenite_to_axum(msg: TungsteniteMessage) -> Option<AxumMessage> {
         TungsteniteMessage::Ping(p) => Some(AxumMessage::Ping(p.to_vec().into())),
         TungsteniteMessage::Pong(p) => Some(AxumMessage::Pong(p.to_vec().into())),
         TungsteniteMessage::Close(_) => Some(AxumMessage::Close(None)),
-
-        // tungstenite 0.21 includes Frame(_), which Axum does not need directly.
         TungsteniteMessage::Frame(_) => None,
-
-        // Ignore unknown future variants.
         _ => None,
+    }
+}
+
+// ==========================================
+// NEW LOGIC: AES, REDIS, TV MITM PROXY
+// ==========================================
+
+#[derive(Deserialize)]
+struct EncryptedPayload { iv: String, ciphertext: String }
+
+#[derive(Deserialize)]
+struct ChartStatePayload { session_id: String, state_json: String }
+
+async fn set_api_keys(State(state): State<AppState>, Json(payload): Json<EncryptedPayload>) -> impl IntoResponse {
+    let key = Key::<Aes256Gcm>::from_slice(&state.aes_key);
+    let cipher = Aes256Gcm::new(key);
+    
+    let iv_bytes = match BASE64.decode(&payload.iv) {
+        Ok(b) => b,
+        Err(_) => return (StatusCode::BAD_REQUEST, "Invalid IV base64").into_response(),
+    };
+    let nonce = Nonce::from_slice(&iv_bytes);
+    let ciphertext = match BASE64.decode(&payload.ciphertext) {
+        Ok(b) => b,
+        Err(_) => return (StatusCode::BAD_REQUEST, "Invalid ciphertext base64").into_response(),
+    };
+
+    match cipher.decrypt(nonce, ciphertext.as_ref()) {
+        Ok(_) => (StatusCode::OK, "API Key securely received and decrypted.").into_response(),
+        Err(_) => (StatusCode::BAD_REQUEST, "Decryption failed").into_response(),
+    }
+}
+
+async fn save_chart_state(State(state): State<AppState>, Json(payload): Json<ChartStatePayload>) -> impl IntoResponse {
+    let mut con = match state.redis.get_multiplexed_async_connection().await {
+        Ok(c) => c,
+        Err(e) => { tracing::error!("Redis connection failed: {}", e); return StatusCode::INTERNAL_SERVER_ERROR.into_response(); }
+    };
+    let _: Result<(), _> = con.set_ex(&payload.session_id, &payload.state_json, 2592000).await;
+    StatusCode::OK.into_response()
+}
+
+async fn load_chart_state(State(state): State<AppState>, Query(params): Query<std::collections::HashMap<String, String>>) -> impl IntoResponse {
+    let mut con = match state.redis.get_multiplexed_async_connection().await {
+        Ok(c) => c,
+        Err(e) => { tracing::error!("Redis connection failed: {}", e); return StatusCode::INTERNAL_SERVER_ERROR.into_response(); }
+    };
+    let session_id = match params.get("session_id") {
+        Some(id) => id,
+        None => return StatusCode::BAD_REQUEST.into_response(),
+    };
+    let state_json: Option<String> = con.get(session_id).await.unwrap_or(None);
+    match state_json {
+        Some(json) => (StatusCode::OK, json).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) -> impl IntoResponse {
+    let tv_url = if path.contains("static/bundles") || path.contains("embed-widget") {
+        format!("https://www.tradingview-widget.com/{}", path)
+    } else {
+        format!("https://s3.tradingview.com/{}", path)
+    };
+
+    let resp = match state.client.get(&tv_url).send().await {
+        Ok(r) => r,
+        Err(_) => return StatusCode::BAD_GATEWAY.into_response(),
+    };
+
+    let content_type = resp.headers().get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+    let mut body = resp.text().await.unwrap_or_default();
+
+    if content_type.contains("javascript") || content_type.contains("html") {
+        let ws_backend = state.backend_url.replace("http://", "ws://").replace("https://", "wss://");
+        body = body.replace("wss://prodata.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
+        body = body.replace("wss://data.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
+        body = body.replace("https://www.tradingview-widget.com/", &format!("{}/tv-proxy/", state.backend_url));
+        body = body.replace("https://s3.tradingview.com/", &format!("{}/tv-proxy/", state.backend_url));
+        
+        if content_type.contains("html") {
+            let redis_sync_script = format!(r#"
+            <script>
+                setInterval(() => {{
+                    try {{
+                        const tvState = localStorage.getItem('tradingview-widget-local-storage') || localStorage.getItem('tradingview.chart');
+                        if (tvState) {{
+                            fetch('{}/api/chart/save', {{
+                                method: 'POST',
+                                headers: {{'Content-Type': 'application/json'}},
+                                body: JSON.stringify({{ session_id: 'global_tv_state', state_json: tvState }})
+                            }});
+                        }}
+                    }} catch(e) {{}}
+                }}, 5000);
+            </script>
+            "#, state.backend_url);
+            body = body.replace("</body>", &format!("{} </body>", redis_sync_script));
+        }
+    }
+
+    let mut headers = HeaderMap::new();
+    if let Ok(ct) = content_type.parse() { headers.insert(header::CONTENT_TYPE, ct); }
+    (StatusCode::OK, headers, body).into_response()
+}
+
+async fn tv_ws_proxy(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
+    ws.on_upgrade(move |socket| handle_tv_socket(socket, state))
+}
+
+async fn fetch_10k_candles(client: &reqwest::Client, symbol: &str, interval: &str) -> Vec<Value> {
+    let mut all_candles = Vec::new();
+    let mut end_time = Utc::now().timestamp_millis();
+
+    for _ in 0..10 {
+        let url = format!("https://testnet.binance.vision/api/v3/klines?symbol={}&interval={}&endTime={}&limit=1000", symbol, interval, end_time);
+        if let Ok(resp) = client.get(&url).send().await {
+            if let Ok(data) = resp.json::<Vec<Value>>().await {
+                if data.is_empty() { break; }
+                if let Some(oldest) = data.first() {
+                    if let Some(t) = oldest[0].as_i64() { end_time = t - 1; }
+                }
+                all_candles.extend(data);
+            }
+        }
+    }
+    all_candles.reverse();
+    all_candles
+}
+
+async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
+    info!("[PROXY] TradingView Iframe connected.");
+    let binance_url = "wss://testnet.binance.vision/ws/btcusdt@kline_1m";
+    let (mut binance_ws, _) = match connect_async(binance_url).await {
+        Ok((ws, _)) => ws,
+        Err(e) => { tracing::error!("Binance WS failed: {}", e); return; }
+    };
+
+    loop {
+        tokio::select! {
+            Some(Ok(msg)) = tv_socket.recv() => {
+                if let AxumMessage::Text(text) = msg {
+                    if text.contains("~h~") {
+                        let _ = tv_socket.send(AxumMessage::Text(text)).await;
+                    } else if text.contains("create_series") {
+                        info!("[PROXY] Intercepted create_series. Fetching 10k candles...");
+                        let candles = fetch_10k_candles(&state.client, "BTCUSDT", "1m").await;
+                        let tv_data: Vec<Value> = candles.iter().filter_map(|c| {
+                            let t = c[0].as_f64()? / 1000.0;
+                            let o = c[1].as_str()?.parse::<f64>().ok()?;
+                            let h = c[2].as_str()?.parse::<f64>().ok()?;
+                            let l = c[3].as_str()?.parse::<f64>().ok()?;
+                            let cl = c[4].as_str()?.parse::<f64>().ok()?;
+                            let v = c[5].as_str()?.parse::<f64>().ok()?;
+                            Some(json!({ "i": c[0].as_i64().unwrap_or(0), "v": [t, o, h, l, cl, v] }))
+                        }).collect();
+
+                        let payload = json!({ "m": "timescale_update", "p": ["cs_local", {"sds_1": {"s": tv_data}}] });
+                        let payload_str = payload.to_string();
+                        let wrapped = format!("~m~{}~m~{}", payload_str.len(), payload_str);
+                        let _ = tv_socket.send(AxumMessage::Text(wrapped.into())).await;
+                    }
+                }
+            }
+            Some(Ok(msg)) = binance_ws.next() => {
+                if let TungsteniteMessage::Text(text) = msg {
+                    if let Ok(parsed) = serde_json::from_str::<Value>(&text) {
+                        if parsed["e"] == "kline" {
+                            let k = &parsed["k"];
+                            let t = k["t"].as_f64().unwrap_or(0.0) / 1000.0;
+                            let close_time = t + 60.0;
+                            let du_payload = json!({
+                                "m": "du",
+                                "p": ["cs_local", {"sds_1": {"s": [{
+                                    "i": 0,
+                                    "v": [t, k["o"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0), k["h"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0), k["l"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0), k["c"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0), k["v"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0)]
+                                }], "ns": {"d": "", "indexes": "nochange"}, "t": "sds_1", "lbs": {"bar_close_time": close_time}}}]
+                            });
+                            let payload_str = du_payload.to_string();
+                            let wrapped = format!("~m~{}~m~{}", payload_str.len(), payload_str);
+                            if tv_socket.send(AxumMessage::Text(wrapped.into())).await.is_err() { break; }
+                        }
+                    }
+                }
+            }
+            else => break,
+        }
     }
 }
