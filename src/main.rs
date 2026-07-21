@@ -277,7 +277,9 @@ async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) 
     };
 
     let resp = match state.client.get(&tv_url).send().await { Ok(r) => r, Err(_) => return StatusCode::BAD_GATEWAY.into_response() };
-    let content_type = resp.headers().get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+    
+    // FIX 1: Use reqwest::header::CONTENT_TYPE instead of axum's header::CONTENT_TYPE
+    let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
     let mut body = resp.text().await.unwrap_or_default();
 
     if content_type.contains("javascript") || content_type.contains("html") {
@@ -337,7 +339,12 @@ async fn fetch_10k_candles(client: &reqwest::Client, symbol: &str, interval: &st
 async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
     info!("[PROXY] TradingView Iframe connected.");
     let binance_url = "wss://testnet.binance.vision/ws/btcusdt@kline_1m";
-    let (mut binance_ws, _) = match connect_async(binance_url).await { Ok((ws, _)) => ws, Err(e) => { tracing::error!("Binance WS failed: {}", e); return; } };
+    
+    // FIX 2: Removed tuple destructuring `(mut binance_ws, _)` since `connect_async` match returns a single stream
+    let mut binance_ws = match connect_async(binance_url).await { 
+        Ok((ws, _)) => ws, 
+        Err(e) => { tracing::error!("Binance WS failed: {}", e); return; } 
+    };
 
     loop {
         tokio::select! {
