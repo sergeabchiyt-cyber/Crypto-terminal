@@ -60,7 +60,7 @@ User-supplied NVIDIA NIM keys are passed through the `Authorization` header from
 ---
 
 ## Architecture
-
+```txt
 ┌────────────────────────┐
 │ Static Frontend        │
 │ HTML/CSS/JS            │
@@ -93,7 +93,7 @@ User-supplied NVIDIA NIM keys are passed through the `Authorization` header from
 │ Phemex WebSocket   │
 │ wss://vapi...      │
 └────────────────────┘
-
+```
 ---
 
 ## Why This Backend Exists
