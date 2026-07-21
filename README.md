@@ -1,4 +1,3 @@
-```md
 # Omni Stream Backend — Rust Proxy
 
 Lightweight Rust backend proxy for the **Omni Stream** open-source crypto terminal frontend.
@@ -62,7 +61,6 @@ User-supplied NVIDIA NIM keys are passed through the `Authorization` header from
 
 ## Architecture
 
-```txt
 ┌────────────────────────┐
 │ Static Frontend        │
 │ HTML/CSS/JS            │
@@ -95,7 +93,6 @@ User-supplied NVIDIA NIM keys are passed through the `Authorization` header from
 │ Phemex WebSocket   │
 │ wss://vapi...      │
 └────────────────────┘
-```
 
 ---
 
