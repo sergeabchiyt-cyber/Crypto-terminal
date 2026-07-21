@@ -13,6 +13,8 @@ use axum::{
 };
 use futures::{SinkExt, StreamExt};
 use serde_json::{json, Value};
+use tokio::time::{Duration, MissedTickBehavior};
+use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::client::IntoClientRequest,
@@ -207,6 +209,107 @@ async fn nim_chat(
     headers: HeaderMap,
     Json(payload): Json<Value>,
 ) -> Result<Response, AppError> {
+    info!("NIM proxy: opening early SSE stream");
+
+    let auth = headers
+        .get(header::AUTHORIZATION)
+        .map(|v| v.as_bytes().to_vec());
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Vec<u8>, std::io::Error>>(32);
+
+    // Send something immediately so Render/reverse proxies do not timeout
+    // while waiting for NVIDIA NIM's first byte.
+    let _ = tx.send(Ok(b": connected\n\n".to_vec())).await;
+
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(5));
+        interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
+        let mut req_fut = Box::pin(send_nim_request(state, auth, payload));
+
+        // Wait for upstream response while sending heartbeat comments.
+        let upstream_result = loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    if tx.send(Ok(b": ping\n\n".to_vec())).await.is_err() {
+                        return;
+                    }
+                }
+                res = req_fut.as_mut() => break res,
+            }
+        };
+
+        let upstream = match upstream_result {
+            Ok(upstream) => upstream,
+            Err(e) => {
+                send_backend_error(&tx, &format!("NIM request failed: {e}")).await;
+                return;
+            }
+        };
+
+        let status = upstream.status();
+        info!("NIM proxy: upstream status {}", status.as_u16());
+
+        if !status.is_success() {
+            let body = upstream.text().await.unwrap_or_default();
+            send_backend_error(
+                &tx,
+                &format!(
+                    "NIM returned HTTP {}: {}",
+                    status.as_u16(),
+                    truncate_for_error(&body)
+                ),
+            )
+            .await;
+            return;
+        }
+
+        let mut stream = upstream.bytes_stream();
+
+        // Stream NIM bytes to the browser while continuing heartbeat.
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    if tx.send(Ok(b": ping\n\n".to_vec())).await.is_err() {
+                        return;
+                    }
+                }
+                chunk = stream.next() => {
+                    match chunk {
+                        Some(Ok(bytes)) => {
+                            if tx.send(Ok(bytes.to_vec())).await.is_err() {
+                                return;
+                            }
+                        }
+                        Some(Err(e)) => {
+                            send_backend_error(&tx, &format!("NIM stream error: {e}")).await;
+                            return;
+                        }
+                        None => break,
+                    }
+                }
+            }
+        }
+    });
+
+    let body_stream = ReceiverStream::new(rx).map(|item| item.map(bytes::Bytes::from));
+
+    let resp = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/event-stream")
+        .header(header::CACHE_CONTROL, "no-cache, no-transform")
+        .header("X-Accel-Buffering", "no")
+        .body(Body::from_stream(body_stream))
+        .map_err(|e| bad_gateway(format!("response build failed: {e}")))?;
+
+    Ok(resp)
+}
+
+async fn send_nim_request(
+    state: AppState,
+    auth: Option<Vec<u8>>,
+    payload: Value,
+) -> Result<reqwest::Response, reqwest::Error> {
     let url = format!("{}/chat/completions", state.nim_base);
 
     let mut req = state
@@ -216,43 +319,54 @@ async fn nim_chat(
         .header(reqwest::header::ACCEPT, "text/event-stream")
         .header(reqwest::header::USER_AGENT, "OmniStream/1.0");
 
-    if let Some(auth) = headers.get(header::AUTHORIZATION) {
-        let auth_value = reqwest::header::HeaderValue::from_bytes(auth.as_bytes())
-            .map_err(|e| bad_gateway(format!("invalid Authorization header: {e}")))?;
-
-        req = req.header(reqwest::header::AUTHORIZATION, auth_value);
+    if let Some(auth) = auth {
+        if let Ok(value) = reqwest::header::HeaderValue::from_bytes(&auth) {
+            req = req.header(reqwest::header::AUTHORIZATION, value);
+        }
     }
 
-    let upstream = req
-        .json(&payload)
-        .send()
-        .await
-        .map_err(|e| bad_gateway(format!("NIM request failed: {e}")))?;
+    req.json(&payload).send().await
+}
 
-    let status = upstream.status();
+async fn send_backend_error(
+    tx: &tokio::sync::mpsc::Sender<Result<Vec<u8>, std::io::Error>>,
+    msg: &str,
+) {
+    let error_event = json!({
+        "ok": false,
+        "error": msg,
+    });
 
-    let content_type = upstream
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|v| HeaderValue::from_bytes(v.as_bytes()).ok());
+    let error_event = serde_json::to_string(&error_event)
+        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"serialization failed\"}".to_string());
 
-    let stream = upstream.bytes_stream();
+    // SSE error event for future frontend handling.
+    let _ = tx
+        .send(Ok(format!("event: error\ndata: {error_event}\n\n").into_bytes()))
+        .await;
 
-    let mut builder = Response::builder().status(status.as_u16());
+    // Also inject a visible message into the normal chat stream so existing
+    // frontends that only parse `data:` chunks will show the error.
+    let visible = json!({
+        "choices": [{
+            "delta": {
+                "content": format!("\n\n⚠ {msg}")
+            }
+        }]
+    });
 
-    builder = builder.header(
-        header::CONTENT_TYPE,
-        content_type.unwrap_or_else(|| HeaderValue::from_static("text/event-stream")),
-    );
+    let visible = serde_json::to_string(&visible)
+        .unwrap_or_else(|_| "{\"choices\":[{\"delta\":{\"content\":\"Backend error\"}}]}".to_string());
 
-    builder = builder.header(header::CACHE_CONTROL, "no-cache, no-transform");
-    builder = builder.header("X-Accel-Buffering", "no");
+    let _ = tx
+        .send(Ok(format!("data: {visible}\n\n").into_bytes()))
+        .await;
 
-    let resp = builder
-        .body(Body::from_stream(stream))
-        .map_err(|e| bad_gateway(format!("response build failed: {e}")))?;
+    let _ = tx.send(Ok(b"data: [DONE]\n\n".to_vec())).await;
+}
 
-    Ok(resp)
+fn truncate_for_error(s: &str) -> String {
+    s.chars().take(400).collect()
 }
 
 async fn phemex_ws_handler(
@@ -339,7 +453,7 @@ fn tungstenite_to_axum(msg: TungsteniteMessage) -> Option<AxumMessage> {
         TungsteniteMessage::Pong(p) => Some(AxumMessage::Pong(p.to_vec().into())),
         TungsteniteMessage::Close(_) => Some(AxumMessage::Close(None)),
 
-        // tungstenite 0.21 includes Frame(_), which Axum does not need to receive directly.
+        // tungstenite 0.21 includes Frame(_), which Axum does not need directly.
         TungsteniteMessage::Frame(_) => None,
 
         // Ignore unknown future variants.
