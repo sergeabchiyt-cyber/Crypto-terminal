@@ -8,13 +8,21 @@ axum = { version = "0.7", features = ["ws", "macros"] }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", features = ["json", "stream"] }
 tokio-tungstenite = "0.21"
-futures-util = "0.3"
+futures = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-redis = { version = "0.25", features = ["tokio-comp", "tls-native-tls"] }
-aes-gcm = "0.10"
-base64 = "0.21"
-dotenvy = "0.15"
+tower-http = { version = "0.5", features = ["cors"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
+dotenvy = "0.15"
+bytes = "1"
+tokio-stream = "0.1"
+
+# Redis with TLS support for Upstash
+redis = { version = "0.25", features = ["tokio-comp", "tokio-native-tls-comp"] }
+
+# Encryption for API Keys
+aes-gcm = "0.10"
+base64 = "0.22"
+hex = "0.4"
 chrono = "0.4"
