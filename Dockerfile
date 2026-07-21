@@ -2,7 +2,9 @@ FROM rust:1.86-slim AS builder
 
 WORKDIR /app
 
-COPY Cargo.toml ./
+# Copy Cargo files.
+# If you commit Cargo.lock, it will be used automatically.
+COPY Cargo.* ./
 
 # Build dependencies first for better Docker caching.
 RUN mkdir src \
