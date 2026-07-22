@@ -6,7 +6,7 @@ use axum::{
         ws::{Message as AxumMessage, WebSocket, WebSocketUpgrade},
         Path, Query, State,
     },
-    http::{header, HeaderMap, HeaderValue, Method, StatusCode},
+    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri}, // <-- Added Uri
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -288,11 +288,22 @@ async fn load_chart_state(State(state): State<AppState>, Query(params): Query<st
 }
 
 // ==========================================
-// TRADINGVIEW MITM HTTP PROXY
+// TRADINGVIEW MITM HTTP PROXY (URI QUERY FIX APPLIED)
 // ==========================================
 
-async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) -> impl IntoResponse {
-    let clean_path = path.trim_start_matches('/');
+async fn tv_http_proxy(
+    State(state): State<AppState>, 
+    Path(path): Path<String>,
+    uri: Uri, // <-- Captures the full URI including query strings
+) -> impl IntoResponse {
+    let mut clean_path = path.trim_start_matches('/').to_string();
+    
+    // 🎯 THE FIX: TradingView's iframe requires query parameters (e.g., ?frameElementId=...).
+    // Axum's Path extractor drops them, so we must grab them from the Uri and reattach them.
+    if let Some(query) = uri.query() {
+        clean_path = format!("{}?{}", clean_path, query);
+    }
+
     if clean_path.is_empty() {
         return StatusCode::BAD_REQUEST.into_response();
     }
@@ -330,7 +341,7 @@ async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) 
                 continue;
             }
             Ok(resp) => {
-                return process_tv_response(resp, &state, clean_path).await;
+                return process_tv_response(resp, &state, &clean_path).await;
             }
             Err(_) => continue,
         }
@@ -344,11 +355,11 @@ async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) 
         }
     };
 
-    process_tv_response(resp, &state, clean_path).await
+    process_tv_response(resp, &state, &clean_path).await
 }
 
 async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_path: &str) -> Response {
-    // FIX 3: Extract status and headers BEFORE consuming the response body with .text().await
+    // Extract status and headers BEFORE consuming the response body with .text().await
     let status = resp.status();
     let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
     let is_text = content_type.contains("javascript") || content_type.contains("html") || content_type.contains("json") || 
@@ -374,7 +385,7 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         let ws_backend = backend_url.replace("http://", "ws://").replace("https://", "wss://");
 
         let proxy_prefix = format!("{}/tv-proxy/", backend_url);
-        let proxy_prefix_no_slash = proxy_prefix.trim_end_matches('/'); // FIX 1: Catch JS variables without trailing slashes
+        let proxy_prefix_no_slash = proxy_prefix.trim_end_matches('/'); 
         
         let proxy_prefix_escaped = proxy_prefix.replace("/", "\\/");
         let proxy_prefix_escaped_no_slash = proxy_prefix_no_slash.replace("/", "\\/");
@@ -452,7 +463,7 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         headers.insert(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate".parse().unwrap());
     }
 
-    // FIX 2: Convert reqwest StatusCode to axum StatusCode
+    // Convert reqwest StatusCode to axum StatusCode
     let axum_status = axum::http::StatusCode::from_u16(status.as_u16()).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     (axum_status, headers, body).into_response()
 }
