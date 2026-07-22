@@ -6,7 +6,7 @@ use axum::{
         ws::{Message as AxumMessage, WebSocket, WebSocketUpgrade},
         Path, Query, State,
     },
-    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri}, // <-- Uri added
+    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -22,7 +22,7 @@ use tokio_tungstenite::{
     tungstenite::Message as TungsteniteMessage,
 };
 use tower_http::cors::{AllowOrigin, CorsLayer};
-use tracing::{info, warn, error}; // <-- Added warn and error
+use tracing::{info, warn, error};
 
 use redis::AsyncCommands;
 use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Key, Nonce};
@@ -76,9 +76,11 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/healthz", get(healthz))
+        // Original Proxies
         .route("/api/kucoin/bullet-public", post(kucoin_bullet))
         .route("/api/nim/chat/completions", post(nim_chat))
         .route("/api/ws/phemex", get(phemex_ws_handler))
+        // New Grey Hat Features
         .route("/api/config/keys", post(set_api_keys))
         .route("/api/chart/save", post(save_chart_state))
         .route("/api/chart/load", get(load_chart_state))
@@ -104,8 +106,14 @@ fn build_cors() -> CorsLayer {
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
 }
 
-async fn root() -> Json<Value> { Json(json!({ "ok": true, "service": "omni-stream-backend-rust" })) }
-async fn healthz() -> Json<Value> { Json(json!({ "ok": true, "time": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() })) }
+async fn root() -> Json<Value> {
+    Json(json!({ "ok": true, "service": "omni-stream-backend-rust" }))
+}
+
+async fn healthz() -> Json<Value> {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    Json(json!({ "ok": true, "time": now }))
+}
 
 // ==========================================
 // ORIGINAL PROXIES (KuCoin, NIM, Phemex)
@@ -280,7 +288,7 @@ async fn load_chart_state(State(state): State<AppState>, Query(params): Query<st
 }
 
 // ==========================================
-// TRADINGVIEW MITM HTTP PROXY (WITH DEBUG LOGS)
+// TRADINGVIEW MITM HTTP PROXY
 // ==========================================
 
 async fn tv_http_proxy(
@@ -366,7 +374,10 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
     let is_text = content_type.contains("javascript") || content_type.contains("html") || content_type.contains("json") || 
                   clean_path.ends_with(".js") || clean_path.ends_with(".html") || clean_path.ends_with(".css") || clean_path.ends_with(".map");
     
-    info!("[TV-PROXY] ⚙️ Processing response for '{}'. Status: {}, Content-Type: '{}', IsText: {}", clean_path, status, content_type, is_text);
+    // 🎯 CRITICAL FIX: Explicitly check if this is an HTML document
+    let is_html = content_type.contains("html") || clean_path.ends_with(".html") || clean_path.ends_with("/");
+
+    info!("[TV-PROXY] ⚙️ Processing: '{}' | Status: {} | IsText: {} | IsHTML: {}", clean_path, status, is_text, is_html);
 
     let mut headers = HeaderMap::new();
     for (key, value) in resp.headers() {
@@ -385,7 +396,6 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
     info!("[TV-PROXY] 📦 Body length for '{}': {} bytes", clean_path, body.len());
 
     if is_text && !body.is_empty() {
-        info!("[TV-PROXY] ✍️ Rewriting URLs and injecting scripts for '{}'", clean_path);
         let backend_url = state.backend_url.trim_end_matches('/');
         let ws_backend = backend_url.replace("http://", "ws://").replace("https://", "wss://");
 
@@ -395,11 +405,13 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         let proxy_prefix_escaped = proxy_prefix.replace("/", "\\/");
         let proxy_prefix_escaped_no_slash = proxy_prefix_no_slash.replace("/", "\\/");
 
+        // 1. Hijack WebSocket URLs
         body = body.replace("wss://prodata.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://prodata.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         
+        // 2. Hijack absolute static asset URLs
         body = body.replace("https://www.tradingview-widget.com", proxy_prefix_no_slash);
         body = body.replace("https://s3.tradingview.com", proxy_prefix_no_slash);
         body = body.replace("https://s.tradingview.com", proxy_prefix_no_slash);
@@ -408,6 +420,7 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         body = body.replace("https://s3.tradingview.com/", &proxy_prefix);
         body = body.replace("https://s.tradingview.com/", &proxy_prefix);
         
+        // 3. Hijack escaped absolute URLs
         body = body.replace("https:\\/\\/www.tradingview-widget.com", &proxy_prefix_escaped_no_slash);
         body = body.replace("https:\\/\\/s3.tradingview.com", &proxy_prefix_escaped_no_slash);
         body = body.replace("https:\\/\\/s.tradingview.com", &proxy_prefix_escaped_no_slash);
@@ -416,51 +429,55 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         body = body.replace("https:\\/\\/s3.tradingview.com\\/", &proxy_prefix_escaped);
         body = body.replace("https:\\/\\/s.tradingview.com\\/", &proxy_prefix_escaped);
 
+        // 4. Hijack protocol-relative URLs
         let backend_host = backend_url.replace("http://", "").replace("https://", "");
         let host_proxy_prefix = format!("//{}/tv-proxy/", backend_host);
         body = body.replace("//www.tradingview-widget.com/", &host_proxy_prefix);
         body = body.replace("//s3.tradingview.com/", &host_proxy_prefix);
         body = body.replace("//s.tradingview.com/", &host_proxy_prefix);
 
-        let redis_sync_script = format!(r#"
-        <script>
-            (function() {{
-                setInterval(() => {{
-                    try {{
-                        const statePayload = {{}};
-                        let hasData = false;
-                        for (let i = 0; i < localStorage.length; i++) {{
-                            const key = localStorage.key(i);
-                            if (key && (key.startsWith('ss-') || key.startsWith('tradingview_') || key.includes('tv-'))) {{
-                                statePayload[key] = localStorage.getItem(key);
-                                hasData = true;
+        // 5. 🎯 Inject Redis Sync Script (STRICTLY HTML ONLY)
+        if is_html {
+            info!("[TV-PROXY] 💉 Injecting Redis script into HTML document: '{}'", clean_path);
+            let redis_sync_script = format!(r#"
+            <script>
+                (function() {{
+                    setInterval(() => {{
+                        try {{
+                            const statePayload = {{}};
+                            let hasData = false;
+                            for (let i = 0; i < localStorage.length; i++) {{
+                                const key = localStorage.key(i);
+                                if (key && (key.startsWith('ss-') || key.startsWith('tradingview_') || key.includes('tv-'))) {{
+                                    statePayload[key] = localStorage.getItem(key);
+                                    hasData = true;
+                                }}
                             }}
-                        }}
-                        if (hasData) {{
-                            fetch('{}/api/chart/save', {{
-                                method: 'POST',
-                                headers: {{'Content-Type': 'application/json'}},
-                                body: JSON.stringify({{ session_id: 'global_tv_state', state_json: JSON.stringify(statePayload) }})
-                            }}).catch(() => {{}});
-                        }}
-                    }} catch(e) {{}}
-                }}, 5000);
-            }})();
-        </script>
-        "#, backend_url);
-        
-        if body.contains("</body>") {
-            body = body.replace("</body>", &format!("{} </body>", redis_sync_script));
-        } else if body.contains("</head>") {
-            body = body.replace("</head>", &format!("{} </head>", redis_sync_script));
+                            if (hasData) {{
+                                fetch('{}/api/chart/save', {{
+                                    method: 'POST',
+                                    headers: {{'Content-Type': 'application/json'}},
+                                    body: JSON.stringify({{ session_id: 'global_tv_state', state_json: JSON.stringify(statePayload) }})
+                                }}).catch(() => {{}});
+                            }}
+                        }} catch(e) {{}}
+                    }}, 5000);
+                }})();
+            </script>
+            "#, backend_url);
+            
+            if body.contains("</body>") {
+                body = body.replace("</body>", &format!("{} </body>", redis_sync_script));
+            } else if body.contains("</head>") {
+                body = body.replace("</head>", &format!("{} </head>", redis_sync_script));
+            } else {
+                body = format!("{}{}", body, redis_sync_script);
+            }
         } else {
-            body = format!("{}{}", body, redis_sync_script);
+            info!("[TV-PROXY] ⏭️ Skipping HTML injection for non-HTML file: '{}'", clean_path);
         }
 
         headers.insert(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate".parse().unwrap());
-        info!("[TV-PROXY] ✅ Rewrite complete for '{}'", clean_path);
-    } else {
-        info!("[TV-PROXY] ⏭️ Skipping rewrite for '{}' (IsText: {}, BodyEmpty: {})", clean_path, is_text, body.is_empty());
     }
 
     let axum_status = axum::http::StatusCode::from_u16(status.as_u16()).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
