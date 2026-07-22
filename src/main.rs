@@ -289,7 +289,7 @@ async fn load_chart_state(State(state): State<AppState>, Query(params): Query<st
 }
 
 // ==========================================
-// TRADINGVIEW MITM HTTP PROXY (REWRITTEN)
+// TRADINGVIEW MITM HTTP PROXY
 // ==========================================
 
 async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) -> impl IntoResponse {
@@ -298,7 +298,6 @@ async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) 
         return StatusCode::BAD_REQUEST.into_response();
     }
 
-    // TradingView splits assets across these domains. We try the most likely one first, then fallback.
     let is_widget_domain = clean_path.contains("widgetembed") || clean_path.contains("static/bundles") || clean_path.contains("tv-chart");
     
     let urls_to_try = if is_widget_domain {
@@ -329,10 +328,9 @@ async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) 
                 break;
             }
             Ok(resp) if resp.status() == reqwest::StatusCode::NOT_FOUND => {
-                continue; // Try next URL
+                continue;
             }
             Ok(resp) => {
-                // Other errors (403, 500), return immediately
                 return process_tv_response(resp, &state, clean_path).await;
             }
             Err(_) => continue,
@@ -366,7 +364,7 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         let proxy_prefix_escaped = proxy_prefix.replace("/", "\\/");
         let host_proxy_prefix = format!("//{}/tv-proxy/", backend_host);
 
-        // 1. Hijack WebSocket URLs (Force them to our WS proxy)
+        // 1. Hijack WebSocket URLs
         body = body.replace("wss://prodata.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://prodata.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
@@ -377,17 +375,17 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         body = body.replace("https://s3.tradingview.com/", &proxy_prefix);
         body = body.replace("https://s.tradingview.com/", &proxy_prefix);
         
-        // 3. Hijack escaped absolute URLs (common in minified JS)
+        // 3. Hijack escaped absolute URLs
         body = body.replace("https:\\/\\/www.tradingview-widget.com\\/", &proxy_prefix_escaped);
         body = body.replace("https:\\/\\/s3.tradingview.com\\/", &proxy_prefix_escaped);
         body = body.replace("https:\\/\\/s.tradingview.com\\/", &proxy_prefix_escaped);
 
-        // 4. Hijack protocol-relative URLs (//s3.tradingview.com/...)
+        // 4. Hijack protocol-relative URLs
         body = body.replace("//www.tradingview-widget.com/", &host_proxy_prefix);
         body = body.replace("//s3.tradingview.com/", &host_proxy_prefix);
         body = body.replace("//s.tradingview.com/", &host_proxy_prefix);
 
-        // 5. Inject Redis Sync Script into HTML/JS payloads
+        // 5. Inject Redis Sync Script
         let redis_sync_script = format!(r#"
         <script>
             (function() {{
@@ -437,12 +435,13 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         }
     }
     
-    // Force no-cache for JS/HTML to ensure the browser always fetches the rewritten version from our proxy
     if is_text {
         headers.insert(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate".parse().unwrap());
     }
 
-    (resp.status().as_u16(), headers, body).into_response()
+    // FIX: Convert reqwest StatusCode to axum StatusCode for IntoResponse compatibility
+    let status = axum::http::StatusCode::from_u16(resp.status().as_u16()).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    (status, headers, body).into_response()
 }
 
 // ==========================================
@@ -472,8 +471,6 @@ async fn fetch_10k_candles(client: &reqwest::Client, symbol: &str, interval: &st
 
 async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
     info!("[PROXY] TradingView Iframe connected.");
-    // Note: Dynamic symbol/timeframe routing based on widget commands is the next logical enhancement.
-    // Currently hardcoded to BTCUSDT 1m for proof-of-concept.
     let binance_url = "wss://testnet.binance.vision/ws/btcusdt@kline_1m";
     
     let mut binance_ws = match connect_async(binance_url).await { 
