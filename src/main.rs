@@ -349,10 +349,25 @@ async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) 
 }
 
 async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_path: &str) -> Response {
+    let status = resp.status();
     let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
     let is_text = content_type.contains("javascript") || content_type.contains("html") || content_type.contains("json") || 
                   clean_path.ends_with(".js") || clean_path.ends_with(".html") || clean_path.ends_with(".css") || clean_path.ends_with(".map");
     
+    // FIX: Extract headers BEFORE consuming the response body with .text().await
+    let mut headers = HeaderMap::new();
+    for (key, value) in resp.headers() {
+        if key == reqwest::header::CONTENT_TYPE || key == reqwest::header::CACHE_CONTROL || key == reqwest::header::ETAG {
+            if let Ok(val) = value.to_str() {
+                if let Ok(header_name) = header::HeaderName::from_bytes(key.as_ref()) {
+                    if let Ok(header_val) = header::HeaderValue::from_str(val) {
+                        headers.insert(header_name, header_val);
+                    }
+                }
+            }
+        }
+    }
+
     let mut body = resp.text().await.unwrap_or_default();
 
     if is_text && !body.is_empty() {
@@ -420,28 +435,13 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         } else {
             body = format!("{}{}", body, redis_sync_script);
         }
-    }
 
-    let mut headers = HeaderMap::new();
-    for (key, value) in resp.headers() {
-        if key == reqwest::header::CONTENT_TYPE || key == reqwest::header::CACHE_CONTROL || key == reqwest::header::ETAG {
-            if let Ok(val) = value.to_str() {
-                if let Ok(header_name) = header::HeaderName::from_bytes(key.as_ref()) {
-                    if let Ok(header_val) = header::HeaderValue::from_str(val) {
-                        headers.insert(header_name, header_val);
-                    }
-                }
-            }
-        }
-    }
-    
-    if is_text {
+        // Force no-cache for JS/HTML
         headers.insert(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate".parse().unwrap());
     }
 
-    // FIX: Convert reqwest StatusCode to axum StatusCode for IntoResponse compatibility
-    let status = axum::http::StatusCode::from_u16(resp.status().as_u16()).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
-    (status, headers, body).into_response()
+    let axum_status = axum::http::StatusCode::from_u16(status.as_u16()).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    (axum_status, headers, body).into_response()
 }
 
 // ==========================================
