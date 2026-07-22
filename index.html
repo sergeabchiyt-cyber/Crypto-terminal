@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Omni Stream — GLM-5.2</title>
+  <title>Omni Stream — GLM-5.2 (Grey Hat Edition)</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <style>
     html, body { height:100%; margin:0; padding:0; background:#131722; color:#fff; overflow:hidden; }
@@ -117,12 +117,12 @@
       <div class="flex items-center gap-3 mb-1">
         <span class="text-green-400 font-black tracking-widest text-xs">OMNI STREAM</span>
         <span class="text-neutral-500 text-xs">×</span>
-        <span class="text-purple-400 font-bold text-xs tracking-wider">Backend Status</span>
+        <span class="text-purple-400 font-bold text-xs tracking-wider">Grey Hat Backend</span>
       </div>
 
       <p class="text-[11px] text-neutral-400 leading-relaxed mt-2">
-        This is an open-source static frontend. It connects to a self-hosted proxy backend for
-        NVIDIA NIM, KuCoin, and Phemex.
+        This is an open-source static frontend. It connects to a self-hosted Rust proxy backend for
+        NVIDIA NIM (AES-GCM encrypted), KuCoin, Phemex, and TradingView MITM proxy.
         <br /><br />
         Enter your backend URL below.
       </p>
@@ -137,7 +137,7 @@
 
       <label class="flex items-center gap-2 text-[10px] text-neutral-500 mt-1 mb-4 cursor-pointer select-none">
         <input id="allow-no-backend" type="checkbox" class="accent-purple-600" />
-        Allow limited mode without backend (disables NIM, KuCoin, Phemex)
+        Allow limited mode without backend (disables NIM, KuCoin, Phemex, TV Proxy)
       </label>
 
       <div class="flex gap-2">
@@ -150,13 +150,8 @@
       </div>
 
       <p class="mt-4 text-[9px] text-neutral-600 leading-relaxed">
-        Expected backend health endpoint:
-        <code class="text-green-500">/healthz</code>
-        <br />
-        Expected proxy routes:
-        <code class="text-neutral-400">/api/nim/chat/completions</code>,
-        <code class="text-neutral-400">/api/kucoin/bullet-public</code>,
-        <code class="text-neutral-400">/api/ws/phemex</code>
+        Expected backend health endpoint: <code class="text-green-500">/healthz</code><br />
+        Expected proxy routes: <code class="text-neutral-400">/api/nim/chat/completions</code>, <code class="text-neutral-400">/api/config/keys</code>, <code class="text-neutral-400">/tv-proxy/...</code>
       </p>
     </div>
   </div>
@@ -173,7 +168,7 @@
       <p class="text-[10px] text-neutral-500 mb-1 leading-relaxed mt-2">
         Enter your <code class="text-green-400">nvapi-</code> key from
         <a href="https://build.nvidia.com" target="_blank" class="text-blue-400 underline">build.nvidia.com</a>.
-        Stored in <code>sessionStorage</code> only. Routed through your configured backend proxy.
+        It will be encrypted locally via AES-GCM before being sent to your backend.
       </p>
 
       <label class="block text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1 mt-3">NVIDIA API Key</label>
@@ -185,7 +180,7 @@
         <button onclick="dismissModal()" class="px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 text-xs font-bold py-2 rounded transition-colors cursor-pointer">Skip</button>
       </div>
 
-      <p id="key-err" class="mt-2 text-[10px] text-red-400 text-center hidden"></p>
+      <p id="key-err" class="mt-2 text-[10px] text-center hidden"></p>
     </div>
   </div>
 
@@ -220,8 +215,9 @@
             <option value="XRPUSDT">XRP / USDT</option>
           </select>
         </div>
-        <div class="text-right flex-shrink-0 pt-4">
+        <div class="flex flex-col items-end gap-1 flex-shrink-0 pt-3">
           <div id="ticker-price" class="font-mono font-bold text-base text-neutral-100 tabular-nums">--</div>
+          <button onclick="resetChartDrawings()" class="text-[8px] text-neutral-500 hover:text-purple-400 font-mono cursor-pointer border border-neutral-700 px-1.5 py-0.5 rounded bg-[#131722] transition-colors">Reset Chart</button>
         </div>
       </div>
 
@@ -278,6 +274,12 @@
 
   <script>
   // ═══════════════════════════════════════════════════════════════════════
+  // GREY HAT CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════
+  // MUST match the AES_SECRET_HEX in your Rust backend .env
+  const SHARED_SECRET_HEX = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+  // ═══════════════════════════════════════════════════════════════════════
   // CONSTANTS
   // ═══════════════════════════════════════════════════════════════════════
   const MAX_TAPE   = 120;
@@ -324,8 +326,6 @@
   const exStatus={};
   EXCHANGES.forEach(e => exStatus[e.id] = 'disconnected');
 
-  // KuCoin and Phemex require backend proxy.
-  // They are enabled only when backend is healthy.
   const DISABLED_EX = new Set(['KUCOIN', 'PHEMEX']);
 
   function recalcTotalEx(){
@@ -348,11 +348,7 @@
   // BACKEND STORAGE
   // ═══════════════════════════════════════════════════════════════════════
   function loadBackendUrl(){
-    try {
-      return localStorage.getItem('backend_url') || '';
-    } catch {
-      return '';
-    }
+    try { return localStorage.getItem('backend_url') || ''; } catch { return ''; }
   }
 
   function saveBackendUrl(url){
@@ -365,26 +361,37 @@
   function normalizeBackendUrl(raw){
     let u = (raw || '').trim();
     if (!u) return '';
-
-    if (!/^https?:\/\//i.test(u)) {
-      u = 'https://' + u;
-    }
-
-    try {
-      const parsed = new URL(u);
-      return parsed.origin;
-    } catch {
-      return '';
-    }
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    try { return new URL(u).origin; } catch { return ''; }
   }
 
   function wsBaseFromHttpUrl(raw){
     try {
       const u = new URL(raw);
       return (u.protocol === 'https:' ? 'wss://' : 'ws://') + u.host;
-    } catch {
-      return '';
-    }
+    } catch { return ''; }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // AES-GCM ENCRYPTION (Grey Hat)
+  // ═══════════════════════════════════════════════════════════════════════
+  async function encryptAES(text, hexKey) {
+    const enc = new TextEncoder();
+    const keyBytes = new Uint8Array(hexKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    
+    const cryptoKey = await window.crypto.subtle.importKey(
+      "raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]
+    );
+    
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await window.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: iv }, cryptoKey, enc.encode(text)
+    );
+
+    return {
+      iv: btoa(String.fromCharCode(...iv)),
+      ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext)))
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -393,16 +400,12 @@
   function dbg(label,...args){
     const msg=args.map(a=>typeof a==='object'?JSON.stringify(a):String(a)).join(' ');
     console.log(`[${label}]`,msg);
-
     const el=document.getElementById('debug-log');
     if(!el) return;
-
     const line=document.createElement('div');
     line.style.cssText='border-bottom:1px solid #1f2937;padding-bottom:2px;margin-bottom:2px;';
-
     const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     line.innerHTML=`<span style="color:#6b7280">${ts}</span> <span style="color:#a78bfa">[${label}]</span> ${msg}`;
-
     el.insertBefore(line,el.firstChild);
     if(el.children.length>80) el.lastChild.remove();
   }
@@ -417,9 +420,7 @@
   function setBackendStatus(state, msg){
     const el = document.getElementById('backend-status');
     if (!el) return;
-
     const base = 'text-[10px] font-mono my-3 px-3 py-2 rounded border';
-
     if (state === 'ok') {
       el.className = `${base} bg-[#0a1f0a] text-green-400 border-green-900`;
       el.textContent = `✓ ${msg}`;
@@ -439,16 +440,9 @@
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 4000);
-
-      const r = await fetch(`${url}/healthz`, {
-        cache: 'no-store',
-        signal: controller.signal,
-      });
-
+      const r = await fetch(`${url}/healthz`, { cache: 'no-store', signal: controller.signal });
       clearTimeout(timer);
-
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-
       const j = await r.json();
       return j?.ok === true;
     } catch (err) {
@@ -460,21 +454,14 @@
   async function testBackend(){
     const raw = document.getElementById('backend-url-input').value;
     const url = normalizeBackendUrl(raw);
-
     if (!url) {
       setBackendStatus('bad', 'Enter a valid backend URL. Example: https://your-backend.onrender.com');
       return;
     }
-
     setBackendStatus('loading', `Checking ${url}/healthz ...`);
-
     const ok = await checkBackend(url);
-
-    if (ok) {
-      setBackendStatus('ok', `Backend healthy: ${url}`);
-    } else {
-      setBackendStatus('bad', `Backend not reachable or CORS blocked: ${url}`);
-    }
+    if (ok) setBackendStatus('ok', `Backend healthy: ${url}`);
+    else setBackendStatus('bad', `Backend not reachable or CORS blocked: ${url}`);
   }
 
   async function connectBackend(){
@@ -484,22 +471,15 @@
 
     if (!url) {
       if (allowNoBackend) {
-        BACKEND_URL = '';
-        backendHealthy = false;
-        saveBackendUrl('');
-        applyBackendToStreams();
-        updateProxyBar(false, 'Limited mode — no backend configured');
-        dismissBackendModal();
-        startTerminal();
-        return;
+        BACKEND_URL = ''; backendHealthy = false; saveBackendUrl('');
+        applyBackendToStreams(); updateProxyBar(false, 'Limited mode — no backend configured');
+        dismissBackendModal(); startTerminal(); return;
       }
-
       setBackendStatus('bad', 'Enter a valid backend URL or enable limited mode.');
       return;
     }
 
     setBackendStatus('loading', `Checking ${url}/healthz ...`);
-
     const ok = await checkBackend(url);
     backendHealthy = ok;
     BACKEND_URL = url;
@@ -511,7 +491,6 @@
     }
 
     applyBackendToStreams();
-
     if (ok) {
       updateProxyBar(true, `Backend connected: ${BACKEND_URL}`);
       setBackendStatus('ok', `Backend healthy: ${BACKEND_URL}`);
@@ -541,39 +520,28 @@
       DISABLED_EX.add('KUCOIN');
       DISABLED_EX.add('PHEMEX');
     }
-
     recalcTotalEx();
-
-    if (terminalStarted) {
-      closeAll();
-      setTimeout(launchAll, 300);
-    }
+    if (terminalStarted) { closeAll(); setTimeout(launchAll, 300); }
   }
 
   async function unregisterOldServiceWorkers(){
     if (!('serviceWorker' in navigator)) return;
-
     try {
       const regs = await navigator.serviceWorker.getRegistrations();
-      for (const reg of regs) {
-        await reg.unregister();
-      }
+      for (const reg of regs) { await reg.unregister(); }
       if (regs.length) dbg('SW', `unregistered ${regs.length} old service worker(s)`);
-    } catch (err) {
-      dbg('SW', err.message);
-    }
+    } catch (err) { dbg('SW', err.message); }
   }
 
   function updateProxyBar(ok, msg){
     const bar = document.getElementById('proxy-bar');
     if (!bar) return;
-
     bar.className = ok ? 'ok' : 'bad';
     bar.textContent = ok ? `✓ ${msg}` : `✗ ${msg}`;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // CHART
+  // CHART (Grey Hat MITM Proxy Integration)
   // ═══════════════════════════════════════════════════════════════════════
   function updateChart(base){
     const c = document.getElementById('chart-container');
@@ -586,10 +554,18 @@
     const inner = document.createElement('div');
     inner.className = 'tradingview-widget-container__widget';
     inner.style.cssText = 'width:100%;height:100%;';
+    inner.id = 'tv_chart';
 
     const s = document.createElement('script');
     s.type = 'text/javascript';
-    s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    
+    // GREY HAT MITM PROXY: Route through backend to bypass Cloudflare and enable drawing persistence
+    if (BACKEND_URL && backendHealthy) {
+      s.src = `${BACKEND_URL}/tv-proxy/external-embedding/embed-widget-advanced-chart.js`;
+    } else {
+      s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    }
+    
     s.async = true;
     s.textContent = JSON.stringify({
       autosize:true,
@@ -604,23 +580,59 @@
       allow_symbol_change:true,
       calendar:false,
       hide_legend:false,
-      support_host:'https://www.tradingview.com'
+      support_host:'https://www.tradingview.com',
+      container_id: 'tv_chart'
     });
 
     wrap.appendChild(inner);
     wrap.appendChild(s);
     c.appendChild(wrap);
+    
+    // Supplemental chart state saver (belt-and-suspenders alongside backend injection)
+    if (BACKEND_URL && backendHealthy) {
+      setupChartStateSaver();
+    }
+  }
+
+  function setupChartStateSaver() {
+    setInterval(() => {
+      try {
+        // The backend injects a script to do this, but we also attempt it from the frontend 
+        // to catch any standard TV localStorage keys for drawings.
+        const state = localStorage.getItem('tv-chart-state') || localStorage.getItem('tradingview.chart.settings');
+        if (state) {
+          fetch(`${BACKEND_URL}/api/chart/save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol: currentBase, state: state })
+          }).catch(() => {});
+        }
+      } catch(e) {}
+    }, 5000);
+  }
+
+  function resetChartDrawings() {
+    if (confirm('Reset chart drawings and state? This will clear local and backend cache.')) {
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('tradingview') || key.includes('tv-chart')) {
+          localStorage.removeItem(key);
+        }
+      });
+      if (BACKEND_URL && backendHealthy) {
+        fetch(`${BACKEND_URL}/api/chart/clear`, { method: 'POST' }).catch(() => {});
+      }
+      updateChart(currentBase);
+      appendMsg('sys', 'Chart drawings reset.');
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // STATUS PANEL — visible names removed
+  // STATUS PANEL
   // ═══════════════════════════════════════════════════════════════════════
   function buildStatusPanel(){
     const p = document.getElementById('ex-status-panel');
     if (!p) return;
-
     p.innerHTML = '';
-
     EXCHANGES.forEach(({id})=>{
       const dot = document.createElement('span');
       dot.id = `dot-${id}`;
@@ -638,83 +650,58 @@
 
   function setEx(id,state){
     exStatus[id] = state;
-
     const d = document.getElementById(`dot-${id}`);
     if (d) d.className = `status-dot ${state}`;
-
     refreshStreamCount();
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // INGEST
+  // INGEST & RENDER
   // ═══════════════════════════════════════════════════════════════════════
   function ingest({exchange,price,qty,isBuy,ts}){
     tape.push({exchange,price,qty,isBuy,ts:ts||Date.now()});
     stamps.push(Date.now());
-
     if (tape.length > MAX_TAPE) tape.shift();
-
     lastPrice = price;
     vol += qty;
-
     scheduleTape();
     updateStats();
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // RENDER — TAPE
-  // ═══════════════════════════════════════════════════════════════════════
   let tapeRaf = false;
-
   function scheduleTape(){
     if (tapeRaf) return;
     tapeRaf = true;
-
     requestAnimationFrame(()=>{
       tapeRaf = false;
-
       const el = document.getElementById('market-trades');
       const frag = document.createDocumentFragment();
-
       tape.forEach(t=>{
         const row = document.createElement('div');
         row.className = `tape-row ${t.isBuy ? 'tape-buy' : 'tape-sell'} ex-${t.exchange}`;
-
         const tm = new Date(t.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
         row.innerHTML = `<span>${t.price.toFixed(2)}</span><span class="t-qty">${t.qty.toFixed(4)}</span><span class="t-time">${tm}</span>`;
-
         frag.appendChild(row);
       });
-
       el.innerHTML = '';
       el.appendChild(frag);
-
       if (lastPrice > 0) {
-        document.getElementById('ticker-price').textContent =
-          `$${lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+        document.getElementById('ticker-price').textContent = `$${lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
       }
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // RENDER — ORDER BOOK
-  // ═══════════════════════════════════════════════════════════════════════
   let bookRaf = false;
-
   function scheduleBook(){
     if (bookRaf) return;
     bookRaf = true;
-
     requestAnimationFrame(()=>{
       bookRaf = false;
-
       const aEl = document.getElementById('dom-asks');
       const bEl = document.getElementById('dom-bids');
       const sp = document.getElementById('dom-spread');
-
       const va = book.asks.slice(0, MAX_LEVELS);
       const vb = book.bids.slice(0, MAX_LEVELS);
-
       const all = [...va.map(r=>parseFloat(r[1])), ...vb.map(r=>parseFloat(r[1]))];
       const mx = all.length ? Math.max(...all) : 1;
 
@@ -722,27 +709,20 @@
         const f = document.createDocumentFragment();
         const tc = side === 'ask' ? 'text-red-400' : 'text-green-400';
         const bc = side === 'ask' ? 'bg-red-500' : 'bg-green-500';
-
         levels.forEach(([price,qty])=>{
           const p = parseFloat(price);
           const q = parseFloat(qty);
           const pct = Math.min(100, (q / mx) * 100).toFixed(1);
-
           const r = document.createElement('div');
           r.className = `depth-row ${tc}`;
           r.innerHTML = `<div class="depth-bar ${bc}" style="width:${pct}%"></div><span class="depth-col">${p.toFixed(2)}</span><span class="depth-col">${q.toFixed(4)}</span>`;
-
           f.appendChild(r);
         });
-
         return f;
       };
 
-      aEl.innerHTML = '';
-      aEl.appendChild(makeRows(va, 'ask'));
-
-      bEl.innerHTML = '';
-      bEl.appendChild(makeRows(vb, 'bid'));
+      aEl.innerHTML = ''; aEl.appendChild(makeRows(va, 'ask'));
+      bEl.innerHTML = ''; bEl.appendChild(makeRows(vb, 'bid'));
 
       if (book.asks.length && book.bids.length) {
         const s = parseFloat(book.asks[0][0]) - parseFloat(book.bids[0][0]);
@@ -754,7 +734,6 @@
   function updateStats(){
     const now = Date.now();
     stamps = stamps.filter(t => now - t < TPS_WIN);
-
     document.getElementById('stat-tps').textContent = (stamps.length / (TPS_WIN / 1000)).toFixed(1);
     document.getElementById('stat-vol').textContent = vol >= 1000 ? `${(vol / 1000).toFixed(1)}K` : vol.toFixed(2);
   }
@@ -769,55 +748,30 @@
   function makeWS(id,url,{onopen,onmessage,onping,pingMs}={}){
     return new Promise((res,rej)=>{
       let ws;
-
-      try {
-        ws = new WebSocket(url);
-      } catch(e) {
-        return rej(e);
-      }
-
+      try { ws = new WebSocket(url); } catch(e) { return rej(e); }
       ws.binaryType = 'arraybuffer';
       sockets[id] = ws;
-
       let settled = false;
 
       ws.onopen = ()=>{
         settled = true;
-
         failCount[id] = 0;
         retryDelay[id] = 1500;
-
         setEx(id, 'connected');
-
         if (onopen) onopen(ws);
-
         if (onping && pingMs) {
-          pings[id] = setInterval(()=>{
-            if (ws.readyState === 1) onping(ws);
-          }, pingMs);
+          pings[id] = setInterval(()=>{ if (ws.readyState === 1) onping(ws); }, pingMs);
         }
-
         res(ws);
       };
 
-      ws.onmessage = ev => {
-        try {
-          onmessage(ev, ws);
-        } catch(_) {}
-      };
-
+      ws.onmessage = ev => { try { onmessage(ev, ws); } catch(_) {} };
       ws.onerror = ()=>{};
-
       ws.onclose = ()=>{
         if (ws._dead) return;
-
         clearInterval(pings[id]);
         setEx(id, 'disconnected');
-
-        if (!settled) {
-          return rej(new Error('closed'));
-        }
-
+        if (!settled) return rej(new Error('closed'));
         scheduleReconnect(id, 1500);
       };
     });
@@ -828,25 +782,17 @@
     const w = ds.writable.getWriter();
     w.write(new Uint8Array(ab));
     w.close();
-
     const chunks = [];
     const r = ds.readable.getReader();
-
     while (true) {
       const {done,value} = await r.read();
       if (done) break;
       chunks.push(value);
     }
-
     const tot = chunks.reduce((a,c)=>a+c.length,0);
     const out = new Uint8Array(tot);
-
     let off = 0;
-    chunks.forEach(c=>{
-      out.set(c, off);
-      off += c.length;
-    });
-
+    chunks.forEach(c=>{ out.set(c, off); off += c.length; });
     return new TextDecoder().decode(out);
   }
 
@@ -856,640 +802,334 @@
   function closeAll(){
     Object.keys(sockets).forEach(id=>{
       const ws = sockets[id];
-      if (ws) {
-        ws._dead = true;
-        ws.onclose = null;
-        ws.close();
-      }
+      if (ws) { ws._dead = true; ws.onclose = null; ws.close(); }
       delete sockets[id];
     });
-
-    Object.keys(pings).forEach(id=>{
-      clearInterval(pings[id]);
-      delete pings[id];
-    });
-
-    Object.keys(failCount).forEach(id=>{
-      delete failCount[id];
-    });
-
-    Object.keys(retryDelay).forEach(id=>{
-      delete retryDelay[id];
-    });
-
+    Object.keys(pings).forEach(id=>{ clearInterval(pings[id]); delete pings[id]; });
+    Object.keys(failCount).forEach(id=>{ delete failCount[id]; });
+    Object.keys(retryDelay).forEach(id=>{ delete retryDelay[id]; });
     EXCHANGES.forEach(e=>setEx(e.id, 'disconnected'));
   }
 
   function scheduleReconnect(id, delay=1500){
     const factory = streamFactories[id];
-
     if (!factory || DISABLED_EX.has(id)) return;
-
     const next = Math.min(retryDelay[id] || delay, 30000);
     retryDelay[id] = next * 1.6;
-
     setTimeout(() => openStream(id, factory, next), next);
   }
 
   function openStream(id,factory,retry=1500){
     streamFactories[id] = factory;
     retryDelay[id] = retry;
-
     const sym = SYM[currentBase]?.[id];
-
-    if (!sym || DISABLED_EX.has(id)) {
-      setEx(id, 'disconnected');
-      return;
-    }
-
+    if (!sym || DISABLED_EX.has(id)) { setEx(id, 'disconnected'); return; }
     setEx(id, 'connecting');
-
     factory(sym,id)
-      .then(()=>{
-        failCount[id] = 0;
-        retryDelay[id] = 1500;
-      })
+      .then(()=>{ failCount[id] = 0; retryDelay[id] = 1500; })
       .catch((err)=>{
         failCount[id] = (failCount[id] || 0) + 1;
-
         dbg('WS FAIL', `${id} attempt ${failCount[id]}: ${err?.message || err}`);
-
         if (failCount[id] >= 6) {
           dbg('WS DISABLE', `${id} disabled after ${failCount[id]} failed handshake attempts`);
           setEx(id, 'disconnected');
           return;
         }
-
         scheduleReconnect(id, retry);
       });
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // ADAPTERS — 21 exchanges
+  // ADAPTERS (Includes Grey Hat KuCoin & Phemex)
   // ═══════════════════════════════════════════════════════════════════════
-
-  // 1. Binance Spot
   function connectBinance(sym,id){
     return makeWS(id,`wss://stream.binance.com:9443/stream?streams=${sym}@depth20@100ms/${sym}@trade`,{
       onmessage(ev){
         const env = JSON.parse(ev.data);
-
-        if (env.stream?.includes('@depth')) {
-          book.bids = env.data.bids;
-          book.asks = env.data.asks;
-          scheduleBook();
-        } else if (env.stream?.includes('@trade')) {
-          const d = env.data;
-          ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});
-        }
+        if (env.stream?.includes('@depth')) { book.bids = env.data.bids; book.asks = env.data.asks; scheduleBook(); }
+        else if (env.stream?.includes('@trade')) { const d = env.data; ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T}); }
       }
     });
   }
 
-  // 2. Binance Futures
   function connectBinanceFut(sym,id){
     return makeWS(id,`wss://fstream.binance.com/stream?streams=${sym}@aggTrade`,{
       onmessage(ev){
         const env = JSON.parse(ev.data);
-
-        if (env.stream?.includes('@aggTrade')) {
-          const d = env.data;
-          ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});
-        }
+        if (env.stream?.includes('@aggTrade')) { const d = env.data; ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T}); }
       }
     });
   }
 
-  // 3. Bybit Spot
   function connectBybit(sym,id){
     return makeWS(id,'wss://stream.bybit.com/v5/public/spot',{
-      onopen(ws){
-        ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
-        if (d.topic?.startsWith('publicTrade')) {
-          (d.data || []).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
-        }
+        if (d.topic?.startsWith('publicTrade')) (d.data || []).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
       },
-      onping(ws){
-        ws.send(JSON.stringify({op:'ping'}));
-      },
-      pingMs:20000
+      onping(ws){ ws.send(JSON.stringify({op:'ping'})); }, pingMs:20000
     });
   }
 
-  // 4. Bybit Linear
   function connectBybitLin(sym,id){
     return makeWS(id,'wss://stream.bybit.com/v5/public/linear',{
-      onopen(ws){
-        ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
-        if (d.topic?.startsWith('publicTrade')) {
-          (d.data || []).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
-        }
+        if (d.topic?.startsWith('publicTrade')) (d.data || []).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
       },
-      onping(ws){
-        ws.send(JSON.stringify({op:'ping'}));
-      },
-      pingMs:20000
+      onping(ws){ ws.send(JSON.stringify({op:'ping'})); }, pingMs:20000
     });
   }
 
-  // 5. OKX Spot
   function connectOKX(sym,id){
     return makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{
-      onopen(ws){
-        ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
-        if (d.arg?.channel === 'trades') {
-          (d.data || []).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
-        }
+        if (d.arg?.channel === 'trades') (d.data || []).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
       },
-      onping(ws){
-        ws.send('ping');
-      },
-      pingMs:25000
+      onping(ws){ ws.send('ping'); }, pingMs:25000
     });
   }
 
-  // 6. OKX Futures
   function connectOKXFut(sym,id){
     return makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{
-      onopen(ws){
-        ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
-        if (d.arg?.channel === 'trades') {
-          (d.data || []).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
-        }
+        if (d.arg?.channel === 'trades') (d.data || []).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
       },
-      onping(ws){
-        ws.send('ping');
-      },
-      pingMs:25000
+      onping(ws){ ws.send('ping'); }, pingMs:25000
     });
   }
 
-  // 7. Gate.io
   function connectGate(sym,id){
     return makeWS(id,'wss://api.gateio.ws/ws/v4/',{
-      onopen(ws){
-        ws.send(JSON.stringify({
-          time:Math.floor(Date.now()/1000),
-          channel:'spot.trades',
-          event:'subscribe',
-          payload:[sym]
-        }));
-      },
+      onopen(ws){ ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.trades',event:'subscribe',payload:[sym]})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
         if (d.channel === 'spot.trades' && d.event === 'update') {
           const t = d.result;
           ingest({exchange:'GATE',price:+t.price,qty:+t.amount,isBuy:t.side==='buy',ts:t.create_time_ms||Date.now()});
         }
       },
-      onping(ws){
-        ws.send(JSON.stringify({
-          time:Math.floor(Date.now()/1000),
-          channel:'spot.ping',
-          event:'',
-          payload:null
-        }));
-      },
-      pingMs:20000
+      onping(ws){ ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.ping',event:'',payload:null})); }, pingMs:20000
     });
   }
 
-  // 8. MEXC
   function connectMEXC(sym,id){
     return makeWS(id,'wss://wbs.mexc.com/ws',{
-      onopen(ws){
-        ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${sym}`]}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${sym}`]})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
-        if (d.c?.includes('deals')) {
-          (d.d?.deals || []).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}));
-        }
+        if (d.c?.includes('deals')) (d.d?.deals || []).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}));
       },
-      onping(ws){
-        ws.send(JSON.stringify({method:'PING'}));
-      },
-      pingMs:20000
+      onping(ws){ ws.send(JSON.stringify({method:'PING'})); }, pingMs:20000
     });
   }
 
-  // 9. Bitget
   function connectBitget(sym,id){
     return makeWS(id,'wss://ws.bitget.com/v2/ws/public',{
-      onopen(ws){
-        ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:sym}]}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:sym}]})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
-        if (d.action === 'snapshot' || d.action === 'update') {
-          (d.data || []).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}));
-        }
+        if (d.action === 'snapshot' || d.action === 'update') (d.data || []).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}));
       },
-      onping(ws){
-        ws.send('ping');
-      },
-      pingMs:25000
+      onping(ws){ ws.send('ping'); }, pingMs:25000
     });
   }
 
-  // 10. KuCoin — requires backend proxy
+  // 10. KuCoin — Grey Hat Backend Proxy
   async function connectKucoin(sym,id){
-    if (!BACKEND_URL) {
-      return Promise.reject(new Error('backend not configured'));
-    }
-
+    if (!BACKEND_URL) return Promise.reject(new Error('backend not configured'));
     setEx(id, 'connecting');
-
     let td;
-
     try {
       const endpoint = `${BACKEND_URL}/api/kucoin/bullet-public`;
-
       dbg('KUCOIN', `token fetch via backend: ${endpoint}`);
-
       const r = await fetch(endpoint, { method:'POST' });
       td = await r.json();
     } catch(e) {
       dbg('KUCOIN', 'token fetch failed:', e.message);
       return Promise.reject(new Error('kucoin token'));
     }
-
     if (!td?.data?.token || !Array.isArray(td.data.instanceServers) || !td.data.instanceServers.length) {
       dbg('KUCOIN', 'invalid bullet-public response', td);
       return Promise.reject(new Error('kucoin bullet response invalid'));
     }
-
     const {token, instanceServers} = td.data;
     const url = `${instanceServers[0].endpoint}?token=${token}`;
     const pi = instanceServers[0].pingInterval;
-
     let mid = 1;
-
     return makeWS(id,url,{
       onopen(ws){
-        ws.send(JSON.stringify({
-          id:mid++,
-          type:'subscribe',
-          topic:`/market/match:${sym}`,
-          privateChannel:false,
-          response:true
-        }));
+        ws.send(JSON.stringify({id:mid++,type:'subscribe',topic:`/market/match:${sym}`,privateChannel:false,response:true}));
       },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
         if (d.type === 'message' && d.topic?.includes('/market/match')) {
           const t = d.data;
           ingest({exchange:'KUCOIN',price:+t.price,qty:+t.size,isBuy:t.side==='buy',ts:+t.time/1e6});
         }
       },
-      onping(ws){
-        ws.send(JSON.stringify({id:mid++,type:'ping'}));
-      },
+      onping(ws){ ws.send(JSON.stringify({id:mid++,type:'ping'})); },
       pingMs:pi||18000
     });
   }
 
-  // 11. Bitstamp
   function connectBitstamp(sym,id){
     return makeWS(id,'wss://ws.bitstamp.net',{
-      onopen(ws){
-        ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${sym}`}}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${sym}`}})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
-        if (d.event === 'trade') {
-          const t = d.data;
-          ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000});
-        }
+        if (d.event === 'trade') { const t = d.data; ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000}); }
       }
     });
   }
 
-  // 12. Gemini
   function connectGemini(sym,id){
     return makeWS(id,`wss://api.gemini.com/v2/marketdata?symbols=${sym}`,{
-      onopen(ws){
-        ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2',symbols:[sym]}]}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2',symbols:[sym]}]})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
-        if (d.type === 'trade') {
-          ingest({exchange:'GEMINI',price:+d.price,qty:+d.quantity,isBuy:d.side==='buy',ts:d.timestamp||Date.now()});
-        }
+        if (d.type === 'trade') ingest({exchange:'GEMINI',price:+d.price,qty:+d.quantity,isBuy:d.side==='buy',ts:d.timestamp||Date.now()});
       }
     });
   }
 
-  // 13. Kraken v2
   function connectKraken(sym,id){
     return makeWS(id,'wss://ws.kraken.com/v2',{
-      onopen(ws){
-        ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[sym]},req_id:1}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[sym]},req_id:1})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
         if (d.channel === 'trade' && d.type === 'update') {
-          (d.data || []).forEach(t=>ingest({
-            exchange:'KRAKEN',
-            price:+t.price,
-            qty:+t.qty,
-            isBuy:t.side==='buy',
-            ts:new Date(t.timestamp).getTime()
-          }));
+          (d.data || []).forEach(t=>ingest({exchange:'KRAKEN',price:+t.price,qty:+t.qty,isBuy:t.side==='buy',ts:new Date(t.timestamp).getTime()}));
         }
       },
-      onping(ws){
-        ws.send(JSON.stringify({method:'ping'}));
-      },
-      pingMs:30000
+      onping(ws){ ws.send(JSON.stringify({method:'ping'})); }, pingMs:30000
     });
   }
 
-  // 14. Coinbase Advanced Trade
   function connectCoinbase(sym,id){
     return makeWS(id,'wss://advanced-trade-ws.coinbase.com',{
-      onopen(ws){
-        ws.send(JSON.stringify({type:'subscribe',product_ids:[sym],channel:'market_trades'}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({type:'subscribe',product_ids:[sym],channel:'market_trades'})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
         if (d.channel === 'market_trades') {
-          (d.events || []).forEach(e=>{
-            (e.trades || []).forEach(t=>ingest({
-              exchange:'COINBASE',
-              price:+t.price,
-              qty:+t.size,
-              isBuy:t.side==='BUY',
-              ts:new Date(t.time).getTime()
-            }));
-          });
+          (d.events || []).forEach(e=>{ (e.trades || []).forEach(t=>ingest({exchange:'COINBASE',price:+t.price,qty:+t.size,isBuy:t.side==='BUY',ts:new Date(t.time).getTime()})); });
         }
       }
     });
   }
 
-  // 15. Bitfinex
   function connectBitfinex(sym,id){
     return makeWS(id,'wss://api-pub.bitfinex.com/ws/2',{
-      onopen(ws){
-        ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbol:sym}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbol:sym})); },
       onmessage:async(ev)=>{
         let text;
-
-        if (ev.data instanceof ArrayBuffer) {
-          try {
-            text = await gunzip(ev.data);
-          } catch {
-            text = new TextDecoder().decode(ev.data);
-          }
-        } else {
-          text = ev.data;
-        }
-
+        if (ev.data instanceof ArrayBuffer) { try { text = await gunzip(ev.data); } catch { text = new TextDecoder().decode(ev.data); } }
+        else { text = ev.data; }
         const d = JSON.parse(text);
-
         if (Array.isArray(d) && d[1] === 'te') {
           const[,,[,ts,amt,price]] = d;
           ingest({exchange:'BITFINEX',price:+price,qty:Math.abs(+amt),isBuy:+amt>0,ts});
         }
       },
-      onping(ws){
-        ws.send(JSON.stringify({event:'ping'}));
-      },
-      pingMs:30000
+      onping(ws){ ws.send(JSON.stringify({event:'ping'})); }, pingMs:30000
     });
   }
 
-  // 16. HTX (GZip)
   function connectHTX(sym,id){
     return makeWS(id,'wss://api.huobi.pro/ws',{
-      onopen(ws){
-        ws.send(JSON.stringify({sub:`market.${sym}.trade.detail`,id:'omni'}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({sub:`market.${sym}.trade.detail`,id:'omni'})); },
       onmessage:async(ev)=>{
         let text;
-
-        try {
-          text = await gunzip(ev.data);
-        } catch {
-          return;
-        }
-
+        try { text = await gunzip(ev.data); } catch { return; }
         const d = JSON.parse(text);
-
-        if (d.ping) {
-          sockets[id]?.send(JSON.stringify({pong:d.ping}));
-          return;
-        }
-
+        if (d.ping) { sockets[id]?.send(JSON.stringify({pong:d.ping})); return; }
         if (d.ch?.includes('trade.detail') && d.tick) {
-          (d.tick.data || []).forEach(t=>ingest({
-            exchange:'HTX',
-            price:+t.price,
-            qty:+t.amount,
-            isBuy:t.direction==='buy',
-            ts:t.ts
-          }));
+          (d.tick.data || []).forEach(t=>ingest({exchange:'HTX',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.ts}));
         }
       }
     });
   }
 
-  // 17. Phemex — requires backend WebSocket proxy
+  // 17. Phemex — Grey Hat Backend WebSocket Proxy
   function connectPhemex(sym,id){
-    if (!BACKEND_URL) {
-      return Promise.reject(new Error('backend not configured'));
-    }
-
+    if (!BACKEND_URL) return Promise.reject(new Error('backend not configured'));
     const wsBase = wsBaseFromHttpUrl(BACKEND_URL);
-    if (!wsBase) {
-      return Promise.reject(new Error('invalid backend URL'));
-    }
-
+    if (!wsBase) return Promise.reject(new Error('invalid backend URL'));
     const url = `${wsBase}/api/ws/phemex`;
-
     return makeWS(id,url,{
-      onopen(ws){
-        ws.send(JSON.stringify({
-          id:1,
-          method:'trade.subscribe',
-          params:[sym]
-        }));
-      },
+      onopen(ws){ ws.send(JSON.stringify({id:1,method:'trade.subscribe',params:[sym]})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
         if (d.result === 'pong') return;
-
         if (d.type === 'snapshot' || d.type === 'incremental') {
           (d.trades || []).forEach(t=>{
-            ingest({
-              exchange:'PHEMEX',
-              price:+t[2]/1e4,
-              qty:+t[3],
-              isBuy:t[1]==='Buy',
-              ts:Math.floor(+t[0]/1e6)
-            });
+            ingest({exchange:'PHEMEX',price:+t[2]/1e4,qty:+t[3],isBuy:t[1]==='Buy',ts:Math.floor(+t[0]/1e6)});
           });
         }
       },
-      onping(ws){
-        ws.send(JSON.stringify({
-          id:99,
-          method:'server.ping',
-          params:[]
-        }));
-      },
+      onping(ws){ ws.send(JSON.stringify({id:99,method:'server.ping',params:[]})); },
       pingMs:20000
     });
   }
 
-  // 18. Poloniex
   function connectPoloniex(sym,id){
     return makeWS(id,'wss://ws.poloniex.com/ws/public',{
-      onopen(ws){
-        ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbols:[sym]}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbols:[sym]})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
         if (d.channel === 'trades' && d.data) {
-          d.data.forEach(t=>ingest({
-            exchange:'POLONIEX',
-            price:+t.price,
-            qty:+t.quantity,
-            isBuy:t.takerSide==='buy',
-            ts:t.ts||Date.now()
-          }));
+          d.data.forEach(t=>ingest({exchange:'POLONIEX',price:+t.price,qty:+t.quantity,isBuy:t.takerSide==='buy',ts:t.ts||Date.now()}));
         }
       },
-      onping(ws){
-        ws.send(JSON.stringify({event:'ping'}));
-      },
-      pingMs:30000
+      onping(ws){ ws.send(JSON.stringify({event:'ping'})); }, pingMs:30000
     });
   }
 
-  // 19. BingX (may GZip)
   function connectBingX(sym,id){
     return makeWS(id,'wss://open-api-ws.bingx.com/market',{
-      onopen(ws){
-        ws.send(JSON.stringify({id:'omni-bingx',reqType:'sub',dataType:`${sym}@trade`}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({id:'omni-bingx',reqType:'sub',dataType:`${sym}@trade`})); },
       onmessage:async(ev)=>{
         let text;
-
-        if (ev.data instanceof ArrayBuffer) {
-          try {
-            text = await gunzip(ev.data);
-          } catch {
-            text = new TextDecoder().decode(ev.data);
-          }
-        } else {
-          text = ev.data;
-        }
-
-        if (text === 'Ping') {
-          sockets[id]?.send('Pong');
-          return;
-        }
-
+        if (ev.data instanceof ArrayBuffer) { try { text = await gunzip(ev.data); } catch { text = new TextDecoder().decode(ev.data); } }
+        else { text = ev.data; }
+        if (text === 'Ping') { sockets[id]?.send('Pong'); return; }
         try {
           const d = JSON.parse(text);
-
-          if (d.data) {
-            ingest({
-              exchange:'BINGX',
-              price:+d.data.p,
-              qty:+d.data.q,
-              isBuy:d.data.m===false,
-              ts:d.data.T||Date.now()
-            });
-          }
+          if (d.data) ingest({exchange:'BINGX',price:+d.data.p,qty:+d.data.q,isBuy:d.data.m===false,ts:d.data.T||Date.now()});
         } catch {}
       }
     });
   }
 
-  // 20. WOO X
   function connectWooX(sym,id){
     return makeWS(id,'wss://wss.woo.org/ws/stream/broadcast',{
-      onopen(ws){
-        ws.send(JSON.stringify({event:'subscribe',topic:`${sym}@trade`}));
-      },
+      onopen(ws){ ws.send(JSON.stringify({event:'subscribe',topic:`${sym}@trade`})); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
         if (d.topic?.includes('@trade') && d.data) {
-          ingest({
-            exchange:'WOOX',
-            price:+d.data.price,
-            qty:+d.data.size,
-            isBuy:d.data.side==='BUY',
-            ts:d.data.ts||Date.now()
-          });
+          ingest({exchange:'WOOX',price:+d.data.price,qty:+d.data.size,isBuy:d.data.side==='BUY',ts:d.data.ts||Date.now()});
         }
       },
-      onping(ws){
-        ws.send(JSON.stringify({event:'ping'}));
-      },
-      pingMs:25000
+      onping(ws){ ws.send(JSON.stringify({event:'ping'})); }, pingMs:25000
     });
   }
 
-  // 21. Deribit
   function connectDeribit(sym,id){
     return makeWS(id,'wss://www.deribit.com/ws/api/v2',{
-      onopen(ws){
-        ws.send(JSON.stringify({
-          jsonrpc:'2.0',
-          id:1,
-          method:'public/subscribe',
-          params:{channels:[`trades.${sym}.raw`]}
-        }));
-      },
+      onopen(ws){ ws.send(JSON.stringify({jsonrpc:'2.0',id:1,method:'public/subscribe',params:{channels:[`trades.${sym}.raw`]} })); },
       onmessage(ev){
         const d = JSON.parse(ev.data);
-
         if (d.method === 'subscription' && d.params?.channel?.startsWith('trades')) {
-          (d.params.data || []).forEach(t=>ingest({
-            exchange:'DERIBIT',
-            price:+t.price,
-            qty:+t.amount,
-            isBuy:t.direction==='buy',
-            ts:t.timestamp
-          }));
+          (d.params.data || []).forEach(t=>ingest({exchange:'DERIBIT',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.timestamp}));
         }
       },
-      onping(ws){
-        ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}}));
-      },
-      pingMs:30000
+      onping(ws){ ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}})); }, pingMs:30000
     });
   }
 
@@ -1511,7 +1151,6 @@
     EXCHANGES.forEach(({id})=>{
       const f = ADAPTERS[id];
       if (!f) return;
-
       setTimeout(()=>openStream(id,(s,x)=>f(s,x)), Math.random() * 2000);
     });
   }
@@ -1521,29 +1160,20 @@
   // ═══════════════════════════════════════════════════════════════════════
   function switchSymbol(b){
     currentBase = b;
-
-    tape = [];
-    stamps = [];
-    lastPrice = 0;
-    vol = 0;
-
-    book.asks = [];
-    book.bids = [];
-
+    tape = []; stamps = []; lastPrice = 0; vol = 0;
+    book.asks = []; book.bids = [];
     document.getElementById('ticker-price').textContent = '--';
     document.getElementById('dom-spread').textContent = 'SPREAD: --';
     document.getElementById('market-trades').innerHTML = '';
     document.getElementById('dom-asks').innerHTML = '';
     document.getElementById('dom-bids').innerHTML = '';
-
     closeAll();
     updateChart(b);
-
     setTimeout(launchAll, 300);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // AI — Key modal
+  // AI — Key modal (Grey Hat AES-GCM Integrated)
   // ═══════════════════════════════════════════════════════════════════════
   function openKeyModal(){
     document.getElementById('key-modal').classList.remove('hidden');
@@ -1555,34 +1185,56 @@
     document.getElementById('key-modal').classList.add('hidden');
   }
 
-  function saveNimKey(){
+  async function saveNimKey(){
     const v = document.getElementById('nim-key-input').value.trim();
     const err = document.getElementById('key-err');
 
     if (!v.startsWith('nvapi-')) {
       err.textContent = 'Key must start with nvapi-';
       err.classList.remove('hidden');
+      err.style.color = '#f87171';
       return;
+    }
+
+    err.textContent = 'Encrypting and verifying...';
+    err.classList.remove('hidden');
+    err.style.color = '#facc15';
+
+    if (BACKEND_URL && backendHealthy) {
+      try {
+        const encrypted = await encryptAES(v, SHARED_SECRET_HEX);
+        const res = await fetch(`${BACKEND_URL}/api/config/keys`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(encrypted)
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Backend rejected key: ${res.status} ${errText}`);
+        }
+      } catch (e) {
+        err.textContent = `Failed to save key: ${e.message}`;
+        err.style.color = '#f87171';
+        return;
+      }
     }
 
     nimKey = v;
     sessionStorage.setItem('nim_key', nimKey);
-
+    err.classList.add('hidden');
     dismissModal();
 
-    appendMsg('sys', '✓ Key saved. GLM-5.2 ready.');
-    dbg('KEY', 'saved to sessionStorage');
+    appendMsg('sys', '✓ Key encrypted and saved. GLM-5.2 ready.');
+    dbg('KEY', 'saved and encrypted via AES-GCM');
   }
 
   function toggleAiPanel(){
     const panel = document.getElementById('ai-panel');
     const chev = document.getElementById('ai-chevron');
-
     aiOpen = !aiOpen;
-
     panel.style.height = aiOpen ? '310px' : '32px';
     chev.textContent = aiOpen ? '▼' : '▲';
-
     ['ai-messages','ai-input-row','proxy-bar'].forEach(id=>{
       document.getElementById(id).style.display = aiOpen ? '' : 'none';
     });
@@ -1591,37 +1243,26 @@
   function appendMsg(role,text){
     const el = document.getElementById('ai-messages');
     const div = document.createElement('div');
-
     if (role === 'user')       div.className = 'msg-user';
     else if (role === 'think') div.className = 'msg-think';
     else if (role === 'error') div.className = 'msg-err';
     else if (role === 'sys')   div.className = 'msg-sys';
     else                       div.className = 'msg-ai';
-
     div.textContent = text;
-
     el.appendChild(div);
     el.scrollTop = el.scrollHeight;
-
     return div;
   }
 
   function buildMarketCtx(){
     const recent = tape.slice(-30);
-
     const buys = recent.filter(t=>t.isBuy).length;
     const sells = recent.length - buys;
-
     const avgP = recent.length ? (recent.reduce((a,t)=>a+t.price,0)/recent.length).toFixed(2) : 'N/A';
-
     const bestAsk = book.asks[0] ? parseFloat(book.asks[0][0]).toFixed(2) : 'N/A';
     const bestBid = book.bids[0] ? parseFloat(book.bids[0][0]).toFixed(2) : 'N/A';
     const spread = (book.asks[0] && book.bids[0]) ? (parseFloat(book.asks[0][0]) - parseFloat(book.bids[0][0])).toFixed(2) : 'N/A';
-
-    const active = Object.entries(exStatus)
-      .filter(([,s]) => s === 'connected')
-      .map(([id]) => id)
-      .join(', ') || 'none';
+    const active = Object.entries(exStatus).filter(([,s]) => s === 'connected').map(([id]) => id).join(', ') || 'none';
 
     return `[Live Snapshot — ${currentBase} @ ${new Date().toISOString()}]
 Last: $${lastPrice > 0 ? lastPrice.toFixed(2) : '--'} | Ask: $${bestAsk} | Bid: $${bestBid} | Spread: $${spread}
@@ -1637,143 +1278,85 @@ Backend: ${BACKEND_URL || 'not configured'} (${backendHealthy ? 'healthy' : 'unh
   // ═══════════════════════════════════════════════════════════════════════
   async function sendToGLM(){
     if (aiBusy) return;
-
-    if (!BACKEND_URL) {
-      openBackendModal();
-      appendMsg('error', 'No backend configured. Configure a backend URL first.');
-      return;
-    }
-
-    if (!nimKey) {
-      openKeyModal();
-      return;
-    }
+    if (!BACKEND_URL) { openBackendModal(); appendMsg('error', 'No backend configured. Configure a backend URL first.'); return; }
+    if (!nimKey) { openKeyModal(); return; }
 
     const inp = document.getElementById('ai-input');
     const btn = document.getElementById('ai-send-btn');
-
     const userMsg = inp.value.trim();
     if (!userMsg) return;
 
-    inp.value = '';
-    inp.style.height = 'auto';
-
-    aiBusy = true;
-    btn.disabled = true;
-
+    inp.value = ''; inp.style.height = 'auto';
+    aiBusy = true; btn.disabled = true;
     document.getElementById('nim-dot').classList.add('busy');
-
     appendMsg('user', userMsg);
 
     const messages = [
-      {
-        role:'system',
-        content:`You are a professional crypto market analyst in a live multi-exchange terminal.
-Be concise and analytical. Use bullets for lists.
-
-${buildMarketCtx()}`
-      },
+      { role:'system', content:`You are a professional crypto market analyst in a live multi-exchange terminal.\nBe concise and analytical. Use bullets for lists.\n\n${buildMarketCtx()}` },
       ...aiHistory,
       {role:'user',content:userMsg},
     ];
-
     aiHistory.push({role:'user',content:userMsg});
-
     const bubble = appendMsg('ai', '');
 
     let fullText = '';
     let thinkBubble = null;
     let thinkText = '';
-
     const nimUrl = `${BACKEND_URL}/api/nim/chat/completions`;
-
     dbg('NIM', `→ POST ${nimUrl}`);
 
     try {
       const resp = await fetch(nimUrl, {
         method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          'Authorization':`Bearer ${nimKey}`
-        },
-        body:JSON.stringify({
-          model:NIM_MODEL,
-          messages,
-          temperature:0.6,
-          top_p:0.9,
-          max_tokens:1024,
-          stream:true
-        }),
+        headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${nimKey}` },
+        body:JSON.stringify({ model:NIM_MODEL, messages, temperature:0.6, top_p:0.9, max_tokens:1024, stream:true }),
       });
 
       dbg('NIM', `← ${resp.status} ${resp.statusText}`);
 
       if (!resp.ok) {
         let errBody = '(no body)';
-
-        try {
-          errBody = await resp.text();
-        } catch {}
-
+        try { errBody = await resp.text(); } catch {}
         dbg('NIM ERROR', `${resp.status}:`, errBody.slice(0,400));
-
         let msg = `HTTP ${resp.status} ${resp.statusText}`;
-
         try {
           const p = JSON.parse(errBody);
           msg += '\n' + (p?.message || p?.detail || p?.error?.message || errBody.slice(0,300));
-        } catch {
-          msg += '\n' + errBody.slice(0,300);
-        }
-
+        } catch { msg += '\n' + errBody.slice(0,300); }
         if (resp.status === 401) msg += '\n→ Invalid or expired nvapi- key.';
         if (resp.status === 403) msg += '\n→ Key lacks access to this model.';
         if (resp.status === 429) msg += '\n→ Rate limit hit. Wait and retry.';
-        if (resp.status === 422) msg += '\n→ Bad payload (check model name).';
-
-        bubble.remove();
-        aiHistory.pop();
-
+        
+        bubble.remove(); aiHistory.pop();
         appendMsg('error', msg);
-
         return;
       }
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
-
       let buf = '';
 
       while (true) {
         const {done,value} = await reader.read();
         if (done) break;
-
         buf += decoder.decode(value, {stream:true});
-
         const lines = buf.split('\n');
         buf = lines.pop();
 
         for (const line of lines) {
           if (!line.startsWith('data:')) continue;
-
           const payload = line.slice(5).trim();
           if (payload === '[DONE]') break;
-
           try {
             const chunk = JSON.parse(payload);
             const delta = chunk.choices?.[0]?.delta;
-
             if (!delta) continue;
-
             if (delta.reasoning_content) {
               thinkText += delta.reasoning_content;
-
               if (!thinkBubble) thinkBubble = appendMsg('think', '');
-
               thinkBubble.textContent = `💭 Thinking…\n${thinkText}`;
               document.getElementById('ai-messages').scrollTop = 9999;
             }
-
             if (delta.content) {
               fullText += delta.content;
               bubble.textContent = fullText;
@@ -1784,57 +1367,37 @@ ${buildMarketCtx()}`
       }
 
       dbg('NIM', `stream done, ${fullText.length} chars`);
-
       aiHistory.push({role:'assistant',content:fullText});
-
       if (aiHistory.length > 20) aiHistory.splice(0,2);
 
     } catch(err) {
-      bubble.remove();
-      aiHistory.pop();
-
+      bubble.remove(); aiHistory.pop();
       dbg('NIM CATCH', err.message);
-
-      appendMsg('error', `Fetch failed: ${err.message}
-→ Check backend URL, backend CORS, and backend logs.`);
+      appendMsg('error', `Fetch failed: ${err.message}\n→ Check backend URL, backend CORS, and backend logs.`);
     } finally {
-      aiBusy = false;
-      btn.disabled = false;
+      aiBusy = false; btn.disabled = false;
       document.getElementById('nim-dot').classList.remove('busy');
     }
   }
 
   function handleAiKey(e){
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendToGLM();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendToGLM(); }
   }
 
-  document.addEventListener('keydown', e=>{
-    if (e.key === 'Escape') {
-      dismissModal();
-    }
-  });
+  document.addEventListener('keydown', e=>{ if (e.key === 'Escape') dismissModal(); });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TERMINAL START
+  // TERMINAL START & BOOT
   // ═══════════════════════════════════════════════════════════════════════
   function startTerminal(){
     if (terminalStarted) return;
-
     terminalStarted = true;
-
     updateProxyBar(
       backendHealthy && !!BACKEND_URL,
-      backendHealthy && BACKEND_URL
-        ? `Backend connected: ${BACKEND_URL}`
-        : `Limited mode — backend not connected`
+      backendHealthy && BACKEND_URL ? `Backend connected: ${BACKEND_URL}` : `Limited mode — backend not connected`
     );
-
     updateChart(currentBase);
     launchAll();
-
     if (nimKey) {
       dismissModal();
       appendMsg('ai', `GLM-5.2 ready. Watching ${currentBase} across all active feeds.`);
@@ -1843,27 +1406,18 @@ ${buildMarketCtx()}`
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // BOOT
-  // ═══════════════════════════════════════════════════════════════════════
   window.addEventListener('DOMContentLoaded', async ()=>{
     await unregisterOldServiceWorkers();
-
     buildStatusPanel();
     recalcTotalEx();
-
     const input = document.getElementById('backend-url-input');
     if (input && BACKEND_URL) input.value = BACKEND_URL;
 
     if (BACKEND_URL) {
       setBackendStatus('loading', `Checking saved backend: ${BACKEND_URL}`);
       backendHealthy = await checkBackend(BACKEND_URL);
-
-      if (backendHealthy) {
-        setBackendStatus('ok', `Saved backend healthy: ${BACKEND_URL}`);
-      } else {
-        setBackendStatus('bad', `Saved backend not reachable: ${BACKEND_URL}`);
-      }
+      if (backendHealthy) setBackendStatus('ok', `Saved backend healthy: ${BACKEND_URL}`);
+      else setBackendStatus('bad', `Saved backend not reachable: ${BACKEND_URL}`);
     } else {
       setBackendStatus('idle', 'Enter a backend URL and click Test.');
     }
