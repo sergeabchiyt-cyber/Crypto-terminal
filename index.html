@@ -276,7 +276,6 @@
   // ═══════════════════════════════════════════════════════════════════════
   // GREY HAT CONFIGURATION
   // ═══════════════════════════════════════════════════════════════════════
-  // MUST match the AES_SECRET_HEX in your Rust backend .env
   const SHARED_SECRET_HEX = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -325,7 +324,6 @@
 
   const exStatus={};
   EXCHANGES.forEach(e => exStatus[e.id] = 'disconnected');
-
   const DISABLED_EX = new Set(['KUCOIN', 'PHEMEX']);
 
   function recalcTotalEx(){
@@ -373,21 +371,14 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // AES-GCM ENCRYPTION (Grey Hat)
+  // AES-GCM ENCRYPTION
   // ═══════════════════════════════════════════════════════════════════════
   async function encryptAES(text, hexKey) {
     const enc = new TextEncoder();
     const keyBytes = new Uint8Array(hexKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-    
-    const cryptoKey = await window.crypto.subtle.importKey(
-      "raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]
-    );
-    
+    const cryptoKey = await window.crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]);
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await window.crypto.subtle.encrypt(
-      { name: "AES-GCM", iv: iv }, cryptoKey, enc.encode(text)
-    );
-
+    const ciphertext = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, cryptoKey, enc.encode(text));
     return {
       iv: btoa(String.fromCharCode(...iv)),
       ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext)))
@@ -559,11 +550,15 @@
     const s = document.createElement('script');
     s.type = 'text/javascript';
     
-    // GREY HAT MITM PROXY: Route through backend to bypass Cloudflare and enable drawing persistence
-    if (BACKEND_URL && backendHealthy) {
-      s.src = `${BACKEND_URL}/tv-proxy/external-embedding/embed-widget-advanced-chart.js`;
+    const cleanBackend = BACKEND_URL ? BACKEND_URL.replace(/\/$/, '') : '';
+    dbg('CHART_INIT', `BACKEND_URL: "${cleanBackend}", backendHealthy: ${backendHealthy}`);
+
+    if (cleanBackend && backendHealthy) {
+      s.src = `${cleanBackend}/tv-proxy/external-embedding/embed-widget-advanced-chart.js`;
+      dbg('CHART_INIT', `✅ Routing script through MITM Proxy: ${s.src}`);
     } else {
       s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+      dbg('CHART_INIT', `⚠️ FALLBACK: Routing directly to TradingView S3 (Backend unhealthy or missing)`);
     }
     
     s.async = true;
@@ -588,38 +583,56 @@
     wrap.appendChild(s);
     c.appendChild(wrap);
     
-    // Supplemental chart state saver (belt-and-suspenders alongside backend injection)
-    if (BACKEND_URL && backendHealthy) {
+    if (cleanBackend && backendHealthy) {
       setupChartStateSaver();
     }
   }
 
   function setupChartStateSaver() {
-    setInterval(() => {
+    if (window._chartSaverInterval) clearInterval(window._chartSaverInterval);
+    
+    window._chartSaverInterval = setInterval(() => {
       try {
-        // The backend injects a script to do this, but we also attempt it from the frontend 
-        // to catch any standard TV localStorage keys for drawings.
-        const state = localStorage.getItem('tv-chart-state') || localStorage.getItem('tradingview.chart.settings');
-        if (state) {
-          fetch(`${BACKEND_URL}/api/chart/save`, {
+        const statePayload = {};
+        let hasData = false;
+
+        // TradingView uses keys like 'ss-drawing-settings-...', 'tradingview.chart.settings', etc.
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('ss-') || key.startsWith('tradingview_') || key.includes('tv-'))) {
+            statePayload[key] = localStorage.getItem(key);
+            hasData = true;
+          }
+        }
+
+        if (hasData) {
+          dbg('CHART_SAVE', `Captured ${Object.keys(statePayload).length} TV localStorage keys. Pushing to backend...`);
+          fetch(`${BACKEND_URL.replace(/\/$/, '')}/api/chart/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol: currentBase, state: state })
-          }).catch(() => {});
+            body: JSON.stringify({ symbol: currentBase, state: statePayload })
+          })
+          .then(res => {
+            if (res.ok) dbg('CHART_SAVE', '✅ Backend acknowledged chart save.');
+            else dbg('CHART_SAVE', `❌ Backend rejected save: HTTP ${res.status}`);
+          })
+          .catch(err => dbg('CHART_SAVE', `❌ Fetch failed: ${err.message}`));
         }
-      } catch(e) {}
+      } catch (e) {
+        dbg('CHART_SAVE', `Exception: ${e.message}`);
+      }
     }, 5000);
   }
 
   function resetChartDrawings() {
     if (confirm('Reset chart drawings and state? This will clear local and backend cache.')) {
       Object.keys(localStorage).forEach(key => {
-        if (key.includes('tradingview') || key.includes('tv-chart')) {
+        if (key.startsWith('ss-') || key.startsWith('tradingview_') || key.includes('tv-')) {
           localStorage.removeItem(key);
         }
       });
       if (BACKEND_URL && backendHealthy) {
-        fetch(`${BACKEND_URL}/api/chart/clear`, { method: 'POST' }).catch(() => {});
+        fetch(`${BACKEND_URL.replace(/\/$/, '')}/api/chart/clear`, { method: 'POST' }).catch(() => {});
       }
       updateChart(currentBase);
       appendMsg('sys', 'Chart drawings reset.');
@@ -1203,7 +1216,7 @@
     if (BACKEND_URL && backendHealthy) {
       try {
         const encrypted = await encryptAES(v, SHARED_SECRET_HEX);
-        const res = await fetch(`${BACKEND_URL}/api/config/keys`, {
+        const res = await fetch(`${BACKEND_URL.replace(/\/$/, '')}/api/config/keys`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(encrypted)
@@ -1302,7 +1315,7 @@ Backend: ${BACKEND_URL || 'not configured'} (${backendHealthy ? 'healthy' : 'unh
     let fullText = '';
     let thinkBubble = null;
     let thinkText = '';
-    const nimUrl = `${BACKEND_URL}/api/nim/chat/completions`;
+    const nimUrl = `${BACKEND_URL.replace(/\/$/, '')}/api/nim/chat/completions`;
     dbg('NIM', `→ POST ${nimUrl}`);
 
     try {
