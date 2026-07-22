@@ -63,7 +63,7 @@ async fn main() {
     let backend_url = std::env::var("BACKEND_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
     let client = reqwest::Client::builder().pool_max_idle_per_host(5).build().expect("failed to build reqwest client");
-    let redis_client = redis::Client::open(redis_url.as_str()).expect("Failed to create Redis client");
+    let redis_client = redis::Client::open(redis_url.as_str()).expect("Failed to create Redis client. Check URL format.");
     let aes_key = hex::decode(&aes_hex).expect("Invalid AES hex");
 
     let state = AppState {
@@ -76,9 +76,11 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/healthz", get(healthz))
+        // Original Proxies
         .route("/api/kucoin/bullet-public", post(kucoin_bullet))
         .route("/api/nim/chat/completions", post(nim_chat))
         .route("/api/ws/phemex", get(phemex_ws_handler))
+        // New Grey Hat Features
         .route("/api/config/keys", post(set_api_keys))
         .route("/api/chart/save", post(save_chart_state))
         .route("/api/chart/load", get(load_chart_state))
@@ -112,6 +114,10 @@ async fn healthz() -> Json<Value> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     Json(json!({ "ok": true, "time": now }))
 }
+
+// ==========================================
+// ORIGINAL PROXIES (KuCoin, NIM, Phemex)
+// ==========================================
 
 async fn kucoin_bullet(State(state): State<AppState>) -> Result<Response, AppError> {
     let url = format!("{}/api/v1/bullet-public", state.kucoin_base);
@@ -235,7 +241,7 @@ fn tungstenite_to_axum(msg: TungsteniteMessage) -> Option<AxumMessage> {
 }
 
 // ==========================================
-// NEW LOGIC: AES, REDIS, TV MITM PROXY
+// GREY HAT FEATURES (AES, Redis, TV MITM)
 // ==========================================
 
 #[derive(Deserialize)]
@@ -270,25 +276,48 @@ async fn load_chart_state(State(state): State<AppState>, Query(params): Query<st
 }
 
 async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) -> impl IntoResponse {
-    let tv_url = if path.contains("static/bundles") || path.contains("embed-widget") {
+    // 1. Correct domain routing
+    let tv_url = if path.starts_with("static/bundles") {
         format!("https://www.tradingview-widget.com/{}", path)
     } else {
         format!("https://s3.tradingview.com/{}", path)
     };
 
-    let resp = match state.client.get(&tv_url).send().await { Ok(r) => r, Err(_) => return StatusCode::BAD_GATEWAY.into_response() };
-    
-    // FIX 1: Use reqwest::header::CONTENT_TYPE instead of axum's header::CONTENT_TYPE
+    // 2. Add browser headers to bypass Cloudflare 403 Forbidden
+    let resp = match state.client.get(&tv_url)
+        .header(reqwest::header::USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+        .header(reqwest::header::REFERER, "https://www.tradingview.com/")
+        .header(reqwest::header::ORIGIN, "https://www.tradingview.com")
+        .header(reqwest::header::ACCEPT, "*/*")
+        .send().await 
+    { 
+        Ok(r) => r, 
+        Err(e) => {
+            tracing::error!("TV Proxy request failed: {}", e);
+            return StatusCode::BAD_GATEWAY.into_response();
+        }
+    };
+
+    if resp.status() == reqwest::StatusCode::FORBIDDEN {
+        tracing::error!("TradingView returned 403 Forbidden for {}", tv_url);
+    }
+
+    // Use reqwest header type to avoid axum/reqwest version mismatch
     let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
     let mut body = resp.text().await.unwrap_or_default();
 
     if content_type.contains("javascript") || content_type.contains("html") {
         let ws_backend = state.backend_url.replace("http://", "ws://").replace("https://", "wss://");
+        
+        // Hijack WebSocket URLs
         body = body.replace("wss://prodata.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
+        
+        // Hijack static asset URLs
         body = body.replace("https://www.tradingview-widget.com/", &format!("{}/tv-proxy/", state.backend_url));
         body = body.replace("https://s3.tradingview.com/", &format!("{}/tv-proxy/", state.backend_url));
         
+        // Inject Redis Sync Script into HTML
         if content_type.contains("html") {
             let redis_sync_script = format!(r#"
             <script>
@@ -312,6 +341,8 @@ async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) 
 
     let mut headers = HeaderMap::new();
     if let Ok(ct) = content_type.parse() { headers.insert(header::CONTENT_TYPE, ct); }
+    headers.insert(header::CACHE_CONTROL, "public, max-age=3600".parse().unwrap());
+
     (StatusCode::OK, headers, body).into_response()
 }
 
@@ -340,7 +371,6 @@ async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
     info!("[PROXY] TradingView Iframe connected.");
     let binance_url = "wss://testnet.binance.vision/ws/btcusdt@kline_1m";
     
-    // FIX 2: Removed tuple destructuring `(mut binance_ws, _)` since `connect_async` match returns a single stream
     let mut binance_ws = match connect_async(binance_url).await { 
         Ok((ws, _)) => ws, 
         Err(e) => { tracing::error!("Binance WS failed: {}", e); return; } 
@@ -368,7 +398,7 @@ async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
                         let payload = json!({ "m": "timescale_update", "p": ["cs_local", {"sds_1": {"s": tv_data}}] });
                         let payload_str = payload.to_string();
                         let wrapped = format!("~m~{}~m~{}", payload_str.len(), payload_str);
-                        let _ = tv_socket.send(AxumMessage::Text(wrapped)).await;
+                        let _ = tv_socket.send(AxumMessage::Text(wrapped.into())).await;
                     }
                 }
             }
@@ -388,7 +418,7 @@ async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
                             });
                             let payload_str = du_payload.to_string();
                             let wrapped = format!("~m~{}~m~{}", payload_str.len(), payload_str);
-                            if tv_socket.send(AxumMessage::Text(wrapped)).await.is_err() { break; }
+                            if tv_socket.send(AxumMessage::Text(wrapped.into())).await.is_err() { break; }
                         }
                     }
                 }
