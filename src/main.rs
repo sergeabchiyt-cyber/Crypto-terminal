@@ -259,7 +259,6 @@ async fn set_api_keys(State(state): State<AppState>, Json(payload): Json<Encrypt
     }
 }
 
-// Flexible payload handler to accept both frontend {symbol, state} and injected script {session_id, state_json}
 async fn save_chart_state(State(state): State<AppState>, Json(payload): Json<Value>) -> impl IntoResponse {
     let mut con = match state.redis.get_multiplexed_async_connection().await { 
         Ok(c) => c, 
@@ -349,12 +348,12 @@ async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) 
 }
 
 async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_path: &str) -> Response {
+    // FIX 3: Extract status and headers BEFORE consuming the response body with .text().await
     let status = resp.status();
     let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
     let is_text = content_type.contains("javascript") || content_type.contains("html") || content_type.contains("json") || 
                   clean_path.ends_with(".js") || clean_path.ends_with(".html") || clean_path.ends_with(".css") || clean_path.ends_with(".map");
     
-    // FIX: Extract headers BEFORE consuming the response body with .text().await
     let mut headers = HeaderMap::new();
     for (key, value) in resp.headers() {
         if key == reqwest::header::CONTENT_TYPE || key == reqwest::header::CACHE_CONTROL || key == reqwest::header::ETAG {
@@ -373,11 +372,12 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
     if is_text && !body.is_empty() {
         let backend_url = state.backend_url.trim_end_matches('/');
         let ws_backend = backend_url.replace("http://", "ws://").replace("https://", "wss://");
-        let backend_host = backend_url.replace("http://", "").replace("https://", "");
 
         let proxy_prefix = format!("{}/tv-proxy/", backend_url);
+        let proxy_prefix_no_slash = proxy_prefix.trim_end_matches('/'); // FIX 1: Catch JS variables without trailing slashes
+        
         let proxy_prefix_escaped = proxy_prefix.replace("/", "\\/");
-        let host_proxy_prefix = format!("//{}/tv-proxy/", backend_host);
+        let proxy_prefix_escaped_no_slash = proxy_prefix_no_slash.replace("/", "\\/");
 
         // 1. Hijack WebSocket URLs
         body = body.replace("wss://prodata.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
@@ -385,17 +385,29 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         body = body.replace("wss://prodata.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         
-        // 2. Hijack absolute static asset URLs
+        // 2. Hijack absolute static asset URLs (Base domains WITHOUT trailing slash)
+        body = body.replace("https://www.tradingview-widget.com", proxy_prefix_no_slash);
+        body = body.replace("https://s3.tradingview.com", proxy_prefix_no_slash);
+        body = body.replace("https://s.tradingview.com", proxy_prefix_no_slash);
+        
+        // Also keep the trailing slash versions just in case
         body = body.replace("https://www.tradingview-widget.com/", &proxy_prefix);
         body = body.replace("https://s3.tradingview.com/", &proxy_prefix);
         body = body.replace("https://s.tradingview.com/", &proxy_prefix);
         
-        // 3. Hijack escaped absolute URLs
+        // 3. Hijack escaped absolute URLs (Base domains WITHOUT trailing slash)
+        body = body.replace("https:\\/\\/www.tradingview-widget.com", &proxy_prefix_escaped_no_slash);
+        body = body.replace("https:\\/\\/s3.tradingview.com", &proxy_prefix_escaped_no_slash);
+        body = body.replace("https:\\/\\/s.tradingview.com", &proxy_prefix_escaped_no_slash);
+
+        // Also keep the trailing slash versions
         body = body.replace("https:\\/\\/www.tradingview-widget.com\\/", &proxy_prefix_escaped);
         body = body.replace("https:\\/\\/s3.tradingview.com\\/", &proxy_prefix_escaped);
         body = body.replace("https:\\/\\/s.tradingview.com\\/", &proxy_prefix_escaped);
 
         // 4. Hijack protocol-relative URLs
+        let backend_host = backend_url.replace("http://", "").replace("https://", "");
+        let host_proxy_prefix = format!("//{}/tv-proxy/", backend_host);
         body = body.replace("//www.tradingview-widget.com/", &host_proxy_prefix);
         body = body.replace("//s3.tradingview.com/", &host_proxy_prefix);
         body = body.replace("//s.tradingview.com/", &host_proxy_prefix);
@@ -436,10 +448,11 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
             body = format!("{}{}", body, redis_sync_script);
         }
 
-        // Force no-cache for JS/HTML
+        // Force no-cache for JS/HTML to prevent browser from caching un-rewritten versions
         headers.insert(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate".parse().unwrap());
     }
 
+    // FIX 2: Convert reqwest StatusCode to axum StatusCode
     let axum_status = axum::http::StatusCode::from_u16(status.as_u16()).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     (axum_status, headers, body).into_response()
 }
