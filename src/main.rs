@@ -6,7 +6,7 @@ use axum::{
         ws::{Message as AxumMessage, WebSocket, WebSocketUpgrade},
         Path, Query, State,
     },
-    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri}, // <-- Added Uri
+    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri}, // <-- Uri added
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -22,7 +22,7 @@ use tokio_tungstenite::{
     tungstenite::Message as TungsteniteMessage,
 };
 use tower_http::cors::{AllowOrigin, CorsLayer};
-use tracing::info;
+use tracing::{info, warn, error}; // <-- Added warn and error
 
 use redis::AsyncCommands;
 use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Key, Nonce};
@@ -76,11 +76,9 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/healthz", get(healthz))
-        // Original Proxies
         .route("/api/kucoin/bullet-public", post(kucoin_bullet))
         .route("/api/nim/chat/completions", post(nim_chat))
         .route("/api/ws/phemex", get(phemex_ws_handler))
-        // New Grey Hat Features
         .route("/api/config/keys", post(set_api_keys))
         .route("/api/chart/save", post(save_chart_state))
         .route("/api/chart/load", get(load_chart_state))
@@ -106,14 +104,8 @@ fn build_cors() -> CorsLayer {
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
 }
 
-async fn root() -> Json<Value> {
-    Json(json!({ "ok": true, "service": "omni-stream-backend-rust" }))
-}
-
-async fn healthz() -> Json<Value> {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-    Json(json!({ "ok": true, "time": now }))
-}
+async fn root() -> Json<Value> { Json(json!({ "ok": true, "service": "omni-stream-backend-rust" })) }
+async fn healthz() -> Json<Value> { Json(json!({ "ok": true, "time": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() })) }
 
 // ==========================================
 // ORIGINAL PROXIES (KuCoin, NIM, Phemex)
@@ -262,7 +254,7 @@ async fn set_api_keys(State(state): State<AppState>, Json(payload): Json<Encrypt
 async fn save_chart_state(State(state): State<AppState>, Json(payload): Json<Value>) -> impl IntoResponse {
     let mut con = match state.redis.get_multiplexed_async_connection().await { 
         Ok(c) => c, 
-        Err(e) => { tracing::error!("Redis connection failed: {}", e); return StatusCode::INTERNAL_SERVER_ERROR.into_response(); } 
+        Err(e) => { error!("Redis connection failed: {}", e); return StatusCode::INTERNAL_SERVER_ERROR.into_response(); } 
     };
     
     let session_id = payload.get("session_id")
@@ -281,30 +273,33 @@ async fn save_chart_state(State(state): State<AppState>, Json(payload): Json<Val
 }
 
 async fn load_chart_state(State(state): State<AppState>, Query(params): Query<std::collections::HashMap<String, String>>) -> impl IntoResponse {
-    let mut con = match state.redis.get_multiplexed_async_connection().await { Ok(c) => c, Err(e) => { tracing::error!("Redis connection failed: {}", e); return StatusCode::INTERNAL_SERVER_ERROR.into_response(); } };
+    let mut con = match state.redis.get_multiplexed_async_connection().await { Ok(c) => c, Err(e) => { error!("Redis connection failed: {}", e); return StatusCode::INTERNAL_SERVER_ERROR.into_response(); } };
     let session_id = match params.get("session_id") { Some(id) => id, None => return StatusCode::BAD_REQUEST.into_response() };
     let state_json: Option<String> = con.get(session_id).await.unwrap_or(None);
     match state_json { Some(json) => (StatusCode::OK, json).into_response(), None => StatusCode::NOT_FOUND.into_response() }
 }
 
 // ==========================================
-// TRADINGVIEW MITM HTTP PROXY (URI QUERY FIX APPLIED)
+// TRADINGVIEW MITM HTTP PROXY (WITH DEBUG LOGS)
 // ==========================================
 
 async fn tv_http_proxy(
     State(state): State<AppState>, 
     Path(path): Path<String>,
-    uri: Uri, // <-- Captures the full URI including query strings
+    uri: Uri, 
 ) -> impl IntoResponse {
+    let original_path = path.clone();
     let mut clean_path = path.trim_start_matches('/').to_string();
     
-    // 🎯 THE FIX: TradingView's iframe requires query parameters (e.g., ?frameElementId=...).
-    // Axum's Path extractor drops them, so we must grab them from the Uri and reattach them.
+    info!("[TV-PROXY] ➡️ Incoming request: path='{}', full_uri='{}'", original_path, uri);
+
     if let Some(query) = uri.query() {
         clean_path = format!("{}?{}", clean_path, query);
+        info!("[TV-PROXY] 🔗 Reattached query string. Final target path: '{}'", clean_path);
     }
 
     if clean_path.is_empty() {
+        warn!("[TV-PROXY] ❌ Empty path after trimming. Returning 400 Bad Request.");
         return StatusCode::BAD_REQUEST.into_response();
     }
 
@@ -324,8 +319,9 @@ async fn tv_http_proxy(
 
     let mut final_resp = None;
 
-    for url in urls_to_try {
-        match state.client.get(&url)
+    for url in &urls_to_try {
+        info!("[TV-PROXY] 🌐 Attempting fetch from upstream: {}", url);
+        match state.client.get(url)
             .header(reqwest::header::USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
             .header(reqwest::header::REFERER, "https://www.tradingview.com/")
             .header(reqwest::header::ORIGIN, "https://www.tradingview.com")
@@ -333,24 +329,30 @@ async fn tv_http_proxy(
             .send()
             .await
         {
-            Ok(resp) if resp.status().is_success() => {
-                final_resp = Some(resp);
-                break;
+            Ok(resp) => {
+                info!("[TV-PROXY] 📥 Response from {}: Status {}", url, resp.status());
+                if resp.status().is_success() {
+                    final_resp = Some(resp);
+                    break;
+                } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
+                    info!("[TV-PROXY] ⚠️ 404 Not Found for {}, trying next fallback domain...", url);
+                    continue;
+                } else {
+                    warn!("[TV-PROXY] 🛑 Non-success/non-404 status {} for {}. Returning immediately.", resp.status(), url);
+                    return process_tv_response(resp, &state, &clean_path).await;
+                }
             }
-            Ok(resp) if resp.status() == reqwest::StatusCode::NOT_FOUND => {
+            Err(e) => {
+                warn!("[TV-PROXY] ❌ Network error fetching {}: {}", url, e);
                 continue;
             }
-            Ok(resp) => {
-                return process_tv_response(resp, &state, &clean_path).await;
-            }
-            Err(_) => continue,
         }
     }
 
     let resp = match final_resp {
         Some(r) => r,
         None => {
-            tracing::warn!("TV Proxy failed to fetch from all fallback domains for: {}", clean_path);
+            error!("[TV-PROXY] 💀 Failed to fetch from ALL fallback domains for: {}", clean_path);
             return StatusCode::BAD_GATEWAY.into_response();
         }
     };
@@ -359,12 +361,13 @@ async fn tv_http_proxy(
 }
 
 async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_path: &str) -> Response {
-    // Extract status and headers BEFORE consuming the response body with .text().await
     let status = resp.status();
     let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
     let is_text = content_type.contains("javascript") || content_type.contains("html") || content_type.contains("json") || 
                   clean_path.ends_with(".js") || clean_path.ends_with(".html") || clean_path.ends_with(".css") || clean_path.ends_with(".map");
     
+    info!("[TV-PROXY] ⚙️ Processing response for '{}'. Status: {}, Content-Type: '{}', IsText: {}", clean_path, status, content_type, is_text);
+
     let mut headers = HeaderMap::new();
     for (key, value) in resp.headers() {
         if key == reqwest::header::CONTENT_TYPE || key == reqwest::header::CACHE_CONTROL || key == reqwest::header::ETAG {
@@ -379,8 +382,10 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
     }
 
     let mut body = resp.text().await.unwrap_or_default();
+    info!("[TV-PROXY] 📦 Body length for '{}': {} bytes", clean_path, body.len());
 
     if is_text && !body.is_empty() {
+        info!("[TV-PROXY] ✍️ Rewriting URLs and injecting scripts for '{}'", clean_path);
         let backend_url = state.backend_url.trim_end_matches('/');
         let ws_backend = backend_url.replace("http://", "ws://").replace("https://", "wss://");
 
@@ -390,40 +395,33 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         let proxy_prefix_escaped = proxy_prefix.replace("/", "\\/");
         let proxy_prefix_escaped_no_slash = proxy_prefix_no_slash.replace("/", "\\/");
 
-        // 1. Hijack WebSocket URLs
         body = body.replace("wss://prodata.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://prodata.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         
-        // 2. Hijack absolute static asset URLs (Base domains WITHOUT trailing slash)
         body = body.replace("https://www.tradingview-widget.com", proxy_prefix_no_slash);
         body = body.replace("https://s3.tradingview.com", proxy_prefix_no_slash);
         body = body.replace("https://s.tradingview.com", proxy_prefix_no_slash);
         
-        // Also keep the trailing slash versions just in case
         body = body.replace("https://www.tradingview-widget.com/", &proxy_prefix);
         body = body.replace("https://s3.tradingview.com/", &proxy_prefix);
         body = body.replace("https://s.tradingview.com/", &proxy_prefix);
         
-        // 3. Hijack escaped absolute URLs (Base domains WITHOUT trailing slash)
         body = body.replace("https:\\/\\/www.tradingview-widget.com", &proxy_prefix_escaped_no_slash);
         body = body.replace("https:\\/\\/s3.tradingview.com", &proxy_prefix_escaped_no_slash);
         body = body.replace("https:\\/\\/s.tradingview.com", &proxy_prefix_escaped_no_slash);
 
-        // Also keep the trailing slash versions
         body = body.replace("https:\\/\\/www.tradingview-widget.com\\/", &proxy_prefix_escaped);
         body = body.replace("https:\\/\\/s3.tradingview.com\\/", &proxy_prefix_escaped);
         body = body.replace("https:\\/\\/s.tradingview.com\\/", &proxy_prefix_escaped);
 
-        // 4. Hijack protocol-relative URLs
         let backend_host = backend_url.replace("http://", "").replace("https://", "");
         let host_proxy_prefix = format!("//{}/tv-proxy/", backend_host);
         body = body.replace("//www.tradingview-widget.com/", &host_proxy_prefix);
         body = body.replace("//s3.tradingview.com/", &host_proxy_prefix);
         body = body.replace("//s.tradingview.com/", &host_proxy_prefix);
 
-        // 5. Inject Redis Sync Script
         let redis_sync_script = format!(r#"
         <script>
             (function() {{
@@ -459,11 +457,12 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
             body = format!("{}{}", body, redis_sync_script);
         }
 
-        // Force no-cache for JS/HTML to prevent browser from caching un-rewritten versions
         headers.insert(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate".parse().unwrap());
+        info!("[TV-PROXY] ✅ Rewrite complete for '{}'", clean_path);
+    } else {
+        info!("[TV-PROXY] ⏭️ Skipping rewrite for '{}' (IsText: {}, BodyEmpty: {})", clean_path, is_text, body.is_empty());
     }
 
-    // Convert reqwest StatusCode to axum StatusCode
     let axum_status = axum::http::StatusCode::from_u16(status.as_u16()).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     (axum_status, headers, body).into_response()
 }
@@ -499,7 +498,7 @@ async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
     
     let mut binance_ws = match connect_async(binance_url).await { 
         Ok((ws, _)) => ws, 
-        Err(e) => { tracing::error!("Binance WS failed: {}", e); return; } 
+        Err(e) => { error!("Binance WS failed: {}", e); return; } 
     };
 
     loop {
