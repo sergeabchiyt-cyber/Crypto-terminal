@@ -247,9 +247,6 @@ fn tungstenite_to_axum(msg: TungsteniteMessage) -> Option<AxumMessage> {
 #[derive(Deserialize)]
 struct EncryptedPayload { iv: String, ciphertext: String }
 
-#[derive(Deserialize)]
-struct ChartStatePayload { session_id: String, state_json: String }
-
 async fn set_api_keys(State(state): State<AppState>, Json(payload): Json<EncryptedPayload>) -> impl IntoResponse {
     let key = Key::<Aes256Gcm>::from_slice(&state.aes_key);
     let cipher = Aes256Gcm::new(key);
@@ -262,9 +259,25 @@ async fn set_api_keys(State(state): State<AppState>, Json(payload): Json<Encrypt
     }
 }
 
-async fn save_chart_state(State(state): State<AppState>, Json(payload): Json<ChartStatePayload>) -> impl IntoResponse {
-    let mut con = match state.redis.get_multiplexed_async_connection().await { Ok(c) => c, Err(e) => { tracing::error!("Redis connection failed: {}", e); return StatusCode::INTERNAL_SERVER_ERROR.into_response(); } };
-    let _: Result<(), _> = con.set_ex(&payload.session_id, &payload.state_json, 2592000).await;
+// Flexible payload handler to accept both frontend {symbol, state} and injected script {session_id, state_json}
+async fn save_chart_state(State(state): State<AppState>, Json(payload): Json<Value>) -> impl IntoResponse {
+    let mut con = match state.redis.get_multiplexed_async_connection().await { 
+        Ok(c) => c, 
+        Err(e) => { tracing::error!("Redis connection failed: {}", e); return StatusCode::INTERNAL_SERVER_ERROR.into_response(); } 
+    };
+    
+    let session_id = payload.get("session_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("global_tv_state")
+        .to_string();
+        
+    let state_str = if let Some(state_json) = payload.get("state_json").and_then(|v| v.as_str()) {
+        state_json.to_string()
+    } else {
+        payload.get("state").unwrap_or(&payload).to_string()
+    };
+
+    let _: Result<(), _> = con.set_ex(&session_id, &state_str, 2592000).await;
     StatusCode::OK.into_response()
 }
 
@@ -275,76 +288,166 @@ async fn load_chart_state(State(state): State<AppState>, Query(params): Query<st
     match state_json { Some(json) => (StatusCode::OK, json).into_response(), None => StatusCode::NOT_FOUND.into_response() }
 }
 
+// ==========================================
+// TRADINGVIEW MITM HTTP PROXY (REWRITTEN)
+// ==========================================
+
 async fn tv_http_proxy(State(state): State<AppState>, Path(path): Path<String>) -> impl IntoResponse {
-    // 1. Correct domain routing
-    let tv_url = if path.starts_with("static/bundles") {
-        format!("https://www.tradingview-widget.com/{}", path)
+    let clean_path = path.trim_start_matches('/');
+    if clean_path.is_empty() {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    // TradingView splits assets across these domains. We try the most likely one first, then fallback.
+    let is_widget_domain = clean_path.contains("widgetembed") || clean_path.contains("static/bundles") || clean_path.contains("tv-chart");
+    
+    let urls_to_try = if is_widget_domain {
+        vec![
+            format!("https://www.tradingview-widget.com/{}", clean_path),
+            format!("https://s3.tradingview.com/{}", clean_path),
+        ]
     } else {
-        format!("https://s3.tradingview.com/{}", path)
+        vec![
+            format!("https://s3.tradingview.com/{}", clean_path),
+            format!("https://www.tradingview-widget.com/{}", clean_path),
+        ]
     };
 
-    // 2. Add browser headers to bypass Cloudflare 403 Forbidden
-    let resp = match state.client.get(&tv_url)
-        .header(reqwest::header::USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
-        .header(reqwest::header::REFERER, "https://www.tradingview.com/")
-        .header(reqwest::header::ORIGIN, "https://www.tradingview.com")
-        .header(reqwest::header::ACCEPT, "*/*")
-        .send().await 
-    { 
-        Ok(r) => r, 
-        Err(e) => {
-            tracing::error!("TV Proxy request failed: {}", e);
+    let mut final_resp = None;
+
+    for url in urls_to_try {
+        match state.client.get(&url)
+            .header(reqwest::header::USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+            .header(reqwest::header::REFERER, "https://www.tradingview.com/")
+            .header(reqwest::header::ORIGIN, "https://www.tradingview.com")
+            .header(reqwest::header::ACCEPT, "*/*")
+            .send()
+            .await
+        {
+            Ok(resp) if resp.status().is_success() => {
+                final_resp = Some(resp);
+                break;
+            }
+            Ok(resp) if resp.status() == reqwest::StatusCode::NOT_FOUND => {
+                continue; // Try next URL
+            }
+            Ok(resp) => {
+                // Other errors (403, 500), return immediately
+                return process_tv_response(resp, &state, clean_path).await;
+            }
+            Err(_) => continue,
+        }
+    }
+
+    let resp = match final_resp {
+        Some(r) => r,
+        None => {
+            tracing::warn!("TV Proxy failed to fetch from all fallback domains for: {}", clean_path);
             return StatusCode::BAD_GATEWAY.into_response();
         }
     };
 
-    if resp.status() == reqwest::StatusCode::FORBIDDEN {
-        tracing::error!("TradingView returned 403 Forbidden for {}", tv_url);
-    }
+    process_tv_response(resp, &state, clean_path).await
+}
 
-    // Use reqwest header type to avoid axum/reqwest version mismatch
+async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_path: &str) -> Response {
     let content_type = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+    let is_text = content_type.contains("javascript") || content_type.contains("html") || content_type.contains("json") || 
+                  clean_path.ends_with(".js") || clean_path.ends_with(".html") || clean_path.ends_with(".css") || clean_path.ends_with(".map");
+    
     let mut body = resp.text().await.unwrap_or_default();
 
-    if content_type.contains("javascript") || content_type.contains("html") {
-        let ws_backend = state.backend_url.replace("http://", "ws://").replace("https://", "wss://");
-        
-        // Hijack WebSocket URLs
+    if is_text && !body.is_empty() {
+        let backend_url = state.backend_url.trim_end_matches('/');
+        let ws_backend = backend_url.replace("http://", "ws://").replace("https://", "wss://");
+        let backend_host = backend_url.replace("http://", "").replace("https://", "");
+
+        let proxy_prefix = format!("{}/tv-proxy/", backend_url);
+        let proxy_prefix_escaped = proxy_prefix.replace("/", "\\/");
+        let host_proxy_prefix = format!("//{}/tv-proxy/", backend_host);
+
+        // 1. Hijack WebSocket URLs (Force them to our WS proxy)
         body = body.replace("wss://prodata.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
+        body = body.replace("wss://prodata.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
+        body = body.replace("wss://data.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         
-        // Hijack static asset URLs
-        body = body.replace("https://www.tradingview-widget.com/", &format!("{}/tv-proxy/", state.backend_url));
-        body = body.replace("https://s3.tradingview.com/", &format!("{}/tv-proxy/", state.backend_url));
+        // 2. Hijack absolute static asset URLs
+        body = body.replace("https://www.tradingview-widget.com/", &proxy_prefix);
+        body = body.replace("https://s3.tradingview.com/", &proxy_prefix);
+        body = body.replace("https://s.tradingview.com/", &proxy_prefix);
         
-        // Inject Redis Sync Script into HTML
-        if content_type.contains("html") {
-            let redis_sync_script = format!(r#"
-            <script>
+        // 3. Hijack escaped absolute URLs (common in minified JS)
+        body = body.replace("https:\\/\\/www.tradingview-widget.com\\/", &proxy_prefix_escaped);
+        body = body.replace("https:\\/\\/s3.tradingview.com\\/", &proxy_prefix_escaped);
+        body = body.replace("https:\\/\\/s.tradingview.com\\/", &proxy_prefix_escaped);
+
+        // 4. Hijack protocol-relative URLs (//s3.tradingview.com/...)
+        body = body.replace("//www.tradingview-widget.com/", &host_proxy_prefix);
+        body = body.replace("//s3.tradingview.com/", &host_proxy_prefix);
+        body = body.replace("//s.tradingview.com/", &host_proxy_prefix);
+
+        // 5. Inject Redis Sync Script into HTML/JS payloads
+        let redis_sync_script = format!(r#"
+        <script>
+            (function() {{
                 setInterval(() => {{
                     try {{
-                        const tvState = localStorage.getItem('tradingview-widget-local-storage') || localStorage.getItem('tradingview.chart');
-                        if (tvState) {{
+                        const statePayload = {{}};
+                        let hasData = false;
+                        for (let i = 0; i < localStorage.length; i++) {{
+                            const key = localStorage.key(i);
+                            if (key && (key.startsWith('ss-') || key.startsWith('tradingview_') || key.includes('tv-'))) {{
+                                statePayload[key] = localStorage.getItem(key);
+                                hasData = true;
+                            }}
+                        }}
+                        if (hasData) {{
                             fetch('{}/api/chart/save', {{
                                 method: 'POST',
                                 headers: {{'Content-Type': 'application/json'}},
-                                body: JSON.stringify({{ session_id: 'global_tv_state', state_json: tvState }})
-                            }});
+                                body: JSON.stringify({{ session_id: 'global_tv_state', state_json: JSON.stringify(statePayload) }})
+                            }}).catch(() => {{}});
                         }}
                     }} catch(e) {{}}
                 }}, 5000);
-            </script>
-            "#, state.backend_url);
+            }})();
+        </script>
+        "#, backend_url);
+        
+        if body.contains("</body>") {
             body = body.replace("</body>", &format!("{} </body>", redis_sync_script));
+        } else if body.contains("</head>") {
+            body = body.replace("</head>", &format!("{} </head>", redis_sync_script));
+        } else {
+            body = format!("{}{}", body, redis_sync_script);
         }
     }
 
     let mut headers = HeaderMap::new();
-    if let Ok(ct) = content_type.parse() { headers.insert(header::CONTENT_TYPE, ct); }
-    headers.insert(header::CACHE_CONTROL, "public, max-age=3600".parse().unwrap());
+    for (key, value) in resp.headers() {
+        if key == reqwest::header::CONTENT_TYPE || key == reqwest::header::CACHE_CONTROL || key == reqwest::header::ETAG {
+            if let Ok(val) = value.to_str() {
+                if let Ok(header_name) = header::HeaderName::from_bytes(key.as_ref()) {
+                    if let Ok(header_val) = header::HeaderValue::from_str(val) {
+                        headers.insert(header_name, header_val);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Force no-cache for JS/HTML to ensure the browser always fetches the rewritten version from our proxy
+    if is_text {
+        headers.insert(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate".parse().unwrap());
+    }
 
-    (StatusCode::OK, headers, body).into_response()
+    (resp.status().as_u16(), headers, body).into_response()
 }
+
+// ==========================================
+// TRADINGVIEW WEBSOCKET PROXY
+// ==========================================
 
 async fn tv_ws_proxy(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
     ws.on_upgrade(move |socket| handle_tv_socket(socket, state))
@@ -369,6 +472,8 @@ async fn fetch_10k_candles(client: &reqwest::Client, symbol: &str, interval: &st
 
 async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
     info!("[PROXY] TradingView Iframe connected.");
+    // Note: Dynamic symbol/timeframe routing based on widget commands is the next logical enhancement.
+    // Currently hardcoded to BTCUSDT 1m for proof-of-concept.
     let binance_url = "wss://testnet.binance.vision/ws/btcusdt@kline_1m";
     
     let mut binance_ws = match connect_async(binance_url).await { 
