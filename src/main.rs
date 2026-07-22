@@ -288,7 +288,7 @@ async fn load_chart_state(State(state): State<AppState>, Query(params): Query<st
 }
 
 // ==========================================
-// TRADINGVIEW MITM HTTP PROXY
+// TRADINGVIEW MITM HTTP PROXY (CLOUDFLARE BYPASS)
 // ==========================================
 
 async fn tv_http_proxy(
@@ -311,29 +311,30 @@ async fn tv_http_proxy(
         return StatusCode::BAD_REQUEST.into_response();
     }
 
-    let is_widget_domain = clean_path.contains("widgetembed") || clean_path.contains("static/bundles") || clean_path.contains("tv-chart");
-    
-    let urls_to_try = if is_widget_domain {
-        vec![
-            format!("https://www.tradingview-widget.com/{}", clean_path),
-            format!("https://s3.tradingview.com/{}", clean_path),
-        ]
-    } else {
-        vec![
-            format!("https://s3.tradingview.com/{}", clean_path),
-            format!("https://www.tradingview-widget.com/{}", clean_path),
-        ]
-    };
+    // Try ALL known TradingView domains. Order matters.
+    let urls_to_try = vec![
+        format!("https://www.tradingview-widget.com/{}", clean_path),
+        format!("https://s.tradingview.com/{}", clean_path),
+        format!("https://s3.tradingview.com/{}", clean_path),
+    ];
 
     let mut final_resp = None;
 
     for url in &urls_to_try {
         info!("[TV-PROXY] 🌐 Attempting fetch from upstream: {}", url);
         match state.client.get(url)
+            // 🎯 CLOUDFLARE BYPASS HEADERS: Mimic a real Chrome iframe request
             .header(reqwest::header::USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
-            .header(reqwest::header::REFERER, "https://www.tradingview.com/")
-            .header(reqwest::header::ORIGIN, "https://www.tradingview.com")
-            .header(reqwest::header::ACCEPT, "*/*")
+            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+            .header("Accept-Language", "en-US,en;q=0.9")
+            .header("Accept-Encoding", "gzip, deflate, br")
+            .header("Referer", "https://www.tradingview-widget.com/")
+            .header("Sec-Fetch-Dest", "iframe")
+            .header("Sec-Fetch-Mode", "navigate")
+            .header("Sec-Fetch-Site", "cross-site")
+            .header("Sec-Ch-Ua", "\"Chromium\";v=\"126\", \"Google Chrome\";v=\"126\", \"Not-A.Brand\";v=\"8\"")
+            .header("Sec-Ch-Ua-Mobile", "?0")
+            .header("Sec-Ch-Ua-Platform", "\"Windows\"")
             .send()
             .await
         {
@@ -342,8 +343,10 @@ async fn tv_http_proxy(
                 if resp.status().is_success() {
                     final_resp = Some(resp);
                     break;
-                } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
-                    info!("[TV-PROXY] ⚠️ 404 Not Found for {}, trying next fallback domain...", url);
+                } else if resp.status() == reqwest::StatusCode::NOT_FOUND || resp.status() == reqwest::StatusCode::FORBIDDEN {
+                    // 🎯 CRITICAL FIX: Treat 403 Forbidden exactly like 404. 
+                    // If Cloudflare blocks widget.com, we MUST try s.tradingview.com or s3!
+                    info!("[TV-PROXY] ⚠️ {} for {}, trying next fallback domain...", resp.status(), url);
                     continue;
                 } else {
                     warn!("[TV-PROXY] 🛑 Non-success/non-404 status {} for {}. Returning immediately.", resp.status(), url);
@@ -374,7 +377,6 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
     let is_text = content_type.contains("javascript") || content_type.contains("html") || content_type.contains("json") || 
                   clean_path.ends_with(".js") || clean_path.ends_with(".html") || clean_path.ends_with(".css") || clean_path.ends_with(".map");
     
-    // 🎯 CRITICAL FIX: Explicitly check if this is an HTML document
     let is_html = content_type.contains("html") || clean_path.ends_with(".html") || clean_path.ends_with("/");
 
     info!("[TV-PROXY] ⚙️ Processing: '{}' | Status: {} | IsText: {} | IsHTML: {}", clean_path, status, is_text, is_html);
@@ -393,7 +395,6 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
     }
 
     let mut body = resp.text().await.unwrap_or_default();
-    info!("[TV-PROXY] 📦 Body length for '{}': {} bytes", clean_path, body.len());
 
     if is_text && !body.is_empty() {
         let backend_url = state.backend_url.trim_end_matches('/');
@@ -405,13 +406,11 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         let proxy_prefix_escaped = proxy_prefix.replace("/", "\\/");
         let proxy_prefix_escaped_no_slash = proxy_prefix_no_slash.replace("/", "\\/");
 
-        // 1. Hijack WebSocket URLs
         body = body.replace("wss://prodata.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://prodata.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         
-        // 2. Hijack absolute static asset URLs
         body = body.replace("https://www.tradingview-widget.com", proxy_prefix_no_slash);
         body = body.replace("https://s3.tradingview.com", proxy_prefix_no_slash);
         body = body.replace("https://s.tradingview.com", proxy_prefix_no_slash);
@@ -420,7 +419,6 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         body = body.replace("https://s3.tradingview.com/", &proxy_prefix);
         body = body.replace("https://s.tradingview.com/", &proxy_prefix);
         
-        // 3. Hijack escaped absolute URLs
         body = body.replace("https:\\/\\/www.tradingview-widget.com", &proxy_prefix_escaped_no_slash);
         body = body.replace("https:\\/\\/s3.tradingview.com", &proxy_prefix_escaped_no_slash);
         body = body.replace("https:\\/\\/s.tradingview.com", &proxy_prefix_escaped_no_slash);
@@ -429,14 +427,13 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         body = body.replace("https:\\/\\/s3.tradingview.com\\/", &proxy_prefix_escaped);
         body = body.replace("https:\\/\\/s.tradingview.com\\/", &proxy_prefix_escaped);
 
-        // 4. Hijack protocol-relative URLs
         let backend_host = backend_url.replace("http://", "").replace("https://", "");
         let host_proxy_prefix = format!("//{}/tv-proxy/", backend_host);
         body = body.replace("//www.tradingview-widget.com/", &host_proxy_prefix);
         body = body.replace("//s3.tradingview.com/", &host_proxy_prefix);
         body = body.replace("//s.tradingview.com/", &host_proxy_prefix);
 
-        // 5. 🎯 Inject Redis Sync Script (STRICTLY HTML ONLY)
+        // Inject Redis Sync Script (STRICTLY HTML ONLY)
         if is_html {
             info!("[TV-PROXY] 💉 Injecting Redis script into HTML document: '{}'", clean_path);
             let redis_sync_script = format!(r#"
