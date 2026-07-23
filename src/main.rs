@@ -296,7 +296,6 @@ async fn tv_http_proxy(
             .header(reqwest::header::USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
             .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
             .header("Accept-Language", "en-US,en;q=0.9")
-            .header("Accept-Encoding", "gzip, deflate, br")
             .header("Referer", "https://www.tradingview-widget.com/")
             .header("Sec-Fetch-Dest", "iframe")
             .header("Sec-Fetch-Mode", "navigate")
