@@ -18,7 +18,6 @@ use tokio::time::{Duration, MissedTickBehavior};
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::client::IntoClientRequest,
     tungstenite::Message as TungsteniteMessage,
 };
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -34,8 +33,6 @@ struct AppState {
     client: reqwest::Client,
     nim_base: String,
     kucoin_base: String,
-    phemex_ws: String,
-    phemex_origin: String,
     redis: redis::Client,
     aes_key: Vec<u8>,
     backend_url: String,
@@ -49,25 +46,47 @@ fn bad_gateway(err: impl std::fmt::Display) -> AppError {
 
 #[tokio::main]
 async fn main() {
+    eprintln!("[BOOT 1/8] Starting application...");
     dotenvy::dotenv().ok();
+    
+    eprintln!("[BOOT 2/8] Initializing tracing...");
     tracing_subscriber::fmt().with_target(false).with_level(true).init();
 
-    let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8080);
+    eprintln!("[BOOT 3/8] Loading environment variables...");
+    let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(10000);
     let nim_base = std::env::var("NIM_BASE").unwrap_or_else(|_| "https://integrate.api.nvidia.com/v1".to_string());
     let kucoin_base = std::env::var("KUCOIN_BASE").unwrap_or_else(|_| "https://api.kucoin.com".to_string());
-    let phemex_ws = std::env::var("PHEMEX_WS").unwrap_or_else(|_| "wss://vapi.phemex.com/ws".to_string());
-    let phemex_origin = std::env::var("PHEMEX_ORIGIN").unwrap_or_else(|_| "https://phemex.com".to_string());
     
-    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL must be set");
-    let aes_hex = std::env::var("AES_SECRET_HEX").expect("AES_SECRET_HEX must be set");
+    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| {
+        eprintln!("[FATAL] REDIS_URL is missing!");
+        std::process::exit(1);
+    });
+    
+    let aes_hex = std::env::var("AES_SECRET_HEX").unwrap_or_else(|_| {
+        eprintln!("[FATAL] AES_SECRET_HEX is missing!");
+        std::process::exit(1);
+    });
+    
     let backend_url = std::env::var("BACKEND_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
+    eprintln!("[BOOT 4/8] Building HTTP client...");
     let client = reqwest::Client::builder().pool_max_idle_per_host(5).build().expect("failed to build reqwest client");
-    let redis_client = redis::Client::open(redis_url.as_str()).expect("Failed to create Redis client. Check URL format.");
-    let aes_key = hex::decode(&aes_hex).expect("Invalid AES hex");
+    
+    eprintln!("[BOOT 5/8] Validating Redis URL...");
+    let redis_client = redis::Client::open(redis_url.as_str()).unwrap_or_else(|e| {
+        eprintln!("[FATAL] Redis URL invalid: {}", e);
+        std::process::exit(1);
+    });
+    
+    eprintln!("[BOOT 6/8] Decoding AES key...");
+    let aes_key = hex::decode(&aes_hex).unwrap_or_else(|_| {
+        eprintln!("[FATAL] AES_SECRET_HEX is not valid hex!");
+        std::process::exit(1);
+    });
 
+    eprintln!("[BOOT 7/8] Building Router...");
     let state = AppState {
-        client, nim_base, kucoin_base, phemex_ws, phemex_origin,
+        client, nim_base, kucoin_base,
         redis: redis_client, aes_key, backend_url,
     };
 
@@ -76,11 +95,8 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/healthz", get(healthz))
-        // Original Proxies
         .route("/api/kucoin/bullet-public", post(kucoin_bullet))
         .route("/api/nim/chat/completions", post(nim_chat))
-        .route("/api/ws/phemex", get(phemex_ws_handler))
-        // New Grey Hat Features
         .route("/api/config/keys", post(set_api_keys))
         .route("/api/chart/save", post(save_chart_state))
         .route("/api/chart/load", get(load_chart_state))
@@ -90,6 +106,7 @@ async fn main() {
         .with_state(state);
 
     let addr = ("0.0.0.0", port);
+    eprintln!("[BOOT 8/8] Binding to port {}...", port);
     let listener = tokio::net::TcpListener::bind(addr).await.expect("failed to bind port");
     info!("Omni Stream Rust backend listening on {}", port);
     axum::serve(listener, app).await.expect("server failed");
@@ -106,17 +123,11 @@ fn build_cors() -> CorsLayer {
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
 }
 
-async fn root() -> Json<Value> {
-    Json(json!({ "ok": true, "service": "omni-stream-backend-rust" }))
-}
-
-async fn healthz() -> Json<Value> {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-    Json(json!({ "ok": true, "time": now }))
-}
+async fn root() -> Json<Value> { Json(json!({ "ok": true, "service": "omni-stream-backend-rust" })) }
+async fn healthz() -> Json<Value> { Json(json!({ "ok": true, "time": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() })) }
 
 // ==========================================
-// ORIGINAL PROXIES (KuCoin, NIM, Phemex)
+// ORIGINAL PROXIES (KuCoin, NIM)
 // ==========================================
 
 async fn kucoin_bullet(State(state): State<AppState>) -> Result<Response, AppError> {
@@ -200,46 +211,6 @@ async fn send_backend_error(tx: &tokio::sync::mpsc::Sender<Result<Vec<u8>, std::
 
 fn truncate_for_error(s: &str) -> String { s.chars().take(400).collect() }
 
-async fn phemex_ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response { ws.on_upgrade(move |socket| handle_phemex(socket, state)) }
-
-async fn handle_phemex(socket: WebSocket, state: AppState) {
-    let mut request = match state.phemex_ws.as_str().into_client_request() { Ok(r) => r, Err(e) => { tracing::warn!("Phemex client request build failed: {e}"); return; } };
-    let origin = HeaderValue::from_str(&state.phemex_origin).unwrap_or_else(|_| HeaderValue::from_static("https://phemex.com"));
-    request.headers_mut().insert(header::ORIGIN, origin);
-    request.headers_mut().insert(header::USER_AGENT, HeaderValue::from_static("OmniStream/1.0"));
-    let upstream = match connect_async(request).await { Ok((ws, _)) => ws, Err(e) => { tracing::warn!("Phemex upstream WebSocket failed: {e}"); return; } };
-    let (mut client_sink, mut client_stream) = socket.split();
-    let (mut upstream_sink, mut upstream_stream) = upstream.split();
-    let client_to_upstream = async move { while let Some(Ok(msg)) = client_stream.next().await { if let Some(out) = axum_to_tungstenite(msg) { if upstream_sink.send(out).await.is_err() { break; } } } };
-    let upstream_to_client = async move { while let Some(Ok(msg)) = upstream_stream.next().await { if let Some(out) = tungstenite_to_axum(msg) { if client_sink.send(out).await.is_err() { break; } } } };
-    tokio::select! { _ = client_to_upstream => {}, _ = upstream_to_client => {}, }
-}
-
-#[allow(unreachable_patterns)]
-fn axum_to_tungstenite(msg: AxumMessage) -> Option<TungsteniteMessage> {
-    match msg {
-        AxumMessage::Text(s) => Some(TungsteniteMessage::Text(s.to_string())),
-        AxumMessage::Binary(b) => Some(TungsteniteMessage::Binary(b.to_vec())),
-        AxumMessage::Ping(p) => Some(TungsteniteMessage::Ping(p.to_vec())),
-        AxumMessage::Pong(p) => Some(TungsteniteMessage::Pong(p.to_vec())),
-        AxumMessage::Close(_) => Some(TungsteniteMessage::Close(None)),
-        _ => None,
-    }
-}
-
-#[allow(unreachable_patterns)]
-fn tungstenite_to_axum(msg: TungsteniteMessage) -> Option<AxumMessage> {
-    match msg {
-        TungsteniteMessage::Text(s) => Some(AxumMessage::Text(s.to_string().into())),
-        TungsteniteMessage::Binary(b) => Some(AxumMessage::Binary(b.to_vec().into())),
-        TungsteniteMessage::Ping(p) => Some(AxumMessage::Ping(p.to_vec().into())),
-        TungsteniteMessage::Pong(p) => Some(AxumMessage::Pong(p.to_vec().into())),
-        TungsteniteMessage::Close(_) => Some(AxumMessage::Close(None)),
-        TungsteniteMessage::Frame(_) => None,
-        _ => None,
-    }
-}
-
 // ==========================================
 // GREY HAT FEATURES (AES, Redis, TV MITM)
 // ==========================================
@@ -288,7 +259,7 @@ async fn load_chart_state(State(state): State<AppState>, Query(params): Query<st
 }
 
 // ==========================================
-// TRADINGVIEW MITM HTTP PROXY (CLOUDFLARE BYPASS)
+// TRADINGVIEW MITM HTTP PROXY
 // ==========================================
 
 async fn tv_http_proxy(
@@ -311,7 +282,6 @@ async fn tv_http_proxy(
         return StatusCode::BAD_REQUEST.into_response();
     }
 
-    // Try ALL known TradingView domains. Order matters.
     let urls_to_try = vec![
         format!("https://www.tradingview-widget.com/{}", clean_path),
         format!("https://s.tradingview.com/{}", clean_path),
@@ -323,7 +293,6 @@ async fn tv_http_proxy(
     for url in &urls_to_try {
         info!("[TV-PROXY] 🌐 Attempting fetch from upstream: {}", url);
         match state.client.get(url)
-            // 🎯 CLOUDFLARE BYPASS HEADERS: Mimic a real Chrome iframe request
             .header(reqwest::header::USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
             .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
             .header("Accept-Language", "en-US,en;q=0.9")
@@ -344,8 +313,6 @@ async fn tv_http_proxy(
                     final_resp = Some(resp);
                     break;
                 } else if resp.status() == reqwest::StatusCode::NOT_FOUND || resp.status() == reqwest::StatusCode::FORBIDDEN {
-                    // 🎯 CRITICAL FIX: Treat 403 Forbidden exactly like 404. 
-                    // If Cloudflare blocks widget.com, we MUST try s.tradingview.com or s3!
                     info!("[TV-PROXY] ⚠️ {} for {}, trying next fallback domain...", resp.status(), url);
                     continue;
                 } else {
@@ -433,7 +400,6 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         body = body.replace("//s3.tradingview.com/", &host_proxy_prefix);
         body = body.replace("//s.tradingview.com/", &host_proxy_prefix);
 
-        // Inject Redis Sync Script (STRICTLY HTML ONLY)
         if is_html {
             info!("[TV-PROXY] 💉 Injecting Redis script into HTML document: '{}'", clean_path);
             let redis_sync_script = format!(r#"
@@ -482,7 +448,7 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
 }
 
 // ==========================================
-// TRADINGVIEW WEBSOCKET PROXY
+// TRADINGVIEW WEBSOCKET PROXY (BINANCE ONLY)
 // ==========================================
 
 async fn tv_ws_proxy(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
