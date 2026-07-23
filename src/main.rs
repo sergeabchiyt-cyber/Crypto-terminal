@@ -373,11 +373,17 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         let proxy_prefix_escaped = proxy_prefix.replace("/", "\\/");
         let proxy_prefix_escaped_no_slash = proxy_prefix_no_slash.replace("/", "\\/");
 
+        // 1. Hijack WebSocket URLs (Main + Secondary/Fallbacks)
         body = body.replace("wss://prodata.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com/socket.io/websocket", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://prodata.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         body = body.replace("wss://data.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
         
+        // 🎯 NEW: Hijack secondary and fallback WebSocket domains to stop the 403 console errors
+        body = body.replace("wss://pushstream.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
+        body = body.replace("wss://widgetdata-backup.tradingview.com", &format!("{}/api/ws/tv-proxy", ws_backend));
+        
+        // 2. Hijack absolute static asset URLs
         body = body.replace("https://www.tradingview-widget.com", proxy_prefix_no_slash);
         body = body.replace("https://s3.tradingview.com", proxy_prefix_no_slash);
         body = body.replace("https://s.tradingview.com", proxy_prefix_no_slash);
@@ -386,6 +392,7 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         body = body.replace("https://s3.tradingview.com/", &proxy_prefix);
         body = body.replace("https://s.tradingview.com/", &proxy_prefix);
         
+        // 3. Hijack escaped absolute URLs
         body = body.replace("https:\\/\\/www.tradingview-widget.com", &proxy_prefix_escaped_no_slash);
         body = body.replace("https:\\/\\/s3.tradingview.com", &proxy_prefix_escaped_no_slash);
         body = body.replace("https:\\/\\/s.tradingview.com", &proxy_prefix_escaped_no_slash);
@@ -394,12 +401,14 @@ async fn process_tv_response(resp: reqwest::Response, state: &AppState, clean_pa
         body = body.replace("https:\\/\\/s3.tradingview.com\\/", &proxy_prefix_escaped);
         body = body.replace("https:\\/\\/s.tradingview.com\\/", &proxy_prefix_escaped);
 
+        // 4. Hijack protocol-relative URLs
         let backend_host = backend_url.replace("http://", "").replace("https://", "");
         let host_proxy_prefix = format!("//{}/tv-proxy/", backend_host);
         body = body.replace("//www.tradingview-widget.com/", &host_proxy_prefix);
         body = body.replace("//s3.tradingview.com/", &host_proxy_prefix);
         body = body.replace("//s.tradingview.com/", &host_proxy_prefix);
 
+        // 5. Inject Redis Sync Script (STRICTLY HTML ONLY)
         if is_html {
             info!("[TV-PROXY] 💉 Injecting Redis script into HTML document: '{}'", clean_path);
             let redis_sync_script = format!(r#"
