@@ -532,7 +532,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // CHART (Grey Hat MITM Proxy Integration)
+  // CHART (Grey Hat MITM Proxy Integration - tv.js)
   // ═══════════════════════════════════════════════════════════════════════
   function updateChart(base){
     const c = document.getElementById('chart-container');
@@ -543,49 +543,63 @@
     wrap.style.cssText = 'width:100%;height:100%;';
 
     const inner = document.createElement('div');
-    inner.className = 'tradingview-widget-container__widget';
-    inner.style.cssText = 'width:100%;height:100%;';
     inner.id = 'tv_chart';
+    inner.style.cssText = 'width:100%;height:100%;';
+    wrap.appendChild(inner);
+    c.appendChild(wrap);
 
-    const s = document.createElement('script');
-    s.type = 'text/javascript';
-    
     const cleanBackend = BACKEND_URL ? BACKEND_URL.replace(/\/$/, '') : '';
     dbg('CHART_INIT', `BACKEND_URL: "${cleanBackend}", backendHealthy: ${backendHealthy}`);
 
-    if (cleanBackend && backendHealthy) {
-      s.src = `${cleanBackend}/tv-proxy/external-embedding/embed-widget-advanced-chart.js`;
-      dbg('CHART_INIT', `✅ Routing script through MITM Proxy: ${s.src}`);
-    } else {
-      s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-      dbg('CHART_INIT', `⚠️ FALLBACK: Routing directly to TradingView S3 (Backend unhealthy or missing)`);
-    }
-    
-    s.async = true;
-    s.textContent = JSON.stringify({
-      autosize:true,
-      symbol:`BINANCE:${base}`,
-      interval:'1',
-      timezone:'Etc/UTC',
-      theme:'dark',
-      style:'1',
-      locale:'en',
-      enable_publishing:false,
-      hide_side_toolbar:false,
-      allow_symbol_change:true,
-      calendar:false,
-      hide_legend:false,
-      support_host:'https://www.tradingview.com',
-      container_id: 'tv_chart'
-    });
+    // Use tv.js instead of the iframe embed script to avoid document.currentScript null bug
+    const scriptSrc = (cleanBackend && backendHealthy) 
+      ? `${cleanBackend}/tv-proxy/tv.js` 
+      : 'https://s3.tradingview.com/tv.js';
 
-    wrap.appendChild(inner);
-    wrap.appendChild(s);
-    c.appendChild(wrap);
+    dbg('CHART_INIT', `Loading TradingView library from: ${scriptSrc}`);
+
+    const s = document.createElement('script');
+    s.src = scriptSrc;
+    s.async = false;
     
-    if (cleanBackend && backendHealthy) {
-      setupChartStateSaver();
-    }
+    s.onload = () => {
+      dbg('CHART_INIT', '✅ tv.js loaded successfully. Initializing widget...');
+      if (typeof TradingView !== 'undefined') {
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": `BINANCE:${base}`,
+          "interval": "1",
+          "timezone": "Etc/UTC",
+          "theme": "dark",
+          "style": "1",
+          "locale": "en",
+          "toolbar_bg": "#131722",
+          "enable_publishing": false,
+          "hide_side_toolbar": false,
+          "allow_symbol_change": true,
+          "container_id": "tv_chart",
+          "overrides": {
+            "paneProperties.background": "#131722",
+            "paneProperties.backgroundType": "solid",
+            "paneProperties.vertGridProperties.color": "#1e222d",
+            "paneProperties.horzGridProperties.color": "#1e222d",
+            "scalesProperties.textColor": "#8b95a5"
+          }
+        });
+        
+        if (cleanBackend && backendHealthy) {
+          setupChartStateSaver();
+        }
+      } else {
+        dbg('CHART_INIT', '❌ ERROR: TradingView object not found after script load!');
+      }
+    };
+    
+    s.onerror = () => {
+      dbg('CHART_INIT', '❌ ERROR: Failed to load tv.js');
+    };
+
+    document.head.appendChild(s);
   }
 
   function setupChartStateSaver() {
@@ -596,7 +610,6 @@
         const statePayload = {};
         let hasData = false;
 
-        // TradingView uses keys like 'ss-drawing-settings-...', 'tradingview.chart.settings', etc.
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
           if (key && (key.startsWith('ss-') || key.startsWith('tradingview_') || key.includes('tv-'))) {
