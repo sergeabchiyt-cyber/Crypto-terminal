@@ -525,8 +525,8 @@ async fn handle_tv_socket(tv_socket: WebSocket, state: AppState) {
         let mut current_chart_id = String::from("cs_default");
         while let Some(Ok(msg)) = tv_stream.next().await {
             match msg {
-                AxumMessage::Text(text) => {
-                    let t_str = text.to_str().unwrap_or("");
+                    AxumMessage::Text(text) => {
+                    let t_str = text.as_str();
                     info!("[WS-PROXY] ⬅️ TV says: {}", t_str);
                     
                     if t_str.contains("~h~") {
