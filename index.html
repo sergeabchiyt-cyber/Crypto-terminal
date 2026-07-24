@@ -532,6 +532,39 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  // WEBSOCKET INTERCEPTOR (Grey Hat TV Redirect)
+  // ═══════════════════════════════════════════════════════════════════════
+  function installWsInterceptor(cleanBackend) {
+    if (window._tvWsPatched) return;
+    window._tvWsPatched = true;
+
+    const wsBackend = cleanBackend.replace(/^http/, 'ws');
+    const OrigWS = window.WebSocket;
+    const TV_HOSTS = ['prodata.tradingview.com', 'data.tradingview.com', 'pine-facade.tradingview.com'];
+
+    window.WebSocket = function(url, protocols) {
+      let target = url;
+      try {
+        const parsed = new URL(url);
+        if (TV_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
+          const path = parsed.pathname + parsed.search;
+          target = `${wsBackend}/api/ws/tv-proxy${path}`;
+          dbg('WS-INTERCEPT', `Redirecting: ${url} → ${target}`);
+        }
+      } catch(e) {}
+      if (protocols) return new OrigWS(target, protocols);
+      return new OrigWS(target);
+    };
+    window.WebSocket.prototype = OrigWS.prototype;
+    window.WebSocket.CONNECTING = OrigWS.CONNECTING;
+    window.WebSocket.OPEN = OrigWS.OPEN;
+    window.WebSocket.CLOSING = OrigWS.CLOSING;
+    window.WebSocket.CLOSED = OrigWS.CLOSED;
+
+    dbg('WS-INTERCEPT', `Installed. TV hosts → ${wsBackend}/api/ws/tv-proxy`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   // CHART (Grey Hat MITM Proxy Integration - tv.js)
   // ═══════════════════════════════════════════════════════════════════════
   function updateChart(base){
@@ -557,6 +590,11 @@
       : 'https://s3.tradingview.com/tv.js';
 
     dbg('CHART_INIT', `Loading TradingView library from: ${scriptSrc}`);
+
+    // ── Install WebSocket interceptor BEFORE tv.js loads ──
+    if (cleanBackend && backendHealthy) {
+      installWsInterceptor(cleanBackend);
+    }
 
     const s = document.createElement('script');
     s.src = scriptSrc;
