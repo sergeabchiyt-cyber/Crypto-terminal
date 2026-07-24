@@ -484,11 +484,113 @@ async fn fetch_10k_candles(client: &reqwest::Client, symbol: &str, interval: &st
     all_candles.reverse();
     all_candles
 }
-
-async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
+async fn handle_tv_socket(tv_socket: WebSocket, state: AppState) {
     info!("[WS-PROXY] 🟢 TradingView client connected.");
-    let binance_url = "wss://testnet.binance.vision/ws/btcusdt@kline_1m";
     
+    let (mut tv_sender, mut tv_receiver) = tv_socket.split();
+
+    // 1. IMMEDIATE PROTOCOL HANDSHAKE
+    // tv.js strictly requires these packets BEFORE any market data is streamed.
+    let timestamp_ms = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+    let sid = format!("sid_{}", timestamp_ms);
+    let socket_io_open = format!("0{{\"sid\":\"{}\",\"upgrades\":[],\"pingInterval\":25000,\"pingTimeout\":5000}}", sid);
+    
+    let session_id = format!("cs_{}", timestamp_ms);
+    let session_json = format!("{{\"session_id\":\"{}\",\"timestamp\":{},\"name\":\"crypto-terminal\",\"premium\":false}}", session_id, timestamp_ms);
+    let tv_session = format!("~m~{}~m~{}", session_json.len(), session_json);
+
+    if let Err(e) = tv_sender.send(AxumMessage::Text(socket_io_open.into())).await {
+        error!("[WS-PROXY] ❌ Failed to send Socket.IO open: {}", e);
+        return;
+    }
+    if let Err(e) = tv_sender.send(AxumMessage::Text(tv_session.into())).await {
+        error!("[WS-PROXY] ❌ Failed to send TV session: {}", e);
+        return;
+    }
+    info!("[WS-PROXY] ✅ Protocol handshake sent.");
+
+    // 2. CONCURRENT READER TASK
+    // The widget sends ~h~ and chart_create_session immediately. 
+    // If we block the main thread fetching 10k Binance REST candles, the widget times out and drops.
+    let (tx_chart_id, mut rx_chart_id) = tokio::sync::mpsc::channel::<String>(8);
+    
+    tokio::spawn(async move {
+        let mut current_chart_id = String::from("cs_default");
+        while let Some(Ok(msg)) = tv_receiver.next().await {
+            match msg {
+                AxumMessage::Text(text) => {
+                    let t_str = text.to_str().unwrap_or("");
+                    info!("[WS-PROXY] ⬅️ TV says: {}", t_str);
+                    
+                    // Echo TradingView heartbeats exactly as received
+                    if t_str.contains("~h~") {
+                        let _ = tv_sender.send(AxumMessage::Text(text)).await;
+                    } 
+                    // Extract chart ID and echo session/symbol commands back as ACKs
+                    else if t_str.contains("chart_create_session") {
+                        if let Some(start) = t_str.find("\"p\":[\"") {
+                            let rest = &t_str[start + 7..];
+                            if let Some(end) = rest.find('"') {
+                                current_chart_id = rest[..end].to_string();
+                                info!("[WS-PROXY] 🆔 Extracted chart ID: {}", current_chart_id);
+                                let _ = tx_chart_id.send(current_chart_id.clone()).await;
+                            }
+                        }
+                        let _ = tv_sender.send(AxumMessage::Text(text)).await;
+                    }
+                    else if t_str.contains("resolve_symbol") || t_str.contains("create_series") || t_str.contains("modify_series") {
+                        let _ = tv_sender.send(AxumMessage::Text(text)).await;
+                    }
+                }
+                AxumMessage::Close(_) => {
+                    info!("[WS-PROXY] 🚪 TV client sent Close frame.");
+                    break;
+                }
+                AxumMessage::Ping(p) => {
+                    let _ = tv_sender.send(AxumMessage::Pong(p)).await;
+                }
+                _ => {}
+            }
+        }
+    });
+
+    // 3. WAIT FOR CHART ID (with timeout)
+    let chart_id = match tokio::time::timeout(Duration::from_secs(5), rx_chart_id.recv()).await {
+        Ok(Some(id)) => id,
+        _ => {
+            warn!("[WS-PROXY] ⚠️ Timeout or error waiting for chart_create_session. Using fallback.");
+            String::from("cs_local")
+        }
+    };
+    info!("[WS-PROXY] 🎯 Using chart ID for data stream: {}", chart_id);
+
+    // 4. BINANCE PIPELINE SYNCHRONIZATION
+    info!("[WS-PROXY] 🚀 Fetching 10k candles...");
+    let candles = fetch_10k_candles(&state.client, "BTCUSDT", "1m").await;
+    
+    let tv_data: Vec<Value> = candles.iter().filter_map(|c| {
+        let t = c[0].as_f64()? / 1000.0;
+        let o = c[1].as_str()?.parse::<f64>().ok()?;
+        let h = c[2].as_str()?.parse::<f64>().ok()?;
+        let l = c[3].as_str()?.parse::<f64>().ok()?;
+        let cl = c[4].as_str()?.parse::<f64>().ok()?;
+        let v = c[5].as_str()?.parse::<f64>().ok()?;
+        Some(json!({ "i": c[0].as_i64().unwrap_or(0), "v": [t, o, h, l, cl, v] }))
+    }).collect();
+
+    // CRITICAL: Inject the extracted `chart_id` into the timescale_update payload.
+    let payload = json!({ "m": "timescale_update", "p": [&chart_id, {"sds_1": {"s": tv_data}}] });
+    let payload_str = payload.to_string();
+    let wrapped = format!("~m~{}~m~{}", payload_str.len(), payload_str);
+    info!("[WS-PROXY] 📦 Sending {} candles to TV.", tv_data.len());
+    
+    if let Err(e) = tv_sender.send(AxumMessage::Text(wrapped.into())).await {
+        error!("[WS-PROXY] ❌ Failed to send candles: {}", e);
+        return;
+    }
+
+    // 5. BINANCE LIVE STREAM
+    let binance_url = "wss://testnet.binance.vision/ws/btcusdt@kline_1m";
     info!("[WS-PROXY] 🔌 Connecting to Binance Testnet...");
     let mut binance_ws = match connect_async(binance_url).await { 
         Ok((ws, _)) => {
@@ -497,61 +599,12 @@ async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
         }, 
         Err(e) => { 
             error!("[WS-PROXY] ❌ Binance WS connection failed: {}", e); 
-            error!("[WS-PROXY] 💡 HINT: If it says 'TLS support not compiled in', you MUST add `features = [\"rustls-tls-webpki-roots\"]` to `tokio-tungstenite` in your Cargo.toml!");
             return; 
         } 
     };
 
     loop {
         tokio::select! {
-            msg = tv_socket.recv() => {
-                match msg {
-                    Some(Ok(AxumMessage::Text(text))) => {
-                        info!("[WS-PROXY] ⬅️ TV says: {}", text);
-                        if text.contains("~h~") {
-                            let _ = tv_socket.send(AxumMessage::Text(text)).await;
-                            info!("[WS-PROXY] ➡️ Echoed heartbeat to TV.");
-                        } else if text.contains("create_series") {
-                            info!("[WS-PROXY] 🚀 Intercepted create_series. Fetching 10k candles...");
-                            let candles = fetch_10k_candles(&state.client, "BTCUSDT", "1m").await;
-                            let tv_data: Vec<Value> = candles.iter().filter_map(|c| {
-                                let t = c[0].as_f64()? / 1000.0;
-                                let o = c[1].as_str()?.parse::<f64>().ok()?;
-                                let h = c[2].as_str()?.parse::<f64>().ok()?;
-                                let l = c[3].as_str()?.parse::<f64>().ok()?;
-                                let cl = c[4].as_str()?.parse::<f64>().ok()?;
-                                let v = c[5].as_str()?.parse::<f64>().ok()?;
-                                Some(json!({ "i": c[0].as_i64().unwrap_or(0), "v": [t, o, h, l, cl, v] }))
-                            }).collect();
-
-                            let payload = json!({ "m": "timescale_update", "p": ["cs_local", {"sds_1": {"s": tv_data}}] });
-                            let payload_str = payload.to_string();
-                            let wrapped = format!("~m~{}~m~{}", payload_str.len(), payload_str);
-                            info!("[WS-PROXY] 📦 Sending {} candles to TV.", tv_data.len());
-                            let _ = tv_socket.send(AxumMessage::Text(wrapped.into())).await;
-                        } else if text.contains("chart_create_session") {
-                            info!("[WS-PROXY] 📝 Session created by TV. Echoing ack.");
-                            let _ = tv_socket.send(AxumMessage::Text(text)).await;
-                        }
-                    }
-                    Some(Ok(AxumMessage::Close(_))) => {
-                        info!("[WS-PROXY] 🚪 TV client sent Close frame.");
-                        break;
-                    }
-                    Some(Ok(AxumMessage::Ping(p))) => {
-                        let _ = tv_socket.send(AxumMessage::Pong(p)).await;
-                    }
-                    Some(Err(e)) => {
-                        error!("[WS-PROXY] ❌ TV WS error: {}", e);
-                        break;
-                    }
-                    None => {
-                        info!("[WS-PROXY] 🚪 TV WS stream ended (None).");
-                        break;
-                    }
-                    _ => {}
-                }
-            }
             msg = binance_ws.next() => {
                 match msg {
                     Some(Ok(TungsteniteMessage::Text(text))) => {
@@ -560,16 +613,18 @@ async fn handle_tv_socket(mut tv_socket: WebSocket, state: AppState) {
                                 let k = &parsed["k"];
                                 let t = k["t"].as_f64().unwrap_or(0.0) / 1000.0;
                                 let close_time = t + 60.0;
+                                
+                                // CRITICAL: Inject the extracted `chart_id` into the du payload.
                                 let du_payload = json!({
                                     "m": "du",
-                                    "p": ["cs_local", {"sds_1": {"s": [{
+                                    "p": [&chart_id, {"sds_1": {"s": [{
                                         "i": 0,
                                         "v": [t, k["o"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0), k["h"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0), k["l"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0), k["c"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0), k["v"].as_str().unwrap_or("0").parse::<f64>().unwrap_or(0.0)]
                                     }], "ns": {"d": "", "indexes": "nochange"}, "t": "sds_1", "lbs": {"bar_close_time": close_time}}}]
                                 });
                                 let payload_str = du_payload.to_string();
                                 let wrapped = format!("~m~{}~m~{}", payload_str.len(), payload_str);
-                                if tv_socket.send(AxumMessage::Text(wrapped.into())).await.is_err() { 
+                                if tv_sender.send(AxumMessage::Text(wrapped.into())).await.is_err() { 
                                     info!("[WS-PROXY] 🚪 Failed to send to TV, breaking loop.");
                                     break; 
                                 }
