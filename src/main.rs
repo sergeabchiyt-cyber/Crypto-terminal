@@ -484,13 +484,27 @@ async fn fetch_10k_candles(client: &reqwest::Client, symbol: &str, interval: &st
     all_candles.reverse();
     all_candles
 }
+
 async fn handle_tv_socket(tv_socket: WebSocket, state: AppState) {
     info!("[WS-PROXY] 🟢 TradingView client connected.");
     
-    let (mut tv_sender, mut tv_receiver) = tv_socket.split();
+    let (mut tv_sink, mut tv_stream) = tv_socket.split();
+
+    // Channel for all outgoing messages to the TV client
+    let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<AxumMessage>(32);
+
+    // Writer task: pulls from out_rx and sends to tv_sink
+    tokio::spawn(async move {
+        while let Some(msg) = out_rx.recv().await {
+            if tv_sink.send(msg).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    let out_tx_clone = out_tx.clone();
 
     // 1. IMMEDIATE PROTOCOL HANDSHAKE
-    // tv.js strictly requires these packets BEFORE any market data is streamed.
     let timestamp_ms = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
     let sid = format!("sid_{}", timestamp_ms);
     let socket_io_open = format!("0{{\"sid\":\"{}\",\"upgrades\":[],\"pingInterval\":25000,\"pingTimeout\":5000}}", sid);
@@ -499,34 +513,25 @@ async fn handle_tv_socket(tv_socket: WebSocket, state: AppState) {
     let session_json = format!("{{\"session_id\":\"{}\",\"timestamp\":{},\"name\":\"crypto-terminal\",\"premium\":false}}", session_id, timestamp_ms);
     let tv_session = format!("~m~{}~m~{}", session_json.len(), session_json);
 
-    if let Err(e) = tv_sender.send(AxumMessage::Text(socket_io_open.into())).await {
-        error!("[WS-PROXY] ❌ Failed to send Socket.IO open: {}", e);
-        return;
-    }
-    if let Err(e) = tv_sender.send(AxumMessage::Text(tv_session.into())).await {
-        error!("[WS-PROXY] ❌ Failed to send TV session: {}", e);
-        return;
-    }
+    let _ = out_tx.send(AxumMessage::Text(socket_io_open.into())).await;
+    let _ = out_tx.send(AxumMessage::Text(tv_session.into())).await;
     info!("[WS-PROXY] ✅ Protocol handshake sent.");
 
-    // 2. CONCURRENT READER TASK
-    // The widget sends ~h~ and chart_create_session immediately. 
-    // If we block the main thread fetching 10k Binance REST candles, the widget times out and drops.
+    // Channel to pass chart_id from reader to main task
     let (tx_chart_id, mut rx_chart_id) = tokio::sync::mpsc::channel::<String>(8);
     
+    // 2. READER TASK
     tokio::spawn(async move {
         let mut current_chart_id = String::from("cs_default");
-        while let Some(Ok(msg)) = tv_receiver.next().await {
+        while let Some(Ok(msg)) = tv_stream.next().await {
             match msg {
                 AxumMessage::Text(text) => {
                     let t_str = text.to_str().unwrap_or("");
                     info!("[WS-PROXY] ⬅️ TV says: {}", t_str);
                     
-                    // Echo TradingView heartbeats exactly as received
                     if t_str.contains("~h~") {
-                        let _ = tv_sender.send(AxumMessage::Text(text)).await;
+                        let _ = out_tx_clone.send(AxumMessage::Text(text)).await;
                     } 
-                    // Extract chart ID and echo session/symbol commands back as ACKs
                     else if t_str.contains("chart_create_session") {
                         if let Some(start) = t_str.find("\"p\":[\"") {
                             let rest = &t_str[start + 7..];
@@ -536,10 +541,10 @@ async fn handle_tv_socket(tv_socket: WebSocket, state: AppState) {
                                 let _ = tx_chart_id.send(current_chart_id.clone()).await;
                             }
                         }
-                        let _ = tv_sender.send(AxumMessage::Text(text)).await;
+                        let _ = out_tx_clone.send(AxumMessage::Text(text)).await;
                     }
                     else if t_str.contains("resolve_symbol") || t_str.contains("create_series") || t_str.contains("modify_series") {
-                        let _ = tv_sender.send(AxumMessage::Text(text)).await;
+                        let _ = out_tx_clone.send(AxumMessage::Text(text)).await;
                     }
                 }
                 AxumMessage::Close(_) => {
@@ -547,14 +552,14 @@ async fn handle_tv_socket(tv_socket: WebSocket, state: AppState) {
                     break;
                 }
                 AxumMessage::Ping(p) => {
-                    let _ = tv_sender.send(AxumMessage::Pong(p)).await;
+                    let _ = out_tx_clone.send(AxumMessage::Pong(p)).await;
                 }
                 _ => {}
             }
         }
     });
 
-    // 3. WAIT FOR CHART ID (with timeout)
+    // 3. WAIT FOR CHART ID
     let chart_id = match tokio::time::timeout(Duration::from_secs(5), rx_chart_id.recv()).await {
         Ok(Some(id)) => id,
         _ => {
@@ -564,7 +569,7 @@ async fn handle_tv_socket(tv_socket: WebSocket, state: AppState) {
     };
     info!("[WS-PROXY] 🎯 Using chart ID for data stream: {}", chart_id);
 
-    // 4. BINANCE PIPELINE SYNCHRONIZATION
+    // 4. BINANCE PIPELINE
     info!("[WS-PROXY] 🚀 Fetching 10k candles...");
     let candles = fetch_10k_candles(&state.client, "BTCUSDT", "1m").await;
     
@@ -578,14 +583,13 @@ async fn handle_tv_socket(tv_socket: WebSocket, state: AppState) {
         Some(json!({ "i": c[0].as_i64().unwrap_or(0), "v": [t, o, h, l, cl, v] }))
     }).collect();
 
-    // CRITICAL: Inject the extracted `chart_id` into the timescale_update payload.
     let payload = json!({ "m": "timescale_update", "p": [&chart_id, {"sds_1": {"s": tv_data}}] });
     let payload_str = payload.to_string();
     let wrapped = format!("~m~{}~m~{}", payload_str.len(), payload_str);
     info!("[WS-PROXY] 📦 Sending {} candles to TV.", tv_data.len());
     
-    if let Err(e) = tv_sender.send(AxumMessage::Text(wrapped.into())).await {
-        error!("[WS-PROXY] ❌ Failed to send candles: {}", e);
+    if out_tx.send(AxumMessage::Text(wrapped.into())).await.is_err() {
+        error!("[WS-PROXY] ❌ Failed to send candles, client disconnected.");
         return;
     }
 
@@ -614,7 +618,6 @@ async fn handle_tv_socket(tv_socket: WebSocket, state: AppState) {
                                 let t = k["t"].as_f64().unwrap_or(0.0) / 1000.0;
                                 let close_time = t + 60.0;
                                 
-                                // CRITICAL: Inject the extracted `chart_id` into the du payload.
                                 let du_payload = json!({
                                     "m": "du",
                                     "p": [&chart_id, {"sds_1": {"s": [{
@@ -624,7 +627,7 @@ async fn handle_tv_socket(tv_socket: WebSocket, state: AppState) {
                                 });
                                 let payload_str = du_payload.to_string();
                                 let wrapped = format!("~m~{}~m~{}", payload_str.len(), payload_str);
-                                if tv_sender.send(AxumMessage::Text(wrapped.into())).await.is_err() { 
+                                if out_tx.send(AxumMessage::Text(wrapped.into())).await.is_err() { 
                                     info!("[WS-PROXY] 🚪 Failed to send to TV, breaking loop.");
                                     break; 
                                 }
