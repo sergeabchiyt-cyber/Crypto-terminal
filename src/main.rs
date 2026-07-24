@@ -102,6 +102,7 @@ async fn main() {
         .route("/api/chart/load", get(load_chart_state))
         .route("/tv-proxy/*path", get(tv_http_proxy))
         .route("/api/ws/tv-proxy", get(tv_ws_proxy))
+        .route("/api/ws/tv-proxy/*path", get(tv_ws_proxy))
         .layer(cors)
         .with_state(state);
 
