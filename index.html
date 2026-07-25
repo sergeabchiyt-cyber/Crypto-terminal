@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>OMNI STREAM · Orderflow</title>
+<title>OMNI STREAM</title>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -13,72 +13,51 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
-body{
-  font-family:'JetBrains Mono',monospace;color:var(--txt);
-  background:linear-gradient(180deg,#0d1119,var(--bg0));
-  display:flex;flex-direction:column;height:100vh;
-}
-::-webkit-scrollbar{width:3px;height:3px}
+body{font-family:'JetBrains Mono',monospace;color:var(--txt);background:var(--bg0);display:flex;flex-direction:column;height:100vh}
+::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#2a3347;border-radius:2px}
 .disp{font-family:'Chakra Petch',sans-serif}
 
-/* ── modals ── */
-.modal{position:fixed;inset:0;background:rgba(5,7,12,.88);backdrop-filter:blur(6px);z-index:70;display:flex;align-items:center;justify-content:center}
-.modal.hidden{display:none}
-.modal-box{background:var(--bg1);border:1px solid #333d55;border-radius:10px;padding:20px;width:420px;max-width:94vw;box-shadow:0 30px 80px rgba(0,0,0,.7);animation:pop .2s ease-out}
-@keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
-.fld{display:block;font-size:8px;font-weight:700;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;margin:10px 0 4px}
-.modal input[type=url],.modal input[type=password]{width:100%;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:11px;font-family:'JetBrains Mono',monospace;padding:7px 9px;border-radius:6px;outline:none}
-.modal input:focus{border-color:var(--green)}
-.btn{border:none;border-radius:6px;font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer;transition:.15s;font-family:'Chakra Petch',sans-serif}
-.btn:hover{transform:translateY(-1px)}
-.btn-g{background:var(--green);color:#06251d}
-.btn-p{background:var(--purple);color:#fff}
-.btn-d{background:var(--bg2);color:var(--dim);border:1px solid var(--line)}
-
-/* ── main strip ── */
-#strip{display:flex;align-items:stretch;height:100%;gap:1px;background:var(--line)}
-#strip>*{background:var(--bg0)}
-
-/* brand cell */
-.cell-brand{display:flex;flex-direction:column;justify-content:center;padding:2px 8px;gap:2px;min-width:130px;flex-shrink:0}
-.cell-brand .name{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:11px;letter-spacing:.1em;line-height:1}
-.cell-brand .sub{font-size:7px;color:var(--dim);letter-spacing:.15em;text-transform:uppercase}
-#price{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:15px;line-height:1.1}
-#price.up{color:var(--green)}
-#price.dn{color:var(--red)}
-.chip-row{display:flex;align-items:center;gap:4px}
-.status-chip{display:flex;align-items:center;gap:4px;font-size:7.5px;color:var(--dim);padding:1px 5px;border:1px solid var(--line);border-radius:10px}
-.status-chip .d{width:5px;height:5px;border-radius:50%}
+/* ── settings (top, inline) ── */
+#settings{flex-shrink:0;border-bottom:1px solid var(--line);padding:5px 7px;display:flex;flex-direction:column;gap:4px;background:linear-gradient(180deg,var(--bg1),var(--bg0))}
+#settings .row{display:flex;align-items:center;gap:5px}
+#settings .lbl{font-size:7px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;width:28px;flex-shrink:0}
+#backend-url{flex:1;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 6px;border-radius:4px;outline:none;min-width:0}
+#backend-url:focus{border-color:var(--green)}
+.sbtn{border:1px solid var(--line);background:var(--bg2);color:var(--dim);font-size:8px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:3px 7px;border-radius:4px;cursor:pointer;transition:.12s;flex-shrink:0}
+.sbtn:hover{color:var(--txt);border-color:#3a4560}
+.sbtn.go{background:var(--green);color:#06251d;border-color:var(--green)}
+#backend-status{font-size:7.5px;color:var(--dim);min-height:10px;line-height:1.2}
+.d{width:5px;height:5px;border-radius:50%;display:inline-block;flex-shrink:0}
 .d.ok{background:var(--green);box-shadow:0 0 4px var(--green)}
 .d.warn{background:var(--amber);box-shadow:0 0 4px var(--amber);animation:pulse 1s infinite}
 .d.bad{background:var(--red);box-shadow:0 0 4px var(--red)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.icon-btn{width:18px;height:18px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;transition:.12s}
-.icon-btn:hover{color:var(--txt);border-color:#3a4560}
-select{background:var(--bg1);border:1px solid var(--line);color:var(--amber);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;outline:none;padding:1px 3px;cursor:pointer}
+select{background:var(--bg1);border:1px solid var(--line);color:var(--amber);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;outline:none;padding:2px 4px;cursor:pointer}
+#price{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:14px;line-height:1}
+#price.up{color:var(--green)}
+#price.dn{color:var(--red)}
+.chk{display:flex;align-items:center;gap:4px;font-size:7.5px;color:var(--dim);cursor:pointer}
+.chk input{accent-color:var(--purple);width:10px;height:10px}
 
-/* DOM cell */
-.cell-dom{width:18%;min-width:120px;display:flex;flex-direction:column;overflow:hidden}
-.cell-tape{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:140px}
-.cell-stats{width:13%;min-width:100px;display:flex;flex-direction:column;overflow:hidden}
-.cell-ai{width:60px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:.12s}
-.cell-ai:hover{background:var(--bg2)}
-.cell-ai .lbl{font-size:7px;color:var(--purple);letter-spacing:.1em;text-transform:uppercase;writing-mode:vertical-rl;text-orientation:mixed}
-
-.sec-h{display:flex;align-items:center;justify-content:space-between;padding:1px 5px;font-size:7px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;border-bottom:1px solid var(--line);flex-shrink:0}
+/* ── orderflow (middle, fills) ── */
+#orderflow{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative}
+.sec-h{display:flex;align-items:center;justify-content:space-between;padding:2px 6px;font-size:7px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;border-bottom:1px solid var(--line);flex-shrink:0;background:rgba(255,255,255,.015)}
 .live-dot{width:3px;height:3px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);animation:pulse 1.6s infinite;display:inline-block}
 
-.dom-row{position:relative;display:flex;justify-content:space-between;padding:0 5px;font-size:8px;line-height:1.45}
+#dom-wrap{flex-shrink:0;display:flex;flex-direction:column;border-bottom:1px solid var(--line)}
+.dom-row{position:relative;display:flex;justify-content:space-between;padding:0 6px;font-size:9px;line-height:1.55}
 .dom-bar{position:absolute;top:0;bottom:0;right:0;opacity:.13;pointer-events:none}
 .dom-col{position:relative;z-index:1}
 .ask{color:var(--red)}.bid{color:var(--green)}
-#spreadbar{display:flex;align-items:center;justify-content:center;gap:4px;padding:0 3px;font-size:7.5px;font-weight:700;color:var(--amber);flex-shrink:0}
-#spread-input{width:40px;text-align:center;font-size:7.5px;padding:0 2px;color:var(--amber);background:var(--bg1);border:1px solid var(--line);border-radius:3px;outline:none}
+#spreadbar{display:flex;align-items:center;justify-content:center;gap:5px;padding:1px 4px;font-size:8px;font-weight:700;color:var(--amber);flex-shrink:0}
+#spread-input{width:44px;text-align:center;font-size:8px;padding:1px 3px;color:var(--amber);background:var(--bg1);border:1px solid var(--line);border-radius:3px;outline:none}
 
-.tape-row{display:grid;grid-template-columns:1fr .6fr .7fr;font-size:8px;line-height:1.45;padding:0 5px 0 6px;border-left:2px solid transparent;border-bottom:1px solid rgba(36,44,61,.3)}
-.tape-row .q{text-align:right}.tape-row .t{text-align:right;color:var(--dim);font-size:7px}
+#tape-wrap{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#tape{flex:1;overflow:hidden;display:flex;flex-direction:column-reverse}
+.tape-row{display:grid;grid-template-columns:1fr .65fr .75fr;font-size:9px;line-height:1.55;padding:0 6px 0 7px;border-left:2px solid transparent;border-bottom:1px solid rgba(36,44,61,.3)}
+.tape-row .q{text-align:right}.tape-row .t{text-align:right;color:var(--dim);font-size:7.5px}
 .tb{color:var(--green)}.ts{color:var(--red)}
 .ex-BINANCE{border-color:#f0b90b}.ex-BINANCEFUT{border-color:#f3d06d}.ex-BYBIT{border-color:#ff6b35}.ex-BYBITLIN{border-color:#ff9a6c}
 .ex-OKX{border-color:#60a5fa}.ex-OKXFUT{border-color:#93c5fd}.ex-GATE{border-color:#34d399}.ex-MEXC{border-color:#a78bfa}
@@ -86,148 +65,132 @@ select{background:var(--bg1);border:1px solid var(--line);color:var(--amber);bor
 .ex-KRAKEN{border-color:#7c3aed}.ex-COINBASE{border-color:#0ea5e9}.ex-BITFINEX{border-color:#f97316}.ex-HTX{border-color:#10b981}
 .ex-PHEMEX{border-color:#d946ef}.ex-POLONIEX{border-color:#fcd34d}.ex-BINGX{border-color:#38bdf8}.ex-WOOX{border-color:#ec4899}.ex-DERIBIT{border-color:#c084fc}
 
-.stat{background:var(--bg1);border:1px solid var(--line);border-radius:4px;padding:2px 5px;margin:2px 4px}
+#stats-row{display:flex;gap:4px;padding:3px 6px;border-top:1px solid var(--line);flex-shrink:0}
+.stat{flex:1;background:var(--bg1);border:1px solid var(--line);border-radius:4px;padding:2px 5px}
 .stat .l{font-size:6.5px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
 .stat .v{font-size:10px;font-weight:700}
 
-/* ── AI overlay ── */
-#ai-overlay{position:fixed;top:0;right:0;bottom:0;width:320px;max-width:85vw;background:var(--bg1);border-left:1px solid var(--line);z-index:60;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .2s ease;box-shadow:-10px 0 40px rgba(0,0,0,.5)}
-#ai-overlay.open{transform:none}
-#ai-overlay .hd{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--line);flex-shrink:0}
-.ai-badge{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--purple);text-transform:uppercase}
+/* ── AI (bottom, overlaps orderflow) ── */
+#ai{position:absolute;bottom:0;left:0;right:0;z-index:50;background:var(--bg1);border-top:1px solid var(--purple);
+  display:flex;flex-direction:column;transform:translateY(100%);transition:transform .2s ease;
+  height:55%;max-height:320px;box-shadow:0 -8px 30px rgba(0,0,0,.5)}
+#ai.open{transform:none}
+#ai-head{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;cursor:pointer;flex-shrink:0;border-bottom:1px solid var(--line)}
+.ai-badge{display:flex;align-items:center;gap:5px;font-size:8.5px;font-weight:700;letter-spacing:.12em;color:var(--purple);text-transform:uppercase}
 .nim-dot{width:5px;height:5px;border-radius:50%;background:#76b900;box-shadow:0 0 5px #76b900}
 .nim-dot.busy{animation:pulse .6s infinite}
-#ai-msgs{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:5px;font-size:10.5px;line-height:1.45;min-height:0}
-.m-u{align-self:flex-end;background:#1c3a5e;color:#bfdbfe;border-radius:8px 8px 2px 8px;padding:5px 8px;max-width:88%;white-space:pre-wrap;word-break:break-word}
-.m-a{align-self:flex-start;background:var(--bg2);color:#cfd4e0;border-radius:8px 8px 8px 2px;padding:5px 8px;max-width:92%;white-space:pre-wrap;word-break:break-word;border-left:2px solid var(--purple)}
-.m-t{align-self:flex-start;background:#10141f;color:var(--dim);border-radius:4px;padding:3px 7px;max-width:92%;white-space:pre-wrap;font-style:italic;font-size:9px;border-left:2px solid #374151}
-.m-e{align-self:center;background:#3b0d0d;color:#fca5a5;border-radius:5px;padding:4px 8px;font-size:9px;max-width:95%;white-space:pre-wrap}
-.m-s{align-self:center;color:var(--dim);font-size:9px;font-style:italic}
-#ai-inrow{display:flex;gap:4px;padding:6px 8px;border-top:1px solid var(--line);flex-shrink:0}
-#ai-in{flex:1;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:10px;font-family:'JetBrains Mono',monospace;padding:5px 7px;border-radius:5px;outline:none;resize:none;min-height:28px;max-height:60px}
+#ai-msgs{flex:1;overflow-y:auto;padding:6px 8px;display:flex;flex-direction:column;gap:4px;font-size:10px;line-height:1.45;min-height:0}
+.m-u{align-self:flex-end;background:#1c3a5e;color:#bfdbfe;border-radius:7px 7px 2px 7px;padding:4px 7px;max-width:88%;white-space:pre-wrap;word-break:break-word}
+.m-a{align-self:flex-start;background:var(--bg2);color:#cfd4e0;border-radius:7px 7px 7px 2px;padding:4px 7px;max-width:92%;white-space:pre-wrap;word-break:break-word;border-left:2px solid var(--purple)}
+.m-t{align-self:flex-start;background:#10141f;color:var(--dim);border-radius:4px;padding:3px 6px;font-style:italic;font-size:8.5px;border-left:2px solid #374151;max-width:92%;white-space:pre-wrap}
+.m-e{align-self:center;background:#3b0d0d;color:#fca5a5;border-radius:4px;padding:3px 7px;font-size:8.5px}
+.m-s{align-self:center;color:var(--dim);font-size:8.5px;font-style:italic}
+#ai-inrow{display:flex;gap:4px;padding:5px 7px;border-top:1px solid var(--line);flex-shrink:0}
+#ai-in{flex:1;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:10px;font-family:'JetBrains Mono',monospace;padding:4px 7px;border-radius:5px;outline:none;resize:none;min-height:26px;max-height:52px}
 #ai-in:focus{border-color:var(--purple)}
 #ai-send{background:var(--purple);color:#fff;font-size:9px;font-weight:700;border:none;border-radius:5px;padding:0 10px;cursor:pointer;font-family:'Chakra Petch',sans-serif}
 #ai-send:disabled{opacity:.4;cursor:not-allowed}
 
-#debug{position:fixed;bottom:0;left:0;right:0;height:120px;background:#080a10;border-top:1px solid #333d55;z-index:80;font-size:8.5px;overflow-y:auto;padding:5px 10px;color:#9aa3b8;display:none}
+/* AI toggle tab (always visible at bottom) */
+#ai-tab{flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:5px;padding:3px 0;cursor:pointer;border-top:1px solid var(--line);background:var(--bg1);transition:.12s;font-size:8px;font-weight:700;letter-spacing:.14em;color:var(--purple);text-transform:uppercase;font-family:'Chakra Petch',sans-serif}
+#ai-tab:hover{background:var(--bg2)}
+
+/* key modal (only modal kept — for password input) */
+.modal{position:fixed;inset:0;background:rgba(5,7,12,.85);backdrop-filter:blur(4px);z-index:70;display:flex;align-items:center;justify-content:center}
+.modal.hidden{display:none}
+.modal-box{background:var(--bg1);border:1px solid #333d55;border-radius:10px;padding:18px;width:340px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.modal input[type=password]{width:100%;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:11px;font-family:'JetBrains Mono',monospace;padding:7px 9px;border-radius:6px;outline:none;margin:8px 0}
+.modal input:focus{border-color:var(--green)}
+.mbtn{border:none;border-radius:6px;font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer;font-family:'Chakra Petch',sans-serif}
+.mbtn-p{background:var(--purple);color:#fff}
+.mbtn-d{background:var(--bg2);color:var(--dim);border:1px solid var(--line)}
+
+#debug{position:fixed;bottom:0;left:0;right:0;height:100px;background:#080a10;border-top:1px solid #333d55;z-index:80;font-size:8px;overflow-y:auto;padding:4px 8px;color:#9aa3b8;display:none}
 #debug.open{display:block}
 </style>
 </head>
 <body>
 
-<!-- ═══ BACKEND MODAL ═══ -->
-<div id="backend-modal" class="modal">
-  <div class="modal-box">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-      <div style="width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--green),#0e7c8c)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06251d" stroke-width="2.6" stroke-linecap="round"><path d="M3 17l5-6 4 4 6-8 3 4"/></svg>
-      </div>
-      <div class="disp" style="font-weight:700;font-size:14px;letter-spacing:.1em">OMNI <span style="color:var(--green)">STREAM</span></div>
-    </div>
-    <p style="font-size:10px;color:var(--dim);line-height:1.5;margin-bottom:8px">
-      Point at your Rust proxy for NIM + KuCoin. Tape streams direct from exchanges.
-    </p>
-    <label class="fld">Backend URL</label>
+<!-- ═══ SETTINGS (inline, top) ═══ -->
+<div id="settings">
+  <div class="row">
+    <span class="disp" style="font-weight:700;font-size:11px;letter-spacing:.1em;flex-shrink:0">OMNI<span style="color:var(--green)">·</span>S</span>
+    <select id="asset" onchange="switchSymbol(this.value)">
+      <option value="BTCUSDT">BTC</option><option value="ETHUSDT">ETH</option><option value="SOLUSDT">SOL</option><option value="BNBUSDT">BNB</option><option value="XRPUSDT">XRP</option>
+    </select>
+    <span id="price" class="up">--</span>
+    <span style="flex:1"></span>
+    <span class="d warn" id="net-dot"></span>
+    <span id="net-txt" style="font-size:7.5px;color:var(--dim)">…</span>
+  </div>
+  <div class="row">
+    <span class="lbl">URL</span>
     <input id="backend-url" type="url" placeholder="https://your-backend.example.com"/>
-    <div id="backend-status" style="font-size:9px;color:var(--dim);margin:6px 2px;min-height:12px">Idle.</div>
-    <label style="display:flex;align-items:center;gap:6px;font-size:9px;color:var(--dim);cursor:pointer;margin-top:3px">
-      <input type="checkbox" id="allow-nobackend" style="accent-color:var(--purple)"/> Limited mode (no NIM/KuCoin)
-    </label>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn btn-d" onclick="testBackend()">Test</button>
-      <button class="btn btn-g" style="flex:1" onclick="connectBackend()">Launch</button>
+    <button class="sbtn" onclick="testBackend()">Test</button>
+    <button class="sbtn go" onclick="connectBackend()">Go</button>
+  </div>
+  <div class="row">
+    <span id="backend-status">Idle</span>
+    <span style="flex:1"></span>
+    <label class="chk"><input type="checkbox" id="allow-nobackend"/>limited</label>
+    <button class="sbtn" onclick="openKeyModal()" title="NIM key">🔑</button>
+    <button class="sbtn" onclick="toggleDebug()">▤</button>
+  </div>
+</div>
+
+<!-- ═══ ORDERFLOW (middle) ═══ -->
+<div id="orderflow">
+  <div id="dom-wrap">
+    <div class="sec-h"><span style="display:flex;align-items:center;gap:3px"><span class="live-dot"></span>Depth</span><span style="color:var(--amber)">BINANCE</span></div>
+    <div id="dom-asks" style="display:flex;flex-direction:column-reverse;overflow:hidden"></div>
+    <div id="spreadbar"><span>SPR</span><span id="spread-live">--</span><input id="spread-input" type="number" step="any" min="0" placeholder="auto" oninput="setCustomSpread(this.value)"/></div>
+    <div id="dom-bids" style="display:flex;flex-direction:column;overflow:hidden"></div>
+  </div>
+  <div id="tape-wrap">
+    <div class="sec-h"><span style="display:flex;align-items:center;gap:3px"><span class="live-dot"></span>Time &amp; Sales</span><span id="tape-count" style="color:var(--dim)">0</span></div>
+    <div id="tape"></div>
+  </div>
+  <div id="stats-row">
+    <div class="stat"><div class="l">Streams</div><div class="v" id="st-streams" style="color:var(--green)">0/0</div></div>
+    <div class="stat"><div class="l">Trades/s</div><div class="v" id="st-tps" style="color:var(--amber)">0</div></div>
+    <div class="stat"><div class="l">Vol</div><div class="v" id="st-vol" style="color:#60a5fa">--</div></div>
+  </div>
+
+  <!-- AI (overlaps orderflow from bottom) -->
+  <div id="ai">
+    <div id="ai-head" onclick="toggleAi()">
+      <span class="ai-badge"><span class="nim-dot" id="nim-dot"></span>NIM · GLM-5.2</span>
+      <span style="color:var(--dim);font-size:9px">▼</span>
+    </div>
+    <div id="ai-msgs"></div>
+    <div id="ai-inrow">
+      <textarea id="ai-in" rows="1" placeholder="Ask…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendToGLM()}"></textarea>
+      <button id="ai-send" onclick="sendToGLM()">→</button>
     </div>
   </div>
 </div>
 
-<!-- ═══ NIM KEY MODAL ═══ -->
+<!-- AI toggle tab -->
+<div id="ai-tab" onclick="toggleAi()"><span class="nim-dot" style="width:4px;height:4px"></span>AI</div>
+
+<!-- ═══ KEY MODAL (password only) ═══ -->
 <div id="key-modal" class="modal hidden">
-  <div class="modal-box" style="width:360px">
-    <div class="disp" style="font-weight:700;font-size:13px">NVIDIA <span style="color:#76b900">NIM</span> <span style="color:var(--purple)">GLM-5.2</span></div>
-    <label class="fld">API Key</label>
+  <div class="modal-box">
+    <div class="disp" style="font-weight:700;font-size:12px">NIM <span style="color:var(--purple)">GLM-5.2</span> Key</div>
     <input id="nim-key" type="password" placeholder="nvapi-…"/>
-    <p id="key-err" style="font-size:9px;margin:6px 2px;min-height:11px"></p>
-    <div style="display:flex;gap:8px;margin-top:10px">
-      <button class="btn btn-d" onclick="closeKeyModal()">Skip</button>
-      <button class="btn btn-p" style="flex:1" onclick="saveNimKey()">Save</button>
+    <p id="key-err" style="font-size:9px;min-height:11px;margin-bottom:6px"></p>
+    <div style="display:flex;gap:7px">
+      <button class="mbtn mbtn-d" onclick="closeKeyModal()">Skip</button>
+      <button class="mbtn mbtn-p" style="flex:1" onclick="saveNimKey()">Save</button>
     </div>
-  </div>
-</div>
-
-<!-- ═══ AI OVERLAY ═══ -->
-<div id="ai-overlay">
-  <div class="hd">
-    <span class="ai-badge"><span class="nim-dot" id="nim-dot"></span>GLM-5.2</span>
-    <button class="icon-btn" onclick="toggleAi()" style="font-size:11px">✕</button>
-  </div>
-  <div id="ai-msgs"></div>
-  <div id="ai-inrow">
-    <textarea id="ai-in" rows="1" placeholder="Ask…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendToGLM()}"></textarea>
-    <button id="ai-send" onclick="sendToGLM()">→</button>
   </div>
 </div>
 
 <div id="debug"><div id="debug-log"></div></div>
 
-<!-- ═══ THE STRIP (100% of the 10vh window) ═══ -->
-<div id="strip">
-
-  <!-- BRAND -->
-  <div class="cell-brand">
-    <div class="name">OMNI<span style="color:var(--green)">·</span>S</div>
-    <div style="display:flex;align-items:center;gap:4px">
-      <select id="asset" onchange="switchSymbol(this.value)">
-        <option value="BTCUSDT">BTC</option>
-        <option value="ETHUSDT">ETH</option>
-        <option value="SOLUSDT">SOL</option>
-        <option value="BNBUSDT">BNB</option>
-        <option value="XRPUSDT">XRP</option>
-      </select>
-      <span id="price" class="up">--</span>
-    </div>
-    <div class="chip-row">
-      <div class="status-chip"><span class="d warn" id="net-dot"></span><span id="net-txt">…</span></div>
-      <button class="icon-btn" onclick="openBackendModal()" title="Backend">⚙</button>
-      <button class="icon-btn" onclick="openKeyModal()" title="Key">🔑</button>
-      <button class="icon-btn" onclick="toggleDebug()" title="Log">▤</button>
-    </div>
-  </div>
-
-  <!-- DOM -->
-  <div class="cell-dom">
-    <div class="sec-h"><span style="display:flex;align-items:center;gap:3px"><span class="live-dot"></span>Depth</span><span style="color:var(--amber)">BIN</span></div>
-    <div id="dom-asks" style="flex:1;display:flex;flex-direction:column-reverse;overflow:hidden"></div>
-    <div id="spreadbar"><span>SPR</span><span id="spread-live">--</span><input id="spread-input" type="number" step="any" min="0" placeholder="auto" oninput="setCustomSpread(this.value)"/></div>
-    <div id="dom-bids" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
-  </div>
-
-  <!-- TAPE -->
-  <div class="cell-tape">
-    <div class="sec-h"><span style="display:flex;align-items:center;gap:3px"><span class="live-dot"></span>Tape</span><span id="tape-count" style="color:var(--dim)">0</span></div>
-    <div id="tape" style="flex:1;overflow:hidden;display:flex;flex-direction:column-reverse"></div>
-  </div>
-
-  <!-- STATS -->
-  <div class="cell-stats">
-    <div class="sec-h"><span>Stats</span></div>
-    <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
-      <div class="stat"><div class="l">Streams</div><div class="v" id="st-streams" style="color:var(--green)">0/0</div></div>
-      <div class="stat"><div class="l">Trades/s</div><div class="v" id="st-tps" style="color:var(--amber)">0</div></div>
-      <div class="stat"><div class="l">Vol</div><div class="v" id="st-vol" style="color:#60a5fa">--</div></div>
-    </div>
-  </div>
-
-  <!-- AI TOGGLE (sliver) -->
-  <div class="cell-ai" onclick="toggleAi()" title="AI">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round"><path d="M12 3a9 9 0 0 1 9 9c0 3.9-3.1 7.1-7 7.9L12 21l-2-1.1c-3.9-.8-7-4-7-7.9a9 9 0 0 1 9-9z"/><circle cx="12" cy="12" r="2.5"/></svg>
-    <span class="lbl">AI</span>
-  </div>
-
-</div>
-
 <script>
 const SHARED_SECRET_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-const MAX_TAPE=60,MAX_LEVELS=7,TPS_WIN=2000,NIM_MODEL='z-ai/glm-5.2';
+const MAX_TAPE=80,MAX_LEVELS=8,TPS_WIN=2000,NIM_MODEL='z-ai/glm-5.2';
 let TOTAL_EX=21,currentBase='BTCUSDT';
 let tape=[],stamps=[],lastPrice=0,prevPrice=0,vol=0;
 const sockets={},pings={};
@@ -271,20 +234,20 @@ function setNet(s,t){document.getElementById('net-dot').className='d '+(s==='ok'
 async function checkBackend(url){try{const c=new AbortController();const t=setTimeout(()=>c.abort(),4000);
  const r=await fetch(`${url}/healthz`,{cache:'no-store',signal:c.signal});clearTimeout(t);
  if(!r.ok)throw 0;const j=await r.json();return j?.ok===true;}catch{return false;}}
-function openBackendModal(){document.getElementById('backend-modal').classList.remove('hidden');document.getElementById('backend-url').value=BACKEND_URL||'';}
-function closeBackendModal(){document.getElementById('backend-modal').classList.add('hidden');}
 async function testBackend(){const url=normalizeBackendUrl(document.getElementById('backend-url').value);const s=document.getElementById('backend-status');
  if(!url){s.textContent='✗ Invalid URL';s.style.color='var(--red)';return;}
- s.textContent='⏳';s.style.color='var(--amber)';
- const ok=await checkBackend(url);s.textContent=ok?'✓ Healthy':'✗ Unreachable';s.style.color=ok?'var(--green)':'var(--red)';}
+ s.textContent='⏳ checking…';s.style.color='var(--amber)';
+ const ok=await checkBackend(url);s.textContent=ok?'✓ healthy':'✗ unreachable';s.style.color=ok?'var(--green)':'var(--red)';}
 async function connectBackend(){
  const raw=document.getElementById('backend-url').value;const allow=document.getElementById('allow-nobackend').checked;
  const url=normalizeBackendUrl(raw);const s=document.getElementById('backend-status');
- if(!url){if(allow){BACKEND_URL='';backendHealthy=false;saveBackendUrl('');applyBackend();closeBackendModal();start();return;}
-  s.textContent='✗ URL or limited mode';s.style.color='var(--red)';return;}
+ if(!url){if(allow){BACKEND_URL='';backendHealthy=false;saveBackendUrl('');applyBackend();start();return;}
+  s.textContent='✗ URL or check limited';s.style.color='var(--red)';return;}
+ s.textContent='⏳';s.style.color='var(--amber)';
  const ok=await checkBackend(url);backendHealthy=ok;BACKEND_URL=url;saveBackendUrl(url);
- if(!ok&&!allow){s.textContent='✗ Unreachable';s.style.color='var(--red)';return;}
- applyBackend();closeBackendModal();start();}
+ if(!ok&&!allow){s.textContent='✗ unreachable — enable limited';s.style.color='var(--red)';return;}
+ s.textContent=ok?'✓ linked':'⚠ limited';s.style.color=ok?'var(--green)':'var(--amber)';
+ applyBackend();start();}
 function applyBackend(){
  if(backendHealthy&&BACKEND_URL){DISABLED_EX.delete('KUCOIN');DISABLED_EX.delete('PHEMEX');}
  else{DISABLED_EX.add('KUCOIN');DISABLED_EX.add('PHEMEX');}
@@ -295,10 +258,10 @@ function openKeyModal(){document.getElementById('key-modal').classList.remove('h
 function closeKeyModal(){document.getElementById('key-modal').classList.add('hidden');}
 async function saveNimKey(){
  const v=document.getElementById('nim-key').value.trim();const e=document.getElementById('key-err');
- if(!v.startsWith('nvapi-')){e.textContent='✗ Must start nvapi-';e.style.color='var(--red)';return;}
+ if(!v.startsWith('nvapi-')){e.textContent='✗ must start nvapi-';e.style.color='var(--red)';return;}
  if(BACKEND_URL&&backendHealthy){try{const enc=await encryptAES(v,SHARED_SECRET_HEX);
    await fetch(`${BACKEND_URL}/api/config/keys`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(enc)});}catch{}}
- nimKey=v;sessionStorage.setItem('nim_key',v);closeKeyModal();addMsg('s','✓ Key saved.');}
+ nimKey=v;sessionStorage.setItem('nim_key',v);closeKeyModal();addMsg('s','✓ key saved');}
 
 function setCustomSpread(v){const n=parseFloat(v);customSpread=(v===''||isNaN(n))?null:n;scheduleBook();}
 function fmtSpread(n){return'$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:4});}
@@ -315,7 +278,7 @@ let tapeRaf=false;
 function scheduleTape(){if(tapeRaf)return;tapeRaf=true;requestAnimationFrame(()=>{tapeRaf=false;
  const el=document.getElementById('tape');const f=document.createDocumentFragment();
  tape.forEach(t=>{const r=document.createElement('div');r.className=`tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}`;
-  r.innerHTML=`<span>${t.price.toFixed(2)}</span><span class="q">${t.qty.toFixed(3)}</span><span class="t">${new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>`;f.appendChild(r);});
+  r.innerHTML=`<span>${t.price.toFixed(2)}</span><span class="q">${t.qty.toFixed(4)}</span><span class="t">${new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>`;f.appendChild(r);});
  el.innerHTML='';el.appendChild(f);document.getElementById('tape-count').textContent=tape.length;});}
 let bookRaf=false;
 function scheduleBook(){if(bookRaf)return;bookRaf=true;requestAnimationFrame(()=>{bookRaf=false;
@@ -325,7 +288,7 @@ function scheduleBook(){if(bookRaf)return;bookRaf=true;requestAnimationFrame(()=
  const rows=(lv,side)=>{const f=document.createDocumentFragment();
   lv.forEach(([p,q])=>{const P=+p,Q=+q;const pct=Math.min(100,(Q/mx)*100).toFixed(1);
    const d=document.createElement('div');d.className=`dom-row ${side==='ask'?'ask':'bid'}`;
-   d.innerHTML=`<div class="dom-bar" style="width:${pct}%;background:${side==='ask'?'var(--red)':'var(--green)'}"></div><span class="dom-col">${P.toFixed(1)}</span><span class="dom-col">${Q.toFixed(3)}</span>`;f.appendChild(d);});return f;};
+   d.innerHTML=`<div class="dom-bar" style="width:${pct}%;background:${side==='ask'?'var(--red)':'var(--green)'}"></div><span class="dom-col">${P.toFixed(2)}</span><span class="dom-col">${Q.toFixed(4)}</span>`;f.appendChild(d);});return f;};
  aEl.innerHTML='';aEl.appendChild(rows(va,'ask'));bEl.innerHTML='';bEl.appendChild(rows(vb,'bid'));
  if(book.asks.length&&book.bids.length){const live=+book.asks[0][0]-+book.bids[0][0];
   document.getElementById('spread-live').textContent=fmtSpread(customSpread!=null?customSpread:live);}});}
@@ -434,7 +397,7 @@ function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0
  document.getElementById('tape').innerHTML='';document.getElementById('dom-asks').innerHTML='';document.getElementById('dom-bids').innerHTML='';
  closeAll();setTimeout(launchAll,200);}
 
-function toggleAi(){document.getElementById('ai-overlay').classList.toggle('open');}
+function toggleAi(){document.getElementById('ai').classList.toggle('open');}
 function addMsg(r,t){const el=document.getElementById('ai-msgs');const d=document.createElement('div');
  d.className=r==='u'?'m-u':r==='t'?'m-t':r==='e'?'m-e':r==='s'?'m-s':'m-a';d.textContent=t;
  el.appendChild(d);el.scrollTop=el.scrollHeight;return d;}
@@ -442,10 +405,10 @@ function buildCtx(){const rec=tape.slice(-30);const buys=rec.filter(t=>t.isBuy).
  const avg=rec.length?(rec.reduce((a,t)=>a+t.price,0)/rec.length).toFixed(2):'N/A';
  const ba=book.asks[0]?+book.asks[0][0]:'N/A';const bb=book.bids[0]?+book.bids[0][0]:'N/A';
  const active=Object.entries(exStatus).filter(([,s])=>s==='connected').map(([id])=>id).join(',')||'none';
- return`[${currentBase}] Last:$${lastPrice?lastPrice.toFixed(2):'--'} Ask:$${ba} Bid:$${bb} Last30:${buys}B/${rec.length-buys}S Avg:$${avg} Feeds:${active}`;}
+ return`[${currentBase}] Last:$${lastPrice?lastPrice.toFixed(2):'--'} Ask:$${ba} Bid:$${bb} 30t:${buys}B/${rec.length-buys}S avg:$${avg} feeds:${active}`;}
 async function sendToGLM(){
  if(aiBusy)return;
- if(!BACKEND_URL){openBackendModal();addMsg('e','No backend.');return;}
+ if(!BACKEND_URL){addMsg('e','No backend — set URL above.');return;}
  if(!nimKey){openKeyModal();return;}
  const inp=document.getElementById('ai-in');const btn=document.getElementById('ai-send');
  const msg=inp.value.trim();if(!msg)return;
@@ -458,7 +421,7 @@ async function sendToGLM(){
   const resp=await fetch(`${BACKEND_URL}/api/nim/chat/completions`,{method:'POST',
    headers:{'Content-Type':'application/json','Authorization':`Bearer ${nimKey}`},
    body:JSON.stringify({model:NIM_MODEL,messages,temperature:0.6,top_p:0.9,max_tokens:1024,stream:true})});
-  if(!resp.ok){let m=`HTTP ${resp.status}`;if(resp.status===401)m+=' Bad key';if(resp.status===429)m+=' Rate limit';
+  if(!resp.ok){let m=`HTTP ${resp.status}`;if(resp.status===401)m+=' bad key';if(resp.status===429)m+=' rate limit';
    bubble.remove();aiHistory.pop();addMsg('e',m);return;}
   const reader=resp.body.getReader();const dec=new TextDecoder();let buf='';
   while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});
@@ -479,13 +442,13 @@ function start(){if(started)return;started=true;
  else addMsg('s','Set NIM key (🔑) for AI.');}
 window.addEventListener('DOMContentLoaded',async()=>{
  recalcTotalEx();
- if(BACKEND_URL){backendHealthy=await checkBackend(BACKEND_URL);
+ if(BACKEND_URL){document.getElementById('backend-url').value=BACKEND_URL;
+  backendHealthy=await checkBackend(BACKEND_URL);
   setNet(backendHealthy?'ok':'bad',backendHealthy?'OK':'DOWN');
-  document.getElementById('backend-status').textContent=backendHealthy?'✓ Saved':'✗ Saved unreachable';
+  document.getElementById('backend-status').textContent=backendHealthy?'✓ saved backend healthy':'✗ saved backend down';
   document.getElementById('backend-status').style.color=backendHealthy?'var(--green)':'var(--red)';
- }else setNet('warn','SOLO');
- document.getElementById('backend-url').value=BACKEND_URL||'';});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeKeyModal();document.getElementById('ai-overlay').classList.remove('open');}});
+ }else setNet('warn','SOLO');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeKeyModal();document.getElementById('ai').classList.remove('open');}});
 </script>
 </body>
 </html>
