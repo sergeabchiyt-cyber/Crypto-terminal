@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>OMNI · Orderflow Dock</title>
+<title>OMNI STREAM · Orderflow Terminal</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -15,255 +15,164 @@
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
   body{
-    font-family:'JetBrains Mono',monospace; color:var(--txt); overflow:hidden;
+    font-family:'JetBrains Mono',monospace;color:var(--txt);overflow:hidden;
     background:
-      radial-gradient(900px 320px at 50% -120px, rgba(23,210,173,.06), transparent 60%),
-      radial-gradient(700px 300px at 80% 110%, rgba(139,124,246,.05), transparent 60%),
+      radial-gradient(1000px 400px at 15% -120px, rgba(23,210,173,.05), transparent 60%),
+      radial-gradient(800px 380px at 90% 110%, rgba(139,124,246,.05), transparent 60%),
       linear-gradient(180deg,#0d1119,var(--bg0));
   }
-  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar{width:5px;height:5px}
   ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:#2a3347;border-radius:2px}
-
-  /* the dock: a slim strip even on a wide window */
-  #dock{
-    width:100%; max-width:320px; height:100vh; margin:0 auto;
-    display:flex; flex-direction:column;
-    border-left:1px solid var(--line); border-right:1px solid var(--line);
-    background:linear-gradient(180deg, rgba(18,22,31,.92), rgba(13,16,23,.96));
-    box-shadow:0 0 60px rgba(0,0,0,.5);
-  }
-
+  ::-webkit-scrollbar-thumb{background:#2a3347;border-radius:3px}
   .disp{font-family:'Chakra Petch',sans-serif}
-  .sec{border-bottom:1px solid var(--line)}
-  .sec-h{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:5px 10px; font-size:9px; letter-spacing:.14em; color:var(--dim);
-    text-transform:uppercase; user-select:none;
-    background:linear-gradient(90deg, rgba(255,255,255,.02), transparent);
-  }
-  .sec-h .tag{display:flex;align-items:center;gap:5px}
-  .live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.6s infinite}
+
+  /* ── connect page ── */
+  .modal{position:fixed;inset:0;background:rgba(5,7,12,.88);backdrop-filter:blur(6px);z-index:70;display:flex;align-items:center;justify-content:center}
+  .modal.hidden{display:none}
+  .modal-box{background:var(--bg1);border:1px solid #333d55;border-radius:12px;padding:26px;width:460px;max-width:94vw;box-shadow:0 30px 80px rgba(0,0,0,.7);animation:pop .25s ease-out}
+  @keyframes pop{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+  .fld{display:block;font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.16em;text-transform:uppercase;margin:14px 0 5px}
+  .modal input[type=url],.modal input[type=password]{width:100%;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:12px;font-family:'JetBrains Mono',monospace;padding:9px 11px;border-radius:7px;outline:none;transition:border .15s,box-shadow .15s}
+  .modal input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(23,210,173,.12)}
+  .btn{border:none;border-radius:7px;font-size:12px;font-weight:700;padding:9px 14px;cursor:pointer;transition:.15s;font-family:'Chakra Petch',sans-serif;letter-spacing:.04em}
+  .btn:hover{transform:translateY(-1px)}
+  .btn-g{background:var(--green);color:#06251d}.btn-g:hover{box-shadow:0 5px 18px rgba(23,210,173,.35)}
+  .btn-p{background:var(--purple);color:#fff}.btn-p:hover{box-shadow:0 5px 18px rgba(139,124,246,.35)}
+  .btn-d{background:var(--bg2);color:var(--dim);border:1px solid var(--line)}.btn-d:hover{color:var(--txt)}
+
+  /* ── layout ── */
+  .panel{background:linear-gradient(180deg, rgba(18,22,31,.9), rgba(13,16,23,.94));border:1px solid var(--line);border-radius:8px}
+  .sec-h{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;user-select:none;border-bottom:1px solid var(--line);background:linear-gradient(90deg,rgba(255,255,255,.02),transparent)}
+  .live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.6s infinite;display:inline-block}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-  /* header */
-  #brandbar{
-    display:flex;align-items:center;gap:8px;padding:9px 10px;
-    border-bottom:1px solid var(--line);
-    background:
-      repeating-linear-gradient(0deg, rgba(255,255,255,.015) 0 1px, transparent 1px 3px),
-      linear-gradient(90deg, rgba(23,210,173,.06), transparent 55%);
-  }
-  #brandbar .logo{
-    width:26px;height:26px;border-radius:6px;flex-shrink:0;
-    display:flex;align-items:center;justify-content:center;
-    background:linear-gradient(135deg,var(--green),#0e7c8c);
-    box-shadow:0 0 14px rgba(23,210,173,.35);
-  }
-  .status-chip{
-    display:flex;align-items:center;gap:5px;font-size:9px;color:var(--dim);
-    padding:3px 7px;border:1px solid var(--line);border-radius:20px;background:rgba(255,255,255,.02);
-    transition:.2s;
-  }
+  /* ── brand ── */
+  #brandbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);
+    background:repeating-linear-gradient(0deg,rgba(255,255,255,.015) 0 1px,transparent 1px 3px),linear-gradient(90deg,rgba(23,210,173,.06),transparent 55%)}
+  #brandbar .logo{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--green),#0e7c8c);box-shadow:0 0 16px rgba(23,210,173,.35);flex-shrink:0}
+  .status-chip{display:flex;align-items:center;gap:6px;font-size:9.5px;color:var(--dim);padding:4px 9px;border:1px solid var(--line);border-radius:20px;background:rgba(255,255,255,.02);transition:.2s}
   .status-chip .d{width:6px;height:6px;border-radius:50%}
   .d.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
   .d.warn{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:pulse 1s infinite}
   .d.bad{background:var(--red);box-shadow:0 0 6px var(--red)}
-  .icon-btn{
-    width:26px;height:26px;border-radius:6px;border:1px solid var(--line);
-    background:rgba(255,255,255,.02);color:var(--dim);cursor:pointer;
-    display:flex;align-items:center;justify-content:center;font-size:12px;
-    transition:.15s;
-  }
+  .icon-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:.15s}
   .icon-btn:hover{color:var(--txt);border-color:#3a4560;background:rgba(255,255,255,.05);transform:translateY(-1px)}
 
-  /* instrument */
-  #price{
-    font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:26px;line-height:1;
-    letter-spacing:.01em;padding:2px 6px;border-radius:5px;transition:color .2s;
-  }
+  /* ── instrument ── */
+  #price{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:24px;line-height:1;padding:2px 7px;border-radius:5px;transition:color .2s}
   #price.up{color:var(--green);animation:flashUp .5s ease-out}
   #price.dn{color:var(--red);animation:flashDn .5s ease-out}
   @keyframes flashUp{0%{background:rgba(23,210,173,.25)}100%{background:transparent}}
   @keyframes flashDn{0%{background:rgba(246,70,93,.25)}100%{background:transparent}}
-  select,input[type=number]{
-    background:var(--bg1);border:1px solid var(--line);color:var(--txt);
-    border-radius:5px;font-family:'JetBrains Mono',monospace;outline:none;transition:border .15s;
-  }
+  select,input[type=number]{background:var(--bg1);border:1px solid var(--line);color:var(--txt);border-radius:6px;font-family:'JetBrains Mono',monospace;outline:none;transition:border .15s}
   select:focus,input:focus{border-color:var(--green)}
 
-  /* DOM */
-  .dom-row{position:relative;display:flex;justify-content:space-between;padding:1px 10px;font-size:10.5px;line-height:1.7;transition:background .12s}
+  /* ── DOM ── */
+  .dom-row{position:relative;display:flex;justify-content:space-between;padding:1px 10px;font-size:11px;line-height:1.7;transition:background .12s}
   .dom-row:hover{background:rgba(255,255,255,.03)}
   .dom-bar{position:absolute;top:0;bottom:0;right:0;opacity:.14;pointer-events:none;transition:width .18s ease}
   .dom-col{position:relative;z-index:1}
-  .ask{color:var(--red)} .bid{color:var(--green)}
-  #spreadbar{
-    display:flex;align-items:center;justify-content:center;gap:7px;
-    margin:3px 8px;padding:3px 0;border-radius:4px;
-    background:var(--bg2);font-size:10px;font-weight:700;color:var(--amber);
-    border:1px solid transparent;transition:.2s;flex-shrink:0;
-  }
-  #spreadbar.custom{border-color:var(--amber);box-shadow:0 0 10px rgba(240,185,11,.2)}
-  #spread-input{width:52px;text-align:center;font-size:10px;padding:1px 2px;color:var(--amber)}
+  .ask{color:var(--red)}.bid{color:var(--green)}
+  #spreadbar{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 8px;padding:4px 0;border-radius:5px;background:var(--bg2);font-size:11px;font-weight:700;color:var(--amber);border:1px solid transparent;transition:.2s;flex-shrink:0}
+  #spreadbar.custom{border-color:var(--amber);box-shadow:0 0 12px rgba(240,185,11,.22)}
+  #spread-input{width:58px;text-align:center;font-size:10.5px;padding:2px 3px;color:var(--amber)}
 
-  /* tape */
-  .tape-row{
-    display:grid;grid-template-columns:1.1fr .8fr .9fr;align-items:center;
-    font-size:10px;line-height:1.65;padding:1px 8px 1px 9px;
-    border-left:3px solid transparent;border-bottom:1px solid rgba(36,44,61,.5);
-    animation:rowIn .22s ease-out;
-  }
-  @keyframes rowIn{from{opacity:0;transform:translateX(7px)}to{opacity:1;transform:none}}
+  /* ── tape ── */
+  .tape-row{display:grid;grid-template-columns:1.1fr .8fr .9fr;align-items:center;font-size:10.5px;line-height:1.65;padding:1px 8px 1px 9px;border-left:3px solid transparent;border-bottom:1px solid rgba(36,44,61,.5);animation:rowIn .22s ease-out}
+  @keyframes rowIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
   .tape-row .q{text-align:right}.tape-row .t{text-align:right;color:var(--dim);font-size:9px}
-  .tb{color:var(--green)} .ts{color:var(--red)}
+  .tb{color:var(--green)}.ts{color:var(--red)}
   .ex-BINANCE{border-color:#f0b90b}.ex-BINANCEFUT{border-color:#f3d06d}.ex-BYBIT{border-color:#ff6b35}.ex-BYBITLIN{border-color:#ff9a6c}
   .ex-OKX{border-color:#60a5fa}.ex-OKXFUT{border-color:#93c5fd}.ex-GATE{border-color:#34d399}.ex-MEXC{border-color:#a78bfa}
   .ex-BITGET{border-color:#fb923c}.ex-KUCOIN{border-color:#22d3ee}.ex-BITSTAMP{border-color:#84cc16}.ex-GEMINI{border-color:#e879f9}
   .ex-KRAKEN{border-color:#7c3aed}.ex-COINBASE{border-color:#0ea5e9}.ex-BITFINEX{border-color:#f97316}.ex-HTX{border-color:#10b981}
   .ex-PHEMEX{border-color:#d946ef}.ex-POLONIEX{border-color:#fcd34d}.ex-BINGX{border-color:#38bdf8}.ex-WOOX{border-color:#ec4899}.ex-DERIBIT{border-color:#c084fc}
 
-  /* stats */
-  #stats{display:flex;gap:6px;padding:6px 8px}
-  .stat{flex:1;background:var(--bg1);border:1px solid var(--line);border-radius:5px;padding:4px 6px;transition:.15s}
+  /* ── stats ── */
+  .stat{flex:1;background:var(--bg1);border:1px solid var(--line);border-radius:6px;padding:5px 8px;transition:.15s}
   .stat:hover{border-color:#3a4560}
-  .stat .l{font-size:8px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
-  .stat .v{font-size:12px;font-weight:700}
+  .stat .l{font-size:8px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+  .stat .v{font-size:13px;font-weight:700}
 
-  /* AI */
-  #ai{display:flex;flex-direction:column;background:rgba(13,15,23,.7);transition:height .25s ease;overflow:hidden;flex-shrink:0}
-  #ai-head{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;cursor:pointer;user-select:none;border-top:1px solid var(--line)}
+  /* ── AI ── */
+  #ai{display:flex;flex-direction:column;background:rgba(13,15,23,.7);transition:height .25s ease;overflow:hidden}
+  #ai-head{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;cursor:pointer;user-select:none;border-top:1px solid var(--line)}
   #ai-head:hover{background:rgba(255,255,255,.02)}
-  .ai-badge{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--purple);text-transform:uppercase}
+  .ai-badge{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:700;letter-spacing:.14em;color:var(--purple);text-transform:uppercase}
   .nim-dot{width:6px;height:6px;border-radius:50%;background:#76b900;box-shadow:0 0 6px #76b900}
   .nim-dot.busy{animation:pulse .6s infinite}
-  #ai-msgs{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px;font-size:10.5px;line-height:1.5;min-height:0}
-  .m-u{align-self:flex-end;background:#1c3a5e;color:#bfdbfe;border-radius:8px 8px 2px 8px;padding:5px 8px;max-width:90%;white-space:pre-wrap;word-break:break-word}
-  .m-a{align-self:flex-start;background:var(--bg2);color:#cfd4e0;border-radius:8px 8px 8px 2px;padding:5px 8px;max-width:94%;white-space:pre-wrap;word-break:break-word;border-left:2px solid var(--purple)}
-  .m-t{align-self:flex-start;background:#10141f;color:var(--dim);border-radius:4px;padding:4px 7px;max-width:94%;white-space:pre-wrap;font-style:italic;font-size:9.5px;border-left:2px solid #374151}
-  .m-e{align-self:center;background:#3b0d0d;color:#fca5a5;border-radius:5px;padding:5px 8px;font-size:9.5px;max-width:96%;white-space:pre-wrap}
-  .m-s{align-self:center;color:var(--dim);font-size:9px;font-style:italic}
-  #ai-inrow{display:flex;gap:4px;padding:6px 8px;border-top:1px solid var(--line)}
-  #ai-in{flex:1;background:var(--bg1);border:1px solid var(--line);color:var(--txt);font-size:10.5px;font-family:'JetBrains Mono',monospace;padding:5px 7px;border-radius:5px;outline:none;resize:none;min-height:30px;max-height:70px}
+  #ai-msgs{flex:1;overflow-y:auto;padding:9px;display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:1.5;min-height:0}
+  .m-u{align-self:flex-end;background:#1c3a5e;color:#bfdbfe;border-radius:9px 9px 2px 9px;padding:6px 9px;max-width:85%;white-space:pre-wrap;word-break:break-word}
+  .m-a{align-self:flex-start;background:var(--bg2);color:#cfd4e0;border-radius:9px 9px 9px 2px;padding:6px 9px;max-width:92%;white-space:pre-wrap;word-break:break-word;border-left:2px solid var(--purple)}
+  .m-t{align-self:flex-start;background:#10141f;color:var(--dim);border-radius:5px;padding:4px 8px;max-width:92%;white-space:pre-wrap;font-style:italic;font-size:10px;border-left:2px solid #374151}
+  .m-e{align-self:center;background:#3b0d0d;color:#fca5a5;border-radius:6px;padding:5px 9px;font-size:10px;max-width:95%;white-space:pre-wrap}
+  .m-s{align-self:center;color:var(--dim);font-size:9.5px;font-style:italic}
+  #ai-inrow{display:flex;gap:5px;padding:7px 9px;border-top:1px solid var(--line)}
+  #ai-in{flex:1;background:var(--bg1);border:1px solid var(--line);color:var(--txt);font-size:11px;font-family:'JetBrains Mono',monospace;padding:6px 8px;border-radius:6px;outline:none;resize:none;min-height:32px;max-height:80px}
   #ai-in:focus{border-color:var(--purple)}
-  #ai-send{background:var(--purple);color:#fff;font-size:9px;font-weight:700;border:none;border-radius:5px;padding:0 11px;cursor:pointer;transition:.15s;flex-shrink:0}
+  #ai-send{background:var(--purple);color:#fff;font-size:10px;font-weight:700;border:none;border-radius:6px;padding:0 13px;cursor:pointer;transition:.15s;flex-shrink:0;font-family:'Chakra Petch',sans-serif}
   #ai-send:hover:not(:disabled){background:#7a68f0;transform:translateY(-1px)}
   #ai-send:disabled{opacity:.4;cursor:not-allowed}
 
-  /* modals */
-  .modal{position:fixed;inset:0;background:rgba(5,7,12,.85);backdrop-filter:blur(5px);z-index:70;display:flex;align-items:center;justify-content:center}
-  .modal.hidden{display:none}
-  .modal-box{background:var(--bg1);border:1px solid #333d55;border-radius:10px;padding:22px;width:340px;max-width:92vw;box-shadow:0 25px 70px rgba(0,0,0,.7);animation:pop .2s ease-out}
-  @keyframes pop{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}
-  .fld{display:block;font-size:8.5px;font-weight:700;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;margin:12px 0 4px}
-  .modal input[type=url],.modal input[type=password]{width:100%;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:11px;font-family:'JetBrains Mono',monospace;padding:7px 9px;border-radius:6px;outline:none;transition:border .15s}
-  .modal input:focus{border-color:var(--green)}
-  .btn{border:none;border-radius:6px;font-size:11px;font-weight:700;padding:8px 12px;cursor:pointer;transition:.15s;font-family:'Chakra Petch',sans-serif}
-  .btn:hover{transform:translateY(-1px)}
-  .btn-g{background:var(--green);color:#06251d}.btn-g:hover{box-shadow:0 4px 14px rgba(23,210,173,.35)}
-  .btn-p{background:var(--purple);color:#fff}.btn-p:hover{box-shadow:0 4px 14px rgba(139,124,246,.35)}
-  .btn-d{background:var(--bg2);color:var(--dim)}.btn-d:hover{color:var(--txt)}
-
-  #debug{position:fixed;bottom:0;left:0;right:0;height:160px;background:#080a10;border-top:1px solid #333d55;z-index:80;font-size:9px;overflow-y:auto;padding:6px 10px;color:#9aa3b8;display:none}
+  #debug{position:fixed;bottom:0;left:0;right:0;height:170px;background:#080a10;border-top:1px solid #333d55;z-index:80;font-size:9.5px;overflow-y:auto;padding:7px 12px;color:#9aa3b8;display:none}
   #debug.open{display:block}
 </style>
 </head>
-<body>
+<body class="flex flex-col h-screen w-screen">
 
-<div id="dock">
-
-  <!-- ══ BRAND BAR ══ -->
-  <div id="brandbar">
-    <div class="logo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#06251d" stroke-width="2.6" stroke-linecap="round"><path d="M3 17l5-6 4 4 6-8 3 4"/></svg></div>
-    <div style="flex:1;min-width:0">
-      <div class="disp" style="font-weight:700;font-size:13px;letter-spacing:.14em;line-height:1">OMNI<span style="color:var(--green)">·</span>DOCK</div>
-      <div style="font-size:8px;color:var(--dim);letter-spacing:.18em;text-transform:uppercase">orderflow terminal</div>
-    </div>
-    <div class="status-chip" id="net-chip" title="Backend status"><span class="d warn" id="net-dot"></span><span id="net-txt">…</span></div>
-    <button class="icon-btn" onclick="openBackendModal()" title="Backend">⚙</button>
-    <button class="icon-btn" onclick="openKeyModal()" title="NIM key">🔑</button>
-  </div>
-
-  <!-- ══ INSTRUMENT ══ -->
-  <div class="sec" style="padding:8px 10px">
-    <div style="display:flex;align-items:center;gap:8px">
-      <select id="asset" onchange="switchSymbol(this.value)" style="flex:1;font-size:11px;font-weight:700;color:var(--amber);padding:4px 6px;cursor:pointer">
-        <option value="BTCUSDT">BTC / USDT</option>
-        <option value="ETHUSDT">ETH / USDT</option>
-        <option value="SOLUSDT">SOL / USDT</option>
-        <option value="BNBUSDT">BNB / USDT</option>
-        <option value="XRPUSDT">XRP / USDT</option>
-      </select>
-      <div id="price" class="up">--</div>
-    </div>
-  </div>
-
-  <!-- ══ ORDER BOOK ══ -->
-  <div class="sec" style="display:flex;flex-direction:column;flex:1.25;min-height:120px;overflow:hidden">
-    <div class="sec-h"><span class="tag"><span class="live-dot"></span>Depth</span><span id="dom-exch" style="color:var(--amber)">BINANCE</span></div>
-    <div id="dom-asks" style="flex:1;display:flex;flex-direction:column-reverse;overflow:hidden"></div>
-    <div id="spreadbar">
-      <span>SPREAD</span><span id="spread-live">$--</span>
-      <input id="spread-input" type="number" step="any" min="0" placeholder="auto" title="Override spread — empty = live" oninput="setCustomSpread(this.value)"/>
-    </div>
-    <div id="dom-bids" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
-  </div>
-
-  <!-- ══ TAPE ══ -->
-  <div class="sec" style="display:flex;flex-direction:column;flex:1;min-height:90px;overflow:hidden">
-    <div class="sec-h"><span class="tag"><span class="live-dot"></span>Time &amp; Sales</span><span id="tape-count" style="color:var(--dim)">0</span></div>
-    <div id="tape" style="flex:1;overflow:hidden;display:flex;flex-direction:column-reverse"></div>
-  </div>
-
-  <!-- ══ STATS ══ -->
-  <div id="stats" class="sec">
-    <div class="stat"><div class="l">Streams</div><div class="v" id="st-streams" style="color:var(--green)">0/0</div></div>
-    <div class="stat"><div class="l">Trades/s</div><div class="v" id="st-tps" style="color:var(--amber)">0</div></div>
-    <div class="stat"><div class="l">Vol</div><div class="v" id="st-vol" style="color:#60a5fa">--</div></div>
-  </div>
-
-  <!-- ══ AI ══ -->
-  <div id="ai" style="height:230px">
-    <div id="ai-head" onclick="toggleAi()">
-      <span class="ai-badge"><span class="nim-dot" id="nim-dot"></span>NIM · GLM-5.2</span>
-      <span id="ai-chev" style="color:var(--dim);font-size:10px">▼</span>
-    </div>
-    <div id="ai-msgs"></div>
-    <div id="ai-inrow">
-      <textarea id="ai-in" rows="1" placeholder="Ask about the tape…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendToGLM()}"></textarea>
-      <button id="ai-send" onclick="sendToGLM()">SEND</button>
-    </div>
-  </div>
-
-</div>
-
-<!-- ══ BACKEND MODAL ══ -->
-<div id="backend-modal" class="modal hidden">
+<!-- ════════════ BACKEND CONNECT PAGE (landing — nothing hardcoded) ════════════ -->
+<div id="backend-modal" class="modal">
   <div class="modal-box">
-    <div class="disp" style="font-weight:700;font-size:14px;letter-spacing:.1em">BACKEND <span style="color:var(--green)">LINK</span></div>
-    <p style="font-size:10px;color:var(--dim);margin:6px 0 0;line-height:1.5">Rust proxy for NIM (AES-GCM) + KuCoin. Health endpoint <code style="color:var(--green)">/healthz</code>.</p>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="logo" style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--green),#0e7c8c);box-shadow:0 0 18px rgba(23,210,173,.4)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06251d" stroke-width="2.6" stroke-linecap="round"><path d="M3 17l5-6 4 4 6-8 3 4"/></svg>
+      </div>
+      <div>
+        <div class="disp" style="font-weight:700;font-size:17px;letter-spacing:.12em">OMNI <span style="color:var(--green)">STREAM</span></div>
+        <div style="font-size:9px;color:var(--dim);letter-spacing:.2em;text-transform:uppercase">open-source orderflow terminal</div>
+      </div>
+    </div>
+
+    <p style="font-size:11px;color:var(--dim);line-height:1.6;margin:14px 0 0">
+      Self-hosted frontend. Point it at <b style="color:var(--txt)">your own</b> Rust proxy backend for
+      NVIDIA NIM (AES-GCM) and KuCoin. The chart + tape stream straight from the exchanges — no backend required for market data.
+    </p>
+
     <label class="fld">Backend URL</label>
-    <input id="backend-url" type="url" placeholder="https://your-backend.onrender.com"/>
-    <div id="backend-status" style="font-size:9.5px;color:var(--dim);margin:8px 2px;min-height:14px">Idle.</div>
-    <label style="display:flex;align-items:center;gap:6px;font-size:9.5px;color:var(--dim);cursor:pointer;margin-top:4px">
-      <input type="checkbox" id="allow-nobackend" style="accent-color:var(--purple)"/> Run limited mode (no NIM / KuCoin)
+    <input id="backend-url" type="url" placeholder="https://your-backend.example.com"/>
+    <div id="backend-status" style="font-size:10px;color:var(--dim);margin:9px 2px;min-height:15px">Idle — enter a URL and click Test.</div>
+
+    <label style="display:flex;align-items:center;gap:7px;font-size:10px;color:var(--dim);cursor:pointer;margin-top:4px">
+      <input type="checkbox" id="allow-nobackend" style="accent-color:var(--purple)"/> Run in limited mode (disables NIM + KuCoin)
     </label>
-    <div style="display:flex;gap:8px;margin-top:16px">
+
+    <div style="display:flex;gap:9px;margin-top:18px">
       <button class="btn btn-d" onclick="testBackend()">Test</button>
-      <button class="btn btn-g" style="flex:1" onclick="connectBackend()">Launch Dock</button>
+      <button class="btn btn-g" style="flex:1" onclick="connectBackend()">Launch Terminal</button>
     </div>
+
+    <p style="font-size:9px;color:#5b6478;line-height:1.6;margin-top:16px">
+      Expected endpoints: <code style="color:var(--green)">/healthz</code> ·
+      <code style="color:var(--dim)">/api/nim/chat/completions</code> ·
+      <code style="color:var(--dim)">/api/config/keys</code> ·
+      <code style="color:var(--dim)">/api/kucoin/bullet-public</code>
+    </p>
   </div>
 </div>
 
-<!-- ══ KEY MODAL ══ -->
+<!-- ════════════ NIM KEY MODAL ════════════ -->
 <div id="key-modal" class="modal hidden">
-  <div class="modal-box">
-    <div class="disp" style="font-weight:700;font-size:14px;letter-spacing:.1em">NVIDIA <span style="color:#76b900">NIM</span></div>
-    <p style="font-size:10px;color:var(--dim);margin:6px 0 0;line-height:1.5">Your <code style="color:var(--green)">nvapi-</code> key, encrypted locally with AES-GCM before it touches the wire.</p>
+  <div class="modal-box" style="width:400px">
+    <div class="disp" style="font-weight:700;font-size:15px;letter-spacing:.1em">NVIDIA <span style="color:#76b900">NIM</span> <span style="color:var(--purple)">· GLM-5.2</span></div>
+    <p style="font-size:10.5px;color:var(--dim);line-height:1.6;margin:8px 0 0">
+      Your <code style="color:var(--green)">nvapi-</code> key from
+      <a href="https://build.nvidia.com" target="_blank" style="color:#60a5fa">build.nvidia.com</a>.
+      Encrypted locally with AES-GCM before it touches the wire.
+    </p>
     <label class="fld">API Key</label>
     <input id="nim-key" type="password" placeholder="nvapi-…"/>
-    <p id="key-err" style="font-size:9.5px;margin:8px 2px;min-height:12px"></p>
-    <div style="display:flex;gap:8px;margin-top:14px">
+    <p id="key-err" style="font-size:10px;margin:9px 2px;min-height:13px"></p>
+    <div style="display:flex;gap:9px;margin-top:14px">
       <button class="btn btn-d" onclick="closeKeyModal()">Skip</button>
       <button class="btn btn-p" style="flex:1" onclick="saveNimKey()">Encrypt &amp; Save</button>
     </div>
@@ -272,28 +181,106 @@
 
 <div id="debug"><div id="debug-log"></div></div>
 
+<!-- ════════════ BRAND BAR ════════════ -->
+<div id="brandbar">
+  <div class="logo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06251d" stroke-width="2.6" stroke-linecap="round"><path d="M3 17l5-6 4 4 6-8 3 4"/></svg></div>
+  <div style="flex:1;min-width:0">
+    <div class="disp" style="font-weight:700;font-size:15px;letter-spacing:.14em;line-height:1">OMNI<span style="color:var(--green)">·</span>STREAM</div>
+    <div style="font-size:8px;color:var(--dim);letter-spacing:.2em;text-transform:uppercase">orderflow · 21 venues</div>
+  </div>
+  <div class="status-chip" title="Backend status"><span class="d warn" id="net-dot"></span><span id="net-txt">…</span></div>
+  <button class="icon-btn" onclick="openBackendModal()" title="Backend">⚙</button>
+  <button class="icon-btn" onclick="openKeyModal()" title="NIM key">🔑</button>
+  <button class="icon-btn" onclick="toggleDebug()" title="Debug log">▤</button>
+</div>
+
+<!-- ════════════ MAIN ════════════ -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- LEFT: chart -->
+  <div class="flex-shrink-0 h-full relative border-r p-2" style="width:75%;border-color:var(--line)">
+    <div id="chart-container" class="panel" style="width:100%;height:100%;overflow:hidden"></div>
+  </div>
+
+  <!-- RIGHT: sidebar -->
+  <div class="h-full flex flex-col select-none overflow-hidden" style="width:25%">
+
+    <!-- instrument -->
+    <div class="sec" style="padding:9px 12px;border-bottom:1px solid var(--line)">
+      <div style="display:flex;align-items:center;gap:9px">
+        <select id="asset" onchange="switchSymbol(this.value)" style="flex:1;font-size:12px;font-weight:700;color:var(--amber);padding:5px 7px;cursor:pointer">
+          <option value="BTCUSDT">BTC / USDT</option>
+          <option value="ETHUSDT">ETH / USDT</option>
+          <option value="SOLUSDT">SOL / USDT</option>
+          <option value="BNBUSDT">BNB / USDT</option>
+          <option value="XRPUSDT">XRP / USDT</option>
+        </select>
+        <div id="price" class="up">--</div>
+      </div>
+    </div>
+
+    <!-- order book -->
+    <div style="display:flex;flex-direction:column;height:250px;border-bottom:1px solid var(--line);flex-shrink:0">
+      <div class="sec-h"><span style="display:flex;align-items:center;gap:6px"><span class="live-dot"></span>Depth</span><span style="color:var(--amber)">BINANCE</span></div>
+      <div id="dom-asks" style="flex:1;display:flex;flex-direction:column-reverse;overflow:hidden"></div>
+      <div id="spreadbar">
+        <span>SPREAD</span><span id="spread-live">$--</span>
+        <input id="spread-input" type="number" step="any" min="0" placeholder="auto" title="Override spread — empty = live" oninput="setCustomSpread(this.value)"/>
+      </div>
+      <div id="dom-bids" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
+    </div>
+
+    <!-- tape -->
+    <div style="display:flex;flex-direction:column;flex:1;min-height:80px;overflow:hidden">
+      <div class="sec-h"><span style="display:flex;align-items:center;gap:6px"><span class="live-dot"></span>Time &amp; Sales</span><span id="tape-count" style="color:var(--dim)">0</span></div>
+      <div id="tape" style="flex:1;overflow:hidden;display:flex;flex-direction:column-reverse"></div>
+    </div>
+
+    <!-- stats -->
+    <div style="display:flex;gap:7px;padding:8px 10px;border-top:1px solid var(--line);flex-shrink:0">
+      <div class="stat"><div class="l">Streams</div><div class="v" id="st-streams" style="color:var(--green)">0/0</div></div>
+      <div class="stat"><div class="l">Trades/s</div><div class="v" id="st-tps" style="color:var(--amber)">0</div></div>
+      <div class="stat"><div class="l">Vol</div><div class="v" id="st-vol" style="color:#60a5fa">--</div></div>
+    </div>
+
+    <!-- AI -->
+    <div id="ai" style="height:250px;flex-shrink:0">
+      <div id="ai-head" onclick="toggleAi()">
+        <span class="ai-badge"><span class="nim-dot" id="nim-dot"></span>NIM · GLM-5.2</span>
+        <span id="ai-chev" style="color:var(--dim);font-size:10px">▼</span>
+      </div>
+      <div id="ai-msgs"></div>
+      <div id="ai-inrow">
+        <textarea id="ai-in" rows="1" placeholder="Ask about the tape…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendToGLM()}"></textarea>
+        <button id="ai-send" onclick="sendToGLM()">SEND</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <script>
 // ════════════════════════════════════════════════════════════════
-// CONFIG / STATE
+// CONFIG / STATE  (no hardcoded backend — URL comes from the user)
 // ════════════════════════════════════════════════════════════════
 const SHARED_SECRET_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-const MAX_TAPE=90, MAX_LEVELS=11, TPS_WIN=2000, NIM_MODEL='z-ai/glm-5.2';
+const MAX_TAPE=110, MAX_LEVELS=12, TPS_WIN=2000, NIM_MODEL='z-ai/glm-5.2';
 let TOTAL_EX=21;
 
 let currentBase='BTCUSDT';
-let tape=[],stamps=[],lastPrice=0,vol=0,prevPrice=0;
+let tape=[],stamps=[],lastPrice=0,prevPrice=0,vol=0;
 const sockets={},pings={};
 const book={asks:[],bids:[]};
 let customSpread=null;
 
 let nimKey=sessionStorage.getItem('nim_key')||'';
 let aiHistory=[],aiOpen=true,aiBusy=false;
-let BACKEND_URL=loadBackendUrl();
+let BACKEND_URL=loadBackendUrl();          // localStorage only — never hardcoded
 let backendHealthy=false, started=false;
 
 const EXCHANGES=['BINANCE','BINANCEFUT','BYBIT','BYBITLIN','OKX','OKXFUT','GATE','MEXC','BITGET','KUCOIN','BITSTAMP','GEMINI','KRAKEN','COINBASE','BITFINEX','HTX','PHEMEX','POLONIEX','BINGX','WOOX','DERIBIT'];
 const exStatus={}; EXCHANGES.forEach(e=>exStatus[e]='disconnected');
-const DISABLED_EX=new Set(['KUCOIN','PHEMEX']);
+const DISABLED_EX=new Set(['KUCOIN','PHEMEX']);   // backend-gated venues
 function recalcTotalEx(){TOTAL_EX=EXCHANGES.filter(e=>!DISABLED_EX.has(e)).length;refreshStreams();}
 
 const SYM={
@@ -314,7 +301,8 @@ function wsBase(r){try{const u=new URL(r);return(u.protocol==='https:'?'wss://':
 function dbg(l,...a){const m=a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ');console.log(`[${l}]`,m);
  const el=document.getElementById('debug-log');if(!el)return;const d=document.createElement('div');
  d.innerHTML=`<span style="color:#5b6478">${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span> <span style="color:#8b7cf6">[${l}]</span> ${m}`;
- el.insertBefore(d,el.firstChild);if(el.children.length>60)el.lastChild.remove();}
+ el.insertBefore(d,el.firstChild);if(el.children.length>70)el.lastChild.remove();}
+function toggleDebug(){document.getElementById('debug').classList.toggle('open');}
 
 async function encryptAES(text,hexKey){
  const enc=new TextEncoder();const kb=new Uint8Array(hexKey.match(/.{1,2}/g).map(b=>parseInt(b,16)));
@@ -325,10 +313,10 @@ async function encryptAES(text,hexKey){
 }
 
 // ════════════════════════════════════════════════════════════════
-// BACKEND
+// BACKEND CONNECT PAGE
 // ════════════════════════════════════════════════════════════════
-function setNet(state,txt){const d=document.getElementById('net-dot'),t=document.getElementById('net-txt');
- d.className='d '+(state==='ok'?'ok':state==='bad'?'bad':'warn');t.textContent=txt;}
+function setNet(state,txt){document.getElementById('net-dot').className='d '+(state==='ok'?'ok':state==='bad'?'bad':'warn');
+ document.getElementById('net-txt').textContent=txt;}
 async function checkBackend(url){try{const c=new AbortController();const t=setTimeout(()=>c.abort(),4000);
  const r=await fetch(`${url}/healthz`,{cache:'no-store',signal:c.signal});clearTimeout(t);
  if(!r.ok)throw new Error(`HTTP ${r.status}`);const j=await r.json();return j?.ok===true;}catch(e){dbg('BACKEND',`health: ${e.message}`);return false;}}
@@ -345,7 +333,7 @@ async function connectBackend(){
   s.textContent='✗ Enter a URL or enable limited mode.';s.style.color='var(--red)';return;}
  s.textContent='⏳ Checking…';s.style.color='var(--amber)';
  const ok=await checkBackend(url);backendHealthy=ok;BACKEND_URL=url;saveBackendUrl(url);
- if(!ok&&!allow){s.textContent='✗ Unreachable. Enable limited mode or fix backend.';s.style.color='var(--red)';return;}
+ if(!ok&&!allow){s.textContent='✗ Unreachable. Enable limited mode or fix backend/CORS.';s.style.color='var(--red)';return;}
  applyBackend();closeBackendModal();start();
 }
 function applyBackend(){
@@ -380,6 +368,49 @@ function setCustomSpread(v){const n=parseFloat(v);customSpread=(v===''||isNaN(n)
 function fmtSpread(n){return'$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6});}
 
 // ════════════════════════════════════════════════════════════════
+// CHART (Lightweight Charts — direct Binance feed, no backend)
+// ════════════════════════════════════════════════════════════════
+let lw={chart:null,candle:null,vol:null,klineWs:null};
+function updateChart(base){
+ const c=document.getElementById('chart-container');
+ if(lw.klineWs){try{lw.klineWs.close()}catch{}lw.klineWs=null}
+ if(lw.chart){try{lw.chart.remove()}catch{}lw.chart=null}
+ c.innerHTML='';
+ if(!window.LightweightCharts){
+  const s=document.createElement('script');
+  s.src='https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js';
+  s.onload=()=>initChart(base);s.onerror=()=>dbg('CHART','❌ CDN failed');document.head.appendChild(s);
+ }else initChart(base);
+}
+function initChart(base){
+ const c=document.getElementById('chart-container');
+ lw.chart=LightweightCharts.createChart(c,{width:c.clientWidth,height:c.clientHeight,
+  layout:{background:{type:'solid',color:'#0d1017'},textColor:'#78829a',fontSize:10,fontFamily:'JetBrains Mono'},
+  grid:{vertLines:{color:'#1a2030'},horzLines:{color:'#1a2030'}},
+  crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+  rightPriceScale:{borderColor:'#242c3d'},
+  timeScale:{borderColor:'#242c3d',timeVisible:true,secondsVisible:false,rightOffset:5}});
+ lw.candle=lw.chart.addCandlestickSeries({upColor:'#17d2ad',downColor:'#f6465d',borderUpColor:'#17d2ad',borderDownColor:'#f6465d',wickUpColor:'#17d2ad',wickDownColor:'#f6465d'});
+ lw.vol=lw.chart.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:''});
+ lw.vol.priceScale().applyOptions({scaleMargins:{top:.82,bottom:0}});
+ new ResizeObserver(()=>lw.chart&&lw.chart.applyOptions({width:c.clientWidth,height:c.clientHeight})).observe(c);
+
+ fetch(`https://api.binance.com/api/v3/klines?symbol=${base}&interval=1m&limit=1000`)
+  .then(r=>r.json()).then(data=>{
+   lw.candle.setData(data.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4]})));
+   lw.vol.setData(data.map(k=>({time:Math.floor(k[0]/1000),value:+k[5],color:+k[4]>=+k[1]?'rgba(23,210,173,.28)':'rgba(246,70,93,.28)'})));
+   lw.chart.timeScale().scrollToRealTime();dbg('CHART',`Loaded ${data.length} candles`);
+  }).catch(e=>dbg('CHART',`History: ${e.message}`));
+
+ lw.klineWs=new WebSocket(`wss://stream.binance.com:9443/ws/${base.toLowerCase()}@kline_1m`);
+ lw.klineWs.onmessage=ev=>{const d=JSON.parse(ev.data);if(d.e!=='kline')return;const k=d.k,t=Math.floor(k.t/1000),cl=+k.c,o=+k.o;
+  lw.candle.update({time:t,open:o,high:+k.h,low:+k.l,close:cl});
+  lw.vol.update({time:t,value:+k.v,color:cl>=o?'rgba(23,210,173,.28)':'rgba(246,70,93,.28)'});};
+ lw.klineWs.onclose=()=>{if(currentBase===base)setTimeout(()=>updateChart(base),3000);};
+ dbg('CHART',`Ready: ${base}`);
+}
+
+// ════════════════════════════════════════════════════════════════
 // INGEST + RENDER
 // ════════════════════════════════════════════════════════════════
 function ingest({exchange,price,qty,isBuy,ts}){
@@ -388,21 +419,16 @@ function ingest({exchange,price,qty,isBuy,ts}){
  prevPrice=lastPrice;lastPrice=price;vol+=qty;
  scheduleTape();updateStats();updatePrice();
 }
-function updatePrice(){
- const el=document.getElementById('price');
+function updatePrice(){const el=document.getElementById('price');
  el.textContent=lastPrice>0?lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'--';
- if(prevPrice&&lastPrice!==prevPrice){el.classList.remove('up','dn');void el.offsetWidth;el.classList.add(lastPrice>prevPrice?'up':'dn');}
-}
+ if(prevPrice&&lastPrice!==prevPrice){el.classList.remove('up','dn');void el.offsetWidth;el.classList.add(lastPrice>prevPrice?'up':'dn');}}
 let tapeRaf=false;
 function scheduleTape(){if(tapeRaf)return;tapeRaf=true;requestAnimationFrame(()=>{tapeRaf=false;
  const el=document.getElementById('tape');const f=document.createDocumentFragment();
- tape.forEach(t=>{const r=document.createElement('div');
-  r.className=`tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}`;
+ tape.forEach(t=>{const r=document.createElement('div');r.className=`tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}`;
   const tm=new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   r.innerHTML=`<span>${t.price.toFixed(2)}</span><span class="q">${t.qty.toFixed(4)}</span><span class="t">${tm}</span>`;f.appendChild(r);});
- el.innerHTML='';el.appendChild(f);
- document.getElementById('tape-count').textContent=tape.length;
-});}
+ el.innerHTML='';el.appendChild(f);document.getElementById('tape-count').textContent=tape.length;});}
 let bookRaf=false;
 function scheduleBook(){if(bookRaf)return;bookRaf=true;requestAnimationFrame(()=>{bookRaf=false;
  const aEl=document.getElementById('dom-asks'),bEl=document.getElementById('dom-bids');
@@ -415,8 +441,7 @@ function scheduleBook(){if(bookRaf)return;bookRaf=true;requestAnimationFrame(()=
    f.appendChild(d);});return f;};
  aEl.innerHTML='';aEl.appendChild(rows(va,'ask'));bEl.innerHTML='';bEl.appendChild(rows(vb,'bid'));
  if(book.asks.length&&book.bids.length){const live=+book.asks[0][0]-+book.bids[0][0];
-  document.getElementById('spread-live').textContent=fmtSpread(customSpread!=null?customSpread:live);}
-});}
+  document.getElementById('spread-live').textContent=fmtSpread(customSpread!=null?customSpread:live);}});}
 function updateStats(){const now=Date.now();stamps=stamps.filter(t=>now-t<TPS_WIN);
  document.getElementById('st-tps').textContent=(stamps.length/(TPS_WIN/1000)).toFixed(1);
  document.getElementById('st-vol').textContent=vol>=1000?(vol/1000).toFixed(1)+'K':vol.toFixed(2);}
@@ -425,7 +450,7 @@ function refreshStreams(){const n=Object.values(exStatus).filter(s=>s==='connect
 function setEx(id,s){exStatus[id]=s;refreshStreams();}
 
 // ════════════════════════════════════════════════════════════════
-// WS FACTORY
+// WS FACTORY + RECONNECT
 // ════════════════════════════════════════════════════════════════
 const streamFactories={},retryDelay={},failCount={};
 function makeWS(id,url,{onopen,onmessage,onping,pingMs}={}){
@@ -435,8 +460,7 @@ function makeWS(id,url,{onopen,onmessage,onping,pingMs}={}){
    if(onopen)onopen(ws);if(onping&&pingMs)pings[id]=setInterval(()=>{if(ws.readyState===1)onping(ws)},pingMs);res(ws);};
   ws.onmessage=ev=>{try{onmessage(ev,ws)}catch{}};ws.onerror=()=>{};
   ws.onclose=()=>{if(ws._dead)return;clearInterval(pings[id]);setEx(id,'disconnected');
-   if(!settled)return rej(new Error('closed'));scheduleReconnect(id,1500);};
- });}
+   if(!settled)return rej(new Error('closed'));scheduleReconnect(id,1500);};});}
 async function gunzip(ab){const ds=new DecompressionStream('gzip');const w=ds.writable.getWriter();w.write(new Uint8Array(ab));w.close();
  const ch=[];const r=ds.readable.getReader();while(true){const{done,value}=await r.read();if(done)break;ch.push(value);}
  const t=ch.reduce((a,c)=>a+c.length,0);const o=new Uint8Array(t);let off=0;ch.forEach(c=>{o.set(c,off);off+=c.length});return new TextDecoder().decode(o);}
@@ -454,7 +478,7 @@ function openStream(id,factory,retry=1500){streamFactories[id]=factory;retryDela
    if(failCount[id]>=6){setEx(id,'disconnected');return;}scheduleReconnect(id,retry);});}
 
 // ════════════════════════════════════════════════════════════════
-// ADAPTERS (21 venues)
+// ADAPTERS — all 21 venues
 // ════════════════════════════════════════════════════════════════
 const A={
 BINANCE:(s,id)=>makeWS(id,`wss://stream.binance.com:9443/stream?streams=${s}@depth20@100ms/${s}@trade`,{onmessage(ev){const e=JSON.parse(ev.data);
@@ -529,12 +553,12 @@ function launchAll(){EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>op
 function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;book.asks=[];book.bids=[];
  document.getElementById('price').textContent='--';document.getElementById('spread-live').textContent='$--';
  document.getElementById('tape').innerHTML='';document.getElementById('dom-asks').innerHTML='';document.getElementById('dom-bids').innerHTML='';
- closeAll();setTimeout(launchAll,300);}
+ closeAll();updateChart(b);setTimeout(launchAll,300);}
 
 // ════════════════════════════════════════════════════════════════
 // AI
 // ════════════════════════════════════════════════════════════════
-function toggleAi(){aiOpen=!aiOpen;document.getElementById('ai').style.height=aiOpen?'230px':'31px';
+function toggleAi(){aiOpen=!aiOpen;document.getElementById('ai').style.height=aiOpen?'250px':'33px';
  document.getElementById('ai-chev').textContent=aiOpen?'▼':'▲';
  ['ai-msgs','ai-inrow'].forEach(id=>document.getElementById(id).style.display=aiOpen?'':'none');}
 function addMsg(r,t){const el=document.getElementById('ai-msgs');const d=document.createElement('div');
@@ -582,16 +606,23 @@ async function sendToGLM(){
 // ════════════════════════════════════════════════════════════════
 function start(){if(started)return;started=true;
  setNet(backendHealthy?'ok':(BACKEND_URL?'bad':'warn'),backendHealthy?'LINKED':(BACKEND_URL?'DOWN':'SOLO'));
- launchAll();
+ updateChart(currentBase);launchAll();
  if(nimKey)addMsg('a',`GLM-5.2 ready. Watching ${currentBase} across the tape.`);
  else addMsg('s','Set your NIM key (🔑) to enable AI.');}
 window.addEventListener('DOMContentLoaded',async()=>{
  recalcTotalEx();
- if(BACKEND_URL){setNet('warn','…');backendHealthy=await checkBackend(BACKEND_URL);
-  setNet(backendHealthy?'ok':'bad',backendHealthy?'LINKED':'DOWN');}
- else setNet('warn','SOLO');
+ if(BACKEND_URL){ // returning user: validate saved URL, prefill, still show the page
+  setNet('warn','…');backendHealthy=await checkBackend(BACKEND_URL);
+  setNet(backendHealthy?'ok':'bad',backendHealthy?'LINKED':'DOWN');
+  document.getElementById('backend-status').textContent=backendHealthy?`✓ Saved backend healthy: ${BACKEND_URL}`:`✗ Saved backend unreachable: ${BACKEND_URL}`;
+  document.getElementById('backend-status').style.color=backendHealthy?'var(--green)':'var(--red)';
+ }else{
+  setNet('warn','SOLO');
+ }
+ document.getElementById('backend-url').value=BACKEND_URL||'';
+ // Connect page always opens first — URL is user-supplied, never hardcoded.
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeKeyModal();closeBackendModal();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeKeyModal();}});
 </script>
 </body>
 </html>
