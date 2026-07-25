@@ -1,1491 +1,597 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Omni Stream — GLM-5.2 (Grey Hat Edition)</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  <style>
-    html, body { height:100%; margin:0; padding:0; background:#131722; color:#fff; overflow:hidden; }
-    ::-webkit-scrollbar { width:4px; }
-    ::-webkit-scrollbar-track { background:#131722; }
-    ::-webkit-scrollbar-thumb { background:#2a2e39; border-radius:2px; }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OMNI · Orderflow Dock</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg0:#0b0e14; --bg1:#12161f; --bg2:#1a1f2c; --line:#242c3d;
+    --txt:#dfe3ec; --dim:#78829a; --green:#17d2ad; --red:#f6465d;
+    --amber:#f0b90b; --purple:#8b7cf6;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:'JetBrains Mono',monospace; color:var(--txt); overflow:hidden;
+    background:
+      radial-gradient(900px 320px at 50% -120px, rgba(23,210,173,.06), transparent 60%),
+      radial-gradient(700px 300px at 80% 110%, rgba(139,124,246,.05), transparent 60%),
+      linear-gradient(180deg,#0d1119,var(--bg0));
+  }
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#2a3347;border-radius:2px}
 
-    .depth-row { position:relative; display:flex; justify-content:space-between; padding:1px 6px; font-size:11px; line-height:1.65; }
-    .depth-bar  { position:absolute; top:0; bottom:0; right:0; opacity:.13; pointer-events:none; }
-    .depth-col  { position:relative; z-index:1; }
+  /* the dock: a slim strip even on a wide window */
+  #dock{
+    width:100%; max-width:320px; height:100vh; margin:0 auto;
+    display:flex; flex-direction:column;
+    border-left:1px solid var(--line); border-right:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(18,22,31,.92), rgba(13,16,23,.96));
+    box-shadow:0 0 60px rgba(0,0,0,.5);
+  }
 
-    .ex-BINANCE    {border-color:#f0b90b} .ex-BINANCEFUT {border-color:#f3d06d}
-    .ex-BYBIT      {border-color:#ff6b35} .ex-BYBITLIN   {border-color:#ff9a6c}
-    .ex-OKX        {border-color:#60a5fa} .ex-OKXFUT     {border-color:#93c5fd}
-    .ex-GATE       {border-color:#34d399} .ex-MEXC       {border-color:#a78bfa}
-    .ex-BITGET     {border-color:#fb923c} .ex-KUCOIN     {border-color:#22d3ee}
-    .ex-BITSTAMP   {border-color:#84cc16} .ex-GEMINI     {border-color:#e879f9}
-    .ex-KRAKEN     {border-color:#7c3aed} .ex-COINBASE   {border-color:#0ea5e9}
-    .ex-BITFINEX   {border-color:#f97316} .ex-HTX        {border-color:#10b981}
-    .ex-PHEMEX     {border-color:#d946ef} .ex-POLONIEX   {border-color:#fcd34d}
-    .ex-BINGX      {border-color:#38bdf8} .ex-WOOX       {border-color:#ec4899}
-    .ex-DERIBIT    {border-color:#c084fc}
+  .disp{font-family:'Chakra Petch',sans-serif}
+  .sec{border-bottom:1px solid var(--line)}
+  .sec-h{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:5px 10px; font-size:9px; letter-spacing:.14em; color:var(--dim);
+    text-transform:uppercase; user-select:none;
+    background:linear-gradient(90deg, rgba(255,255,255,.02), transparent);
+  }
+  .sec-h .tag{display:flex;align-items:center;gap:5px}
+  .live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-    .exl-BINANCE   {color:#f0b90b} .exl-BINANCEFUT{color:#f3d06d}
-    .exl-BYBIT     {color:#ff6b35} .exl-BYBITLIN  {color:#ff9a6c}
-    .exl-OKX       {color:#60a5fa} .exl-OKXFUT    {color:#93c5fd}
-    .exl-GATE      {color:#34d399} .exl-MEXC      {color:#a78bfa}
-    .exl-BITGET    {color:#fb923c} .exl-KUCOIN    {color:#22d3ee}
-    .exl-BITSTAMP  {color:#84cc16} .exl-GEMINI    {color:#e879f9}
-    .exl-KRAKEN    {color:#7c3aed} .exl-COINBASE  {color:#0ea5e9}
-    .exl-BITFINEX  {color:#f97316} .exl-HTX       {color:#10b981}
-    .exl-PHEMEX    {color:#d946ef} .exl-POLONIEX  {color:#fcd34d}
-    .exl-BINGX     {color:#38bdf8} .exl-WOOX      {color:#ec4899}
-    .exl-DERIBIT   {color:#c084fc}
+  /* header */
+  #brandbar{
+    display:flex;align-items:center;gap:8px;padding:9px 10px;
+    border-bottom:1px solid var(--line);
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.015) 0 1px, transparent 1px 3px),
+      linear-gradient(90deg, rgba(23,210,173,.06), transparent 55%);
+  }
+  #brandbar .logo{
+    width:26px;height:26px;border-radius:6px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--green),#0e7c8c);
+    box-shadow:0 0 14px rgba(23,210,173,.35);
+  }
+  .status-chip{
+    display:flex;align-items:center;gap:5px;font-size:9px;color:var(--dim);
+    padding:3px 7px;border:1px solid var(--line);border-radius:20px;background:rgba(255,255,255,.02);
+    transition:.2s;
+  }
+  .status-chip .d{width:6px;height:6px;border-radius:50%}
+  .d.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+  .d.warn{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:pulse 1s infinite}
+  .d.bad{background:var(--red);box-shadow:0 0 6px var(--red)}
+  .icon-btn{
+    width:26px;height:26px;border-radius:6px;border:1px solid var(--line);
+    background:rgba(255,255,255,.02);color:var(--dim);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:12px;
+    transition:.15s;
+  }
+  .icon-btn:hover{color:var(--txt);border-color:#3a4560;background:rgba(255,255,255,.05);transform:translateY(-1px)}
 
-    .status-dot { width:6px; height:6px; border-radius:50%; display:inline-block; flex-shrink:0; }
-    .status-dot.connected    { background:#22c55e; }
-    .status-dot.connecting   { background:#f59e0b; animation:pulse 1s infinite; }
-    .status-dot.disconnected { background:#ef4444; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+  /* instrument */
+  #price{
+    font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:26px;line-height:1;
+    letter-spacing:.01em;padding:2px 6px;border-radius:5px;transition:color .2s;
+  }
+  #price.up{color:var(--green);animation:flashUp .5s ease-out}
+  #price.dn{color:var(--red);animation:flashDn .5s ease-out}
+  @keyframes flashUp{0%{background:rgba(23,210,173,.25)}100%{background:transparent}}
+  @keyframes flashDn{0%{background:rgba(246,70,93,.25)}100%{background:transparent}}
+  select,input[type=number]{
+    background:var(--bg1);border:1px solid var(--line);color:var(--txt);
+    border-radius:5px;font-family:'JetBrains Mono',monospace;outline:none;transition:border .15s;
+  }
+  select:focus,input:focus{border-color:var(--green)}
 
-    #ex-status-panel { display:grid; grid-template-columns:repeat(4,1fr); gap:2px; }
-    .ex-status-chip  { display:flex; align-items:center; gap:3px; font-size:8px; padding:2px 3px; background:#131722; border-radius:3px; overflow:hidden; white-space:nowrap; }
+  /* DOM */
+  .dom-row{position:relative;display:flex;justify-content:space-between;padding:1px 10px;font-size:10.5px;line-height:1.7;transition:background .12s}
+  .dom-row:hover{background:rgba(255,255,255,.03)}
+  .dom-bar{position:absolute;top:0;bottom:0;right:0;opacity:.14;pointer-events:none;transition:width .18s ease}
+  .dom-col{position:relative;z-index:1}
+  .ask{color:var(--red)} .bid{color:var(--green)}
+  #spreadbar{
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    margin:3px 8px;padding:3px 0;border-radius:4px;
+    background:var(--bg2);font-size:10px;font-weight:700;color:var(--amber);
+    border:1px solid transparent;transition:.2s;flex-shrink:0;
+  }
+  #spreadbar.custom{border-color:var(--amber);box-shadow:0 0 10px rgba(240,185,11,.2)}
+  #spread-input{width:52px;text-align:center;font-size:10px;padding:1px 2px;color:var(--amber)}
 
-    .tape-row {
-      display:grid; grid-template-columns:1fr 1fr 1fr; align-items:center;
-      font-family:monospace; font-size:11px; line-height:1.6;
-      padding:1px 6px 1px 8px;
-      border-left:3px solid transparent;
-      border-bottom:1px solid #1a1d2e;
-    }
-    .tape-row .t-qty  { text-align:right; }
-    .tape-row .t-time { text-align:right; color:#6b7280; font-size:10px; }
-    .tape-buy  { color:#4ade80; }
-    .tape-sell { color:#f87171; }
+  /* tape */
+  .tape-row{
+    display:grid;grid-template-columns:1.1fr .8fr .9fr;align-items:center;
+    font-size:10px;line-height:1.65;padding:1px 8px 1px 9px;
+    border-left:3px solid transparent;border-bottom:1px solid rgba(36,44,61,.5);
+    animation:rowIn .22s ease-out;
+  }
+  @keyframes rowIn{from{opacity:0;transform:translateX(7px)}to{opacity:1;transform:none}}
+  .tape-row .q{text-align:right}.tape-row .t{text-align:right;color:var(--dim);font-size:9px}
+  .tb{color:var(--green)} .ts{color:var(--red)}
+  .ex-BINANCE{border-color:#f0b90b}.ex-BINANCEFUT{border-color:#f3d06d}.ex-BYBIT{border-color:#ff6b35}.ex-BYBITLIN{border-color:#ff9a6c}
+  .ex-OKX{border-color:#60a5fa}.ex-OKXFUT{border-color:#93c5fd}.ex-GATE{border-color:#34d399}.ex-MEXC{border-color:#a78bfa}
+  .ex-BITGET{border-color:#fb923c}.ex-KUCOIN{border-color:#22d3ee}.ex-BITSTAMP{border-color:#84cc16}.ex-GEMINI{border-color:#e879f9}
+  .ex-KRAKEN{border-color:#7c3aed}.ex-COINBASE{border-color:#0ea5e9}.ex-BITFINEX{border-color:#f97316}.ex-HTX{border-color:#10b981}
+  .ex-PHEMEX{border-color:#d946ef}.ex-POLONIEX{border-color:#fcd34d}.ex-BINGX{border-color:#38bdf8}.ex-WOOX{border-color:#ec4899}.ex-DERIBIT{border-color:#c084fc}
 
-    #dom-spread {
-      text-align:center; font-family:monospace; font-weight:700; font-size:11px;
-      color:#facc15; background:#1c2030; border-radius:3px;
-      padding:2px 0; margin:2px 0; flex-shrink:0;
-    }
+  /* stats */
+  #stats{display:flex;gap:6px;padding:6px 8px}
+  .stat{flex:1;background:var(--bg1);border:1px solid var(--line);border-radius:5px;padding:4px 6px;transition:.15s}
+  .stat:hover{border-color:#3a4560}
+  .stat .l{font-size:8px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+  .stat .v{font-size:12px;font-weight:700}
 
-    /* ── AI Panel ── */
-    #ai-panel { display:flex; flex-direction:column; background:#0d1117; border-top:1px solid #2a2e39; transition:height .25s ease; overflow:hidden; }
-    #ai-messages { flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:6px; font-size:11px; line-height:1.5; min-height:0; }
-    .msg-user  { align-self:flex-end; background:#1c3a5e; color:#bfdbfe; border-radius:8px 8px 2px 8px; padding:5px 9px; max-width:88%; white-space:pre-wrap; word-break:break-word; }
-    .msg-ai    { align-self:flex-start; background:#1a1f2e; color:#d1d5db; border-radius:8px 8px 8px 2px; padding:5px 9px; max-width:94%; white-space:pre-wrap; word-break:break-word; border-left:3px solid #7c3aed; }
-    .msg-think { align-self:flex-start; background:#111827; color:#6b7280; border-radius:4px; padding:4px 8px; max-width:94%; white-space:pre-wrap; word-break:break-word; font-style:italic; font-size:10px; border-left:3px solid #374151; }
-    .msg-err   { align-self:center; background:#3b0000; color:#fca5a5; border-radius:6px; padding:6px 10px; font-size:10px; font-family:monospace; white-space:pre-wrap; max-width:96%; }
-    .msg-sys   { align-self:center; color:#6b7280; font-size:10px; font-style:italic; }
+  /* AI */
+  #ai{display:flex;flex-direction:column;background:rgba(13,15,23,.7);transition:height .25s ease;overflow:hidden;flex-shrink:0}
+  #ai-head{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;cursor:pointer;user-select:none;border-top:1px solid var(--line)}
+  #ai-head:hover{background:rgba(255,255,255,.02)}
+  .ai-badge{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--purple);text-transform:uppercase}
+  .nim-dot{width:6px;height:6px;border-radius:50%;background:#76b900;box-shadow:0 0 6px #76b900}
+  .nim-dot.busy{animation:pulse .6s infinite}
+  #ai-msgs{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px;font-size:10.5px;line-height:1.5;min-height:0}
+  .m-u{align-self:flex-end;background:#1c3a5e;color:#bfdbfe;border-radius:8px 8px 2px 8px;padding:5px 8px;max-width:90%;white-space:pre-wrap;word-break:break-word}
+  .m-a{align-self:flex-start;background:var(--bg2);color:#cfd4e0;border-radius:8px 8px 8px 2px;padding:5px 8px;max-width:94%;white-space:pre-wrap;word-break:break-word;border-left:2px solid var(--purple)}
+  .m-t{align-self:flex-start;background:#10141f;color:var(--dim);border-radius:4px;padding:4px 7px;max-width:94%;white-space:pre-wrap;font-style:italic;font-size:9.5px;border-left:2px solid #374151}
+  .m-e{align-self:center;background:#3b0d0d;color:#fca5a5;border-radius:5px;padding:5px 8px;font-size:9.5px;max-width:96%;white-space:pre-wrap}
+  .m-s{align-self:center;color:var(--dim);font-size:9px;font-style:italic}
+  #ai-inrow{display:flex;gap:4px;padding:6px 8px;border-top:1px solid var(--line)}
+  #ai-in{flex:1;background:var(--bg1);border:1px solid var(--line);color:var(--txt);font-size:10.5px;font-family:'JetBrains Mono',monospace;padding:5px 7px;border-radius:5px;outline:none;resize:none;min-height:30px;max-height:70px}
+  #ai-in:focus{border-color:var(--purple)}
+  #ai-send{background:var(--purple);color:#fff;font-size:9px;font-weight:700;border:none;border-radius:5px;padding:0 11px;cursor:pointer;transition:.15s;flex-shrink:0}
+  #ai-send:hover:not(:disabled){background:#7a68f0;transform:translateY(-1px)}
+  #ai-send:disabled{opacity:.4;cursor:not-allowed}
 
-    #ai-input-row { display:flex; gap:4px; padding:6px 8px; border-top:1px solid #1e2433; flex-shrink:0; }
-    #ai-input { flex:1; background:#131722; border:1px solid #2a2e39; color:#e5e7eb; font-size:11px; font-family:monospace; padding:5px 8px; border-radius:5px; outline:none; resize:none; min-height:32px; max-height:80px; }
-    #ai-input:focus { border-color:#7c3aed; }
-    #ai-send-btn { background:#7c3aed; color:#fff; font-size:10px; font-weight:700; border:none; border-radius:5px; padding:0 12px; cursor:pointer; transition:background .15s; flex-shrink:0; }
-    #ai-send-btn:hover:not(:disabled) { background:#6d28d9; }
-    #ai-send-btn:disabled { opacity:.4; cursor:not-allowed; }
-    #ai-header { display:flex; align-items:center; justify-content:space-between; padding:5px 8px; border-bottom:1px solid #1e2433; cursor:pointer; user-select:none; flex-shrink:0; }
-    #ai-header:hover { background:#111827; }
-    .ai-badge { display:inline-flex; align-items:center; gap:5px; font-size:9px; font-weight:700; letter-spacing:.08em; color:#a78bfa; text-transform:uppercase; }
-    .nim-dot { width:6px; height:6px; border-radius:50%; background:#76b900; flex-shrink:0; }
-    .nim-dot.busy { animation:pulse .7s infinite; }
+  /* modals */
+  .modal{position:fixed;inset:0;background:rgba(5,7,12,.85);backdrop-filter:blur(5px);z-index:70;display:flex;align-items:center;justify-content:center}
+  .modal.hidden{display:none}
+  .modal-box{background:var(--bg1);border:1px solid #333d55;border-radius:10px;padding:22px;width:340px;max-width:92vw;box-shadow:0 25px 70px rgba(0,0,0,.7);animation:pop .2s ease-out}
+  @keyframes pop{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}
+  .fld{display:block;font-size:8.5px;font-weight:700;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;margin:12px 0 4px}
+  .modal input[type=url],.modal input[type=password]{width:100%;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:11px;font-family:'JetBrains Mono',monospace;padding:7px 9px;border-radius:6px;outline:none;transition:border .15s}
+  .modal input:focus{border-color:var(--green)}
+  .btn{border:none;border-radius:6px;font-size:11px;font-weight:700;padding:8px 12px;cursor:pointer;transition:.15s;font-family:'Chakra Petch',sans-serif}
+  .btn:hover{transform:translateY(-1px)}
+  .btn-g{background:var(--green);color:#06251d}.btn-g:hover{box-shadow:0 4px 14px rgba(23,210,173,.35)}
+  .btn-p{background:var(--purple);color:#fff}.btn-p:hover{box-shadow:0 4px 14px rgba(139,124,246,.35)}
+  .btn-d{background:var(--bg2);color:var(--dim)}.btn-d:hover{color:var(--txt)}
 
-    #proxy-bar { font-size:9px; font-family:monospace; padding:2px 8px; text-align:center; flex-shrink:0; }
-    #proxy-bar.ok      { background:#0a1f0a; color:#4ade80; }
-    #proxy-bar.bad     { background:#1f0a0a; color:#f87171; }
-    #proxy-bar.loading { background:#1a1505; color:#facc15; }
-
-    /* ── Backend modal ── */
-    #backend-modal { position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:70; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
-    #backend-modal.hidden { display:none; }
-    #backend-modal-box { background:#111827; border:1px solid #374151; border-radius:12px; padding:28px; width:480px; max-width:92vw; box-shadow:0 25px 80px rgba(0,0,0,.7); }
-
-    /* ── Key modal ── */
-    #key-modal { position:fixed; inset:0; background:rgba(0,0,0,.78); z-index:60; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
-    #key-modal.hidden { display:none; }
-    #key-modal-box { background:#1c2030; border:1px solid #374151; border-radius:10px; padding:28px; width:400px; box-shadow:0 25px 60px rgba(0,0,0,.6); }
-    .nim-logo { font-size:11px; font-weight:800; letter-spacing:.12em; color:#76b900; }
-
-    /* ── Debug drawer ── */
-    #debug-drawer { position:fixed; bottom:0; left:0; right:0; height:180px; background:#0a0a0f; border-top:1px solid #374151; z-index:50; font-family:monospace; font-size:10px; overflow-y:auto; padding:6px 10px; color:#9ca3af; display:none; }
-    #debug-drawer.open { display:block; }
-  </style>
+  #debug{position:fixed;bottom:0;left:0;right:0;height:160px;background:#080a10;border-top:1px solid #333d55;z-index:80;font-size:9px;overflow-y:auto;padding:6px 10px;color:#9aa3b8;display:none}
+  #debug.open{display:block}
+</style>
 </head>
+<body>
 
-<body class="flex h-screen w-screen font-sans antialiased">
+<div id="dock">
 
-  <!-- ══════════════ BACKEND STATUS / CONNECT PAGE ══════════════ -->
-  <div id="backend-modal">
-    <div id="backend-modal-box">
-      <div class="flex items-center gap-3 mb-1">
-        <span class="text-green-400 font-black tracking-widest text-xs">OMNI STREAM</span>
-        <span class="text-neutral-500 text-xs">×</span>
-        <span class="text-purple-400 font-bold text-xs tracking-wider">Grey Hat Backend</span>
-      </div>
+  <!-- ══ BRAND BAR ══ -->
+  <div id="brandbar">
+    <div class="logo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#06251d" stroke-width="2.6" stroke-linecap="round"><path d="M3 17l5-6 4 4 6-8 3 4"/></svg></div>
+    <div style="flex:1;min-width:0">
+      <div class="disp" style="font-weight:700;font-size:13px;letter-spacing:.14em;line-height:1">OMNI<span style="color:var(--green)">·</span>DOCK</div>
+      <div style="font-size:8px;color:var(--dim);letter-spacing:.18em;text-transform:uppercase">orderflow terminal</div>
+    </div>
+    <div class="status-chip" id="net-chip" title="Backend status"><span class="d warn" id="net-dot"></span><span id="net-txt">…</span></div>
+    <button class="icon-btn" onclick="openBackendModal()" title="Backend">⚙</button>
+    <button class="icon-btn" onclick="openKeyModal()" title="NIM key">🔑</button>
+  </div>
 
-      <p class="text-[11px] text-neutral-400 leading-relaxed mt-2">
-        This is an open-source static frontend. It connects to a self-hosted Rust proxy backend for
-        NVIDIA NIM (AES-GCM encrypted), KuCoin, Phemex, and TradingView MITM proxy.
-        <br /><br />
-        Enter your backend URL below.
-      </p>
-
-      <label class="block text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1 mt-4">Backend URL</label>
-      <input id="backend-url-input" type="url" placeholder="https://your-backend.onrender.com"
-             class="w-full bg-[#131722] border border-neutral-700 text-xs font-mono text-neutral-200 py-2 px-3 rounded outline-none focus:border-green-600 transition-colors" />
-
-      <div id="backend-status" class="text-[10px] font-mono my-3 px-3 py-2 rounded border bg-[#131722] text-neutral-500 border-neutral-800">
-        Idle. Enter a backend URL and click Test.
-      </div>
-
-      <label class="flex items-center gap-2 text-[10px] text-neutral-500 mt-1 mb-4 cursor-pointer select-none">
-        <input id="allow-no-backend" type="checkbox" class="accent-purple-600" />
-        Allow limited mode without backend (disables NIM, KuCoin, Phemex, TV Proxy)
-      </label>
-
-      <div class="flex gap-2">
-        <button onclick="testBackend()" class="px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold py-2 rounded transition-colors cursor-pointer">
-          Test Connection
-        </button>
-        <button onclick="connectBackend()" class="flex-1 bg-green-700 hover:bg-green-600 text-white text-xs font-bold py-2 rounded transition-colors cursor-pointer">
-          Launch Terminal
-        </button>
-      </div>
-
-      <p class="mt-4 text-[9px] text-neutral-600 leading-relaxed">
-        Expected backend health endpoint: <code class="text-green-500">/healthz</code><br />
-        Expected proxy routes: <code class="text-neutral-400">/api/nim/chat/completions</code>, <code class="text-neutral-400">/api/config/keys</code>, <code class="text-neutral-400">/tv-proxy/...</code>
-      </p>
+  <!-- ══ INSTRUMENT ══ -->
+  <div class="sec" style="padding:8px 10px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <select id="asset" onchange="switchSymbol(this.value)" style="flex:1;font-size:11px;font-weight:700;color:var(--amber);padding:4px 6px;cursor:pointer">
+        <option value="BTCUSDT">BTC / USDT</option>
+        <option value="ETHUSDT">ETH / USDT</option>
+        <option value="SOLUSDT">SOL / USDT</option>
+        <option value="BNBUSDT">BNB / USDT</option>
+        <option value="XRPUSDT">XRP / USDT</option>
+      </select>
+      <div id="price" class="up">--</div>
     </div>
   </div>
 
-  <!-- ══════════════ KEY MODAL ══════════════ -->
-  <div id="key-modal" class="hidden">
-    <div id="key-modal-box">
-      <div class="flex items-center gap-3 mb-1">
-        <span class="nim-logo">NVIDIA NIM</span>
-        <span class="text-neutral-500 text-xs">×</span>
-        <span class="text-purple-400 font-bold text-xs tracking-wider">GLM-5.2</span>
-      </div>
+  <!-- ══ ORDER BOOK ══ -->
+  <div class="sec" style="display:flex;flex-direction:column;flex:1.25;min-height:120px;overflow:hidden">
+    <div class="sec-h"><span class="tag"><span class="live-dot"></span>Depth</span><span id="dom-exch" style="color:var(--amber)">BINANCE</span></div>
+    <div id="dom-asks" style="flex:1;display:flex;flex-direction:column-reverse;overflow:hidden"></div>
+    <div id="spreadbar">
+      <span>SPREAD</span><span id="spread-live">$--</span>
+      <input id="spread-input" type="number" step="any" min="0" placeholder="auto" title="Override spread — empty = live" oninput="setCustomSpread(this.value)"/>
+    </div>
+    <div id="dom-bids" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
+  </div>
 
-      <p class="text-[10px] text-neutral-500 mb-1 leading-relaxed mt-2">
-        Enter your <code class="text-green-400">nvapi-</code> key from
-        <a href="https://build.nvidia.com" target="_blank" class="text-blue-400 underline">build.nvidia.com</a>.
-        It will be encrypted locally via AES-GCM before being sent to your backend.
-      </p>
+  <!-- ══ TAPE ══ -->
+  <div class="sec" style="display:flex;flex-direction:column;flex:1;min-height:90px;overflow:hidden">
+    <div class="sec-h"><span class="tag"><span class="live-dot"></span>Time &amp; Sales</span><span id="tape-count" style="color:var(--dim)">0</span></div>
+    <div id="tape" style="flex:1;overflow:hidden;display:flex;flex-direction:column-reverse"></div>
+  </div>
 
-      <label class="block text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1 mt-3">NVIDIA API Key</label>
-      <input id="nim-key-input" type="password" placeholder="nvapi-..."
-             class="w-full bg-[#131722] border border-neutral-700 text-xs font-mono text-neutral-200 py-2 px-3 rounded outline-none focus:border-purple-600 transition-colors mb-4" />
+  <!-- ══ STATS ══ -->
+  <div id="stats" class="sec">
+    <div class="stat"><div class="l">Streams</div><div class="v" id="st-streams" style="color:var(--green)">0/0</div></div>
+    <div class="stat"><div class="l">Trades/s</div><div class="v" id="st-tps" style="color:var(--amber)">0</div></div>
+    <div class="stat"><div class="l">Vol</div><div class="v" id="st-vol" style="color:#60a5fa">--</div></div>
+  </div>
 
-      <div class="flex gap-2">
-        <button onclick="saveNimKey()" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 rounded transition-colors cursor-pointer">Save & Launch</button>
-        <button onclick="dismissModal()" class="px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 text-xs font-bold py-2 rounded transition-colors cursor-pointer">Skip</button>
-      </div>
-
-      <p id="key-err" class="mt-2 text-[10px] text-center hidden"></p>
+  <!-- ══ AI ══ -->
+  <div id="ai" style="height:230px">
+    <div id="ai-head" onclick="toggleAi()">
+      <span class="ai-badge"><span class="nim-dot" id="nim-dot"></span>NIM · GLM-5.2</span>
+      <span id="ai-chev" style="color:var(--dim);font-size:10px">▼</span>
+    </div>
+    <div id="ai-msgs"></div>
+    <div id="ai-inrow">
+      <textarea id="ai-in" rows="1" placeholder="Ask about the tape…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendToGLM()}"></textarea>
+      <button id="ai-send" onclick="sendToGLM()">SEND</button>
     </div>
   </div>
 
-  <!-- ══════════════ DEBUG DRAWER ══════════════ -->
-  <div id="debug-drawer">
-    <div class="flex justify-between items-center mb-1">
-      <span class="text-purple-400 font-bold text-[10px]">▶ Debug Log</span>
-      <button onclick="toggleDebug()" class="text-neutral-600 hover:text-neutral-300 cursor-pointer text-[10px]">✕</button>
+</div>
+
+<!-- ══ BACKEND MODAL ══ -->
+<div id="backend-modal" class="modal hidden">
+  <div class="modal-box">
+    <div class="disp" style="font-weight:700;font-size:14px;letter-spacing:.1em">BACKEND <span style="color:var(--green)">LINK</span></div>
+    <p style="font-size:10px;color:var(--dim);margin:6px 0 0;line-height:1.5">Rust proxy for NIM (AES-GCM) + KuCoin. Health endpoint <code style="color:var(--green)">/healthz</code>.</p>
+    <label class="fld">Backend URL</label>
+    <input id="backend-url" type="url" placeholder="https://your-backend.onrender.com"/>
+    <div id="backend-status" style="font-size:9.5px;color:var(--dim);margin:8px 2px;min-height:14px">Idle.</div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:9.5px;color:var(--dim);cursor:pointer;margin-top:4px">
+      <input type="checkbox" id="allow-nobackend" style="accent-color:var(--purple)"/> Run limited mode (no NIM / KuCoin)
+    </label>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-d" onclick="testBackend()">Test</button>
+      <button class="btn btn-g" style="flex:1" onclick="connectBackend()">Launch Dock</button>
     </div>
-    <div id="debug-log"></div>
   </div>
+</div>
 
-  <!-- ══════════════ LEFT: Chart (75%) ══════════════ -->
-  <div class="flex-shrink-0 h-full relative border-r border-neutral-800" style="width:75%;">
-    <div id="chart-container" style="width:100%;height:100%;"></div>
+<!-- ══ KEY MODAL ══ -->
+<div id="key-modal" class="modal hidden">
+  <div class="modal-box">
+    <div class="disp" style="font-weight:700;font-size:14px;letter-spacing:.1em">NVIDIA <span style="color:#76b900">NIM</span></div>
+    <p style="font-size:10px;color:var(--dim);margin:6px 0 0;line-height:1.5">Your <code style="color:var(--green)">nvapi-</code> key, encrypted locally with AES-GCM before it touches the wire.</p>
+    <label class="fld">API Key</label>
+    <input id="nim-key" type="password" placeholder="nvapi-…"/>
+    <p id="key-err" style="font-size:9.5px;margin:8px 2px;min-height:12px"></p>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-d" onclick="closeKeyModal()">Skip</button>
+      <button class="btn btn-p" style="flex:1" onclick="saveNimKey()">Encrypt &amp; Save</button>
+    </div>
   </div>
-
-  <!-- ══════════════ RIGHT: Sidebar (25%) ══════════════ -->
-  <div class="h-full flex flex-col bg-[#131722] select-none overflow-hidden" style="width:25%;">
-
-    <!-- Header -->
-    <div class="flex-shrink-0 px-3 py-2 border-b border-neutral-800 bg-[#1c2030] space-y-2">
-      <div class="flex items-center gap-2">
-        <div class="flex-1">
-          <label class="block text-[9px] font-bold text-neutral-500 tracking-widest uppercase mb-0.5">Instrument</label>
-          <select id="asset-selector" onchange="switchSymbol(this.value)"
-                  class="w-full bg-[#131722] border border-neutral-800 text-xs text-yellow-400 font-mono font-bold py-1 px-2 rounded cursor-pointer focus:outline-none">
-            <option value="BTCUSDT">BTC / USDT</option>
-            <option value="ETHUSDT">ETH / USDT</option>
-            <option value="SOLUSDT">SOL / USDT</option>
-            <option value="BNBUSDT">BNB / USDT</option>
-            <option value="XRPUSDT">XRP / USDT</option>
-          </select>
-        </div>
-        <div class="flex flex-col items-end gap-1 flex-shrink-0 pt-3">
-          <div id="ticker-price" class="font-mono font-bold text-base text-neutral-100 tabular-nums">--</div>
-          <button onclick="resetChartDrawings()" class="text-[8px] text-neutral-500 hover:text-purple-400 font-mono cursor-pointer border border-neutral-700 px-1.5 py-0.5 rounded bg-[#131722] transition-colors">Reset Chart</button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-3 gap-1 text-[9px] font-mono">
-        <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Streams</div><div id="stat-streams" class="text-green-400 font-bold">0/0</div></div>
-        <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Trades/s</div><div id="stat-tps" class="text-yellow-400 font-bold">0</div></div>
-        <div class="bg-[#131722] rounded px-1.5 py-1"><div class="text-neutral-500">Volume</div><div id="stat-vol" class="text-blue-400 font-bold">--</div></div>
-      </div>
-    </div>
-
-    <!-- Order Book -->
-    <div class="flex-shrink-0 flex flex-col px-2 py-1 border-b border-neutral-800" style="height:220px;">
-      <div class="grid grid-cols-2 text-[9px] text-neutral-500 pb-0.5 border-b border-neutral-800 mb-0.5 font-mono">
-        <span>Price (USDT)</span><span class="text-right">Size</span>
-      </div>
-      <div id="dom-asks" class="flex flex-col-reverse overflow-hidden flex-1"></div>
-      <div id="dom-spread">SPREAD: --</div>
-      <div id="dom-bids" class="flex flex-col overflow-hidden flex-1"></div>
-    </div>
-
-    <!-- Tape -->
-    <div class="flex flex-col overflow-hidden" style="flex:1 1 0;min-height:0;">
-      <div class="flex-shrink-0 grid grid-cols-3 text-[9px] text-neutral-500 px-2 py-1 border-b border-neutral-800 bg-[#1c2030] font-mono">
-        <span>Price</span><span class="text-right">Qty</span><span class="text-right">Time</span>
-      </div>
-      <div id="market-trades" class="flex-1 overflow-hidden flex flex-col-reverse" style="min-height:0;"></div>
-    </div>
-
-    <!-- AI Panel -->
-    <div id="ai-panel" style="height:310px;flex-shrink:0;">
-      <div id="ai-header" onclick="toggleAiPanel()">
-        <span class="ai-badge"><span class="nim-dot" id="nim-dot"></span>NVIDIA NIM · GLM-5.2</span>
-        <div class="flex items-center gap-3">
-          <button onclick="event.stopPropagation();toggleDebug()" class="text-neutral-600 hover:text-neutral-300 text-[9px] font-mono cursor-pointer">dbg</button>
-          <button onclick="event.stopPropagation();openBackendModal()" class="text-neutral-600 hover:text-neutral-300 text-[9px] font-mono cursor-pointer">⚙ backend</button>
-          <button onclick="event.stopPropagation();openKeyModal()" class="text-neutral-600 hover:text-neutral-300 text-[9px] font-mono cursor-pointer">⚙ key</button>
-          <span id="ai-chevron" class="text-neutral-500 text-[10px]">▼</span>
-        </div>
-      </div>
-
-      <div id="proxy-bar" class="loading">⏳ waiting for backend…</div>
-
-      <div id="ai-messages"></div>
-
-      <div id="ai-input-row">
-        <textarea id="ai-input" rows="1" placeholder="Ask GLM-5.2 about the market…" onkeydown="handleAiKey(event)"></textarea>
-        <button id="ai-send-btn" onclick="sendToGLM()">Send</button>
-      </div>
-    </div>
-
-    <!-- Exchange Status: names removed; hidden state panel kept for JS compatibility -->
-    <div id="ex-status-panel" style="display:none;"></div>
-  </div>
-
-  <script>
-  // ═══════════════════════════════════════════════════════════════════════
-  // GREY HAT CONFIGURATION
-  // ═══════════════════════════════════════════════════════════════════════
-  const SHARED_SECRET_HEX = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // CONSTANTS
-  // ═══════════════════════════════════════════════════════════════════════
-  const MAX_TAPE   = 120;
-  const MAX_LEVELS = 12;
-  const TPS_WIN    = 2000;
-  const NIM_MODEL  = 'z-ai/glm-5.2';
-
-  let TOTAL_EX = 21;
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // STATE
-  // ═══════════════════════════════════════════════════════════════════════
-  let currentBase = 'BTCUSDT';
-  let tape=[], stamps=[], lastPrice=0, vol=0;
-  const sockets={}, pings={};
-  const book={asks:[],bids:[]};
-
-  let nimKey    = sessionStorage.getItem('nim_key') || '';
-  let aiHistory = [];
-  let aiOpen    = true;
-  let aiBusy    = false;
-
-  let BACKEND_URL = loadBackendUrl();
-  let backendHealthy = false;
-  let terminalStarted = false;
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // EXCHANGE REGISTRY
-  // ═══════════════════════════════════════════════════════════════════════
-  const EXCHANGES = [
-    {id:'BINANCE',   label:'Binance'  }, {id:'BINANCEFUT',label:'BNB Fut' },
-    {id:'BYBIT',     label:'Bybit'    }, {id:'BYBITLIN',  label:'Bybit Lin'},
-    {id:'OKX',       label:'OKX'      }, {id:'OKXFUT',    label:'OKX Fut'  },
-    {id:'GATE',      label:'Gate.io'  }, {id:'MEXC',      label:'MEXC'     },
-    {id:'BITGET',    label:'Bitget'   }, {id:'KUCOIN',    label:'KuCoin'   },
-    {id:'BITSTAMP',  label:'Bitstamp' }, {id:'GEMINI',    label:'Gemini'   },
-    {id:'KRAKEN',    label:'Kraken'   }, {id:'COINBASE',  label:'Coinbase' },
-    {id:'BITFINEX',  label:'Bitfinex' }, {id:'HTX',       label:'HTX'      },
-    {id:'PHEMEX',    label:'Phemex'   }, {id:'POLONIEX',  label:'Poloniex' },
-    {id:'BINGX',     label:'BingX'    }, {id:'WOOX',      label:'WOO X'    },
-    {id:'DERIBIT',   label:'Deribit'  },
-  ];
-
-  const exStatus={};
-  EXCHANGES.forEach(e => exStatus[e.id] = 'disconnected');
-  const DISABLED_EX = new Set(['KUCOIN', 'PHEMEX']);
-
-  function recalcTotalEx(){
-    TOTAL_EX = EXCHANGES.filter(e => !DISABLED_EX.has(e.id)).length;
-    refreshStreamCount();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // SYMBOL MAP
-  // ═══════════════════════════════════════════════════════════════════════
-  const SYM={
-    BTCUSDT:{BINANCE:'btcusdt',BINANCEFUT:'btcusdt',BYBIT:'BTCUSDT',BYBITLIN:'BTCUSDT',OKX:'BTC-USDT',OKXFUT:'BTC-USDT-SWAP',GATE:'BTC_USDT',MEXC:'BTCUSDT',BITGET:'BTCUSDT',KUCOIN:'BTC-USDT',BITSTAMP:'btcusdt',GEMINI:'BTCUSD',KRAKEN:'BTC/USDT',COINBASE:'BTC-USDT',BITFINEX:'tBTCUSD',HTX:'btcusdt',PHEMEX:'BTCUSDT',POLONIEX:'BTC_USDT',BINGX:'BTC-USDT',WOOX:'SPOT_BTC_USDT',DERIBIT:'BTC_USDT'},
-    ETHUSDT:{BINANCE:'ethusdt',BINANCEFUT:'ethusdt',BYBIT:'ETHUSDT',BYBITLIN:'ETHUSDT',OKX:'ETH-USDT',OKXFUT:'ETH-USDT-SWAP',GATE:'ETH_USDT',MEXC:'ETHUSDT',BITGET:'ETHUSDT',KUCOIN:'ETH-USDT',BITSTAMP:'ethusdt',GEMINI:'ETHUSD',KRAKEN:'ETH/USDT',COINBASE:'ETH-USDT',BITFINEX:'tETHUSD',HTX:'ethusdt',PHEMEX:'ETHUSDT',POLONIEX:'ETH_USDT',BINGX:'ETH-USDT',WOOX:'SPOT_ETH_USDT',DERIBIT:'ETH_USDT'},
-    SOLUSDT:{BINANCE:'solusdt',BINANCEFUT:'solusdt',BYBIT:'SOLUSDT',BYBITLIN:'SOLUSDT',OKX:'SOL-USDT',OKXFUT:'SOL-USDT-SWAP',GATE:'SOL_USDT',MEXC:'SOLUSDT',BITGET:'SOLUSDT',KUCOIN:'SOL-USDT',BITSTAMP:'solusd',GEMINI:'SOLUSD',KRAKEN:'SOL/USDT',COINBASE:'SOL-USDT',BITFINEX:'tSOLUSD',HTX:'solusdt',PHEMEX:'SOLUSDT',POLONIEX:'SOL_USDT',BINGX:'SOL-USDT',WOOX:'SPOT_SOL_USDT',DERIBIT:null},
-    BNBUSDT:{BINANCE:'bnbusdt',BINANCEFUT:'bnbusdt',BYBIT:'BNBUSDT',BYBITLIN:'BNBUSDT',OKX:'BNB-USDT',OKXFUT:null,GATE:'BNB_USDT',MEXC:'BNBUSDT',BITGET:'BNBUSDT',KUCOIN:'BNB-USDT',BITSTAMP:null,GEMINI:null,KRAKEN:null,COINBASE:null,BITFINEX:null,HTX:'bnbusdt',PHEMEX:'BNBUSDT',POLONIEX:'BNB_USDT',BINGX:'BNB-USDT',WOOX:'SPOT_BNB_USDT',DERIBIT:null},
-    XRPUSDT:{BINANCE:'xrpusdt',BINANCEFUT:'xrpusdt',BYBIT:'XRPUSDT',BYBITLIN:'XRPUSDT',OKX:'XRP-USDT',OKXFUT:'XRP-USDT-SWAP',GATE:'XRP_USDT',MEXC:'XRPUSDT',BITGET:'XRPUSDT',KUCOIN:'XRP-USDT',BITSTAMP:'xrpusdt',GEMINI:'XRPUSD',KRAKEN:'XRP/USDT',COINBASE:'XRP-USDT',BITFINEX:'tXRPUSD',HTX:'xrpusdt',PHEMEX:'XRPUSDT',POLONIEX:'XRP_USDT',BINGX:'XRP-USDT',WOOX:'SPOT_XRP_USDT',DERIBIT:null},
-  };
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // BACKEND STORAGE
-  // ═══════════════════════════════════════════════════════════════════════
-  function loadBackendUrl(){
-    try { return localStorage.getItem('backend_url') || ''; } catch { return ''; }
-  }
-
-  function saveBackendUrl(url){
-    try {
-      if (url) localStorage.setItem('backend_url', url);
-      else localStorage.removeItem('backend_url');
-    } catch {}
-  }
-
-  function normalizeBackendUrl(raw){
-    let u = (raw || '').trim();
-    if (!u) return '';
-    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
-    try { return new URL(u).origin; } catch { return ''; }
-  }
-
-  function wsBaseFromHttpUrl(raw){
-    try {
-      const u = new URL(raw);
-      return (u.protocol === 'https:' ? 'wss://' : 'ws://') + u.host;
-    } catch { return ''; }
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // AES-GCM ENCRYPTION
-  // ═══════════════════════════════════════════════════════════════════════
-  async function encryptAES(text, hexKey) {
-    const enc = new TextEncoder();
-    const keyBytes = new Uint8Array(hexKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-    const cryptoKey = await window.crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]);
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, cryptoKey, enc.encode(text));
-    return {
-      iv: btoa(String.fromCharCode(...iv)),
-      ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext)))
-    };
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // DEBUG
-  // ═══════════════════════════════════════════════════════════════════════
-  function dbg(label,...args){
-    const msg=args.map(a=>typeof a==='object'?JSON.stringify(a):String(a)).join(' ');
-    console.log(`[${label}]`,msg);
-    const el=document.getElementById('debug-log');
-    if(!el) return;
-    const line=document.createElement('div');
-    line.style.cssText='border-bottom:1px solid #1f2937;padding-bottom:2px;margin-bottom:2px;';
-    const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    line.innerHTML=`<span style="color:#6b7280">${ts}</span> <span style="color:#a78bfa">[${label}]</span> ${msg}`;
-    el.insertBefore(line,el.firstChild);
-    if(el.children.length>80) el.lastChild.remove();
-  }
-
-  function toggleDebug(){
-    document.getElementById('debug-drawer').classList.toggle('open');
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // BACKEND STATUS PAGE
-  // ═══════════════════════════════════════════════════════════════════════
-  function setBackendStatus(state, msg){
-    const el = document.getElementById('backend-status');
-    if (!el) return;
-    const base = 'text-[10px] font-mono my-3 px-3 py-2 rounded border';
-    if (state === 'ok') {
-      el.className = `${base} bg-[#0a1f0a] text-green-400 border-green-900`;
-      el.textContent = `✓ ${msg}`;
-    } else if (state === 'bad') {
-      el.className = `${base} bg-[#1f0a0a] text-red-400 border-red-900`;
-      el.textContent = `✗ ${msg}`;
-    } else if (state === 'loading') {
-      el.className = `${base} bg-[#1a1505] text-yellow-400 border-yellow-900`;
-      el.textContent = `⏳ ${msg}`;
-    } else {
-      el.className = `${base} bg-[#131722] text-neutral-500 border-neutral-800`;
-      el.textContent = msg;
-    }
-  }
-
-  async function checkBackend(url){
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4000);
-      const r = await fetch(`${url}/healthz`, { cache: 'no-store', signal: controller.signal });
-      clearTimeout(timer);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json();
-      return j?.ok === true;
-    } catch (err) {
-      dbg('BACKEND', `health check failed: ${err.message}`);
-      return false;
-    }
-  }
-
-  async function testBackend(){
-    const raw = document.getElementById('backend-url-input').value;
-    const url = normalizeBackendUrl(raw);
-    if (!url) {
-      setBackendStatus('bad', 'Enter a valid backend URL. Example: https://your-backend.onrender.com');
-      return;
-    }
-    setBackendStatus('loading', `Checking ${url}/healthz ...`);
-    const ok = await checkBackend(url);
-    if (ok) setBackendStatus('ok', `Backend healthy: ${url}`);
-    else setBackendStatus('bad', `Backend not reachable or CORS blocked: ${url}`);
-  }
-
-  async function connectBackend(){
-    const raw = document.getElementById('backend-url-input').value;
-    const allowNoBackend = document.getElementById('allow-no-backend').checked;
-    const url = normalizeBackendUrl(raw);
-
-    if (!url) {
-      if (allowNoBackend) {
-        BACKEND_URL = ''; backendHealthy = false; saveBackendUrl('');
-        applyBackendToStreams(); updateProxyBar(false, 'Limited mode — no backend configured');
-        dismissBackendModal(); startTerminal(); return;
-      }
-      setBackendStatus('bad', 'Enter a valid backend URL or enable limited mode.');
-      return;
-    }
-
-    setBackendStatus('loading', `Checking ${url}/healthz ...`);
-    const ok = await checkBackend(url);
-    backendHealthy = ok;
-    BACKEND_URL = url;
-    saveBackendUrl(url);
-
-    if (!ok && !allowNoBackend) {
-      setBackendStatus('bad', `Backend not reachable. Enable limited mode or fix backend/CORS.`);
-      return;
-    }
-
-    applyBackendToStreams();
-    if (ok) {
-      updateProxyBar(true, `Backend connected: ${BACKEND_URL}`);
-      setBackendStatus('ok', `Backend healthy: ${BACKEND_URL}`);
-    } else {
-      updateProxyBar(false, `Backend unhealthy: ${BACKEND_URL}`);
-      setBackendStatus('bad', `Backend unhealthy, launching limited mode: ${BACKEND_URL}`);
-    }
-
-    dismissBackendModal();
-    startTerminal();
-  }
-
-  function openBackendModal(){
-    document.getElementById('backend-modal').classList.remove('hidden');
-    document.getElementById('backend-url-input').value = BACKEND_URL || '';
-  }
-
-  function dismissBackendModal(){
-    document.getElementById('backend-modal').classList.add('hidden');
-  }
-
-  function applyBackendToStreams(){
-    if (backendHealthy && BACKEND_URL) {
-      DISABLED_EX.delete('KUCOIN');
-      DISABLED_EX.delete('PHEMEX');
-    } else {
-      DISABLED_EX.add('KUCOIN');
-      DISABLED_EX.add('PHEMEX');
-    }
-    recalcTotalEx();
-    if (terminalStarted) { closeAll(); setTimeout(launchAll, 300); }
-  }
-
-  async function unregisterOldServiceWorkers(){
-    if (!('serviceWorker' in navigator)) return;
-    try {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for (const reg of regs) { await reg.unregister(); }
-      if (regs.length) dbg('SW', `unregistered ${regs.length} old service worker(s)`);
-    } catch (err) { dbg('SW', err.message); }
-  }
-
-  function updateProxyBar(ok, msg){
-    const bar = document.getElementById('proxy-bar');
-    if (!bar) return;
-    bar.className = ok ? 'ok' : 'bad';
-    bar.textContent = ok ? `✓ ${msg}` : `✗ ${msg}`;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // WEBSOCKET INTERCEPTOR (Grey Hat TV Redirect)
-  // ═══════════════════════════════════════════════════════════════════════
-  function installWsInterceptor(cleanBackend) {
-    if (window._tvWsPatched) return;
-    window._tvWsPatched = true;
-
-    const wsBackend = cleanBackend.replace(/^http/, 'ws');
-    const OrigWS = window.WebSocket;
-    const TV_HOSTS = ['prodata.tradingview.com', 'data.tradingview.com', 'pine-facade.tradingview.com'];
-
-    window.WebSocket = function(url, protocols) {
-      let target = url;
-      try {
-        const parsed = new URL(url);
-        if (TV_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
-          const path = parsed.pathname + parsed.search;
-          target = `${wsBackend}/api/ws/tv-proxy${path}`;
-          dbg('WS-INTERCEPT', `Redirecting: ${url} → ${target}`);
-        }
-      } catch(e) {}
-      if (protocols) return new OrigWS(target, protocols);
-      return new OrigWS(target);
-    };
-    window.WebSocket.prototype = OrigWS.prototype;
-    window.WebSocket.CONNECTING = OrigWS.CONNECTING;
-    window.WebSocket.OPEN = OrigWS.OPEN;
-    window.WebSocket.CLOSING = OrigWS.CLOSING;
-    window.WebSocket.CLOSED = OrigWS.CLOSED;
-
-    dbg('WS-INTERCEPT', `Installed. TV hosts → ${wsBackend}/api/ws/tv-proxy`);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // CHART (Grey Hat MITM Proxy Integration - tv.js)
-  // ═══════════════════════════════════════════════════════════════════════
-  function updateChart(base){
-    const c = document.getElementById('chart-container');
-    c.innerHTML = '';
-
-    const wrap = document.createElement('div');
-    wrap.className = 'tradingview-widget-container';
-    wrap.style.cssText = 'width:100%;height:100%;';
-
-    const inner = document.createElement('div');
-    inner.id = 'tv_chart';
-    inner.style.cssText = 'width:100%;height:100%;';
-    wrap.appendChild(inner);
-    c.appendChild(wrap);
-
-    const cleanBackend = BACKEND_URL ? BACKEND_URL.replace(/\/$/, '') : '';
-    dbg('CHART_INIT', `BACKEND_URL: "${cleanBackend}", backendHealthy: ${backendHealthy}`);
-
-    // Use tv.js instead of the iframe embed script to avoid document.currentScript null bug
-    const scriptSrc = (cleanBackend && backendHealthy) 
-      ? `${cleanBackend}/tv-proxy/tv.js` 
-      : 'https://s3.tradingview.com/tv.js';
-
-    dbg('CHART_INIT', `Loading TradingView library from: ${scriptSrc}`);
-
-    // ── Install WebSocket interceptor BEFORE tv.js loads ──
-    if (cleanBackend && backendHealthy) {
-      installWsInterceptor(cleanBackend);
-    }
-
-    const s = document.createElement('script');
-    s.src = scriptSrc;
-    s.async = false;
-    
-    s.onload = () => {
-      dbg('CHART_INIT', '✅ tv.js loaded successfully. Initializing widget...');
-      if (typeof TradingView !== 'undefined') {
-        new TradingView.widget({
-          "autosize": true,
-          "symbol": `BINANCE:${base}`,
-          "interval": "1",
-          "timezone": "Etc/UTC",
-          "theme": "dark",
-          "style": "1",
-          "locale": "en",
-          "toolbar_bg": "#131722",
-          "enable_publishing": false,
-          "hide_side_toolbar": false,
-          "allow_symbol_change": true,
-          "container_id": "tv_chart",
-          "overrides": {
-            "paneProperties.background": "#131722",
-            "paneProperties.backgroundType": "solid",
-            "paneProperties.vertGridProperties.color": "#1e222d",
-            "paneProperties.horzGridProperties.color": "#1e222d",
-            "scalesProperties.textColor": "#8b95a5"
-          }
-        });
-        
-        if (cleanBackend && backendHealthy) {
-          setupChartStateSaver();
-        }
-      } else {
-        dbg('CHART_INIT', '❌ ERROR: TradingView object not found after script load!');
-      }
-    };
-    
-    s.onerror = () => {
-      dbg('CHART_INIT', '❌ ERROR: Failed to load tv.js');
-    };
-
-    document.head.appendChild(s);
-  }
-
-  function setupChartStateSaver() {
-    if (window._chartSaverInterval) clearInterval(window._chartSaverInterval);
-    
-    window._chartSaverInterval = setInterval(() => {
-      try {
-        const statePayload = {};
-        let hasData = false;
-
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && (key.startsWith('ss-') || key.startsWith('tradingview_') || key.includes('tv-'))) {
-            statePayload[key] = localStorage.getItem(key);
-            hasData = true;
-          }
-        }
-
-        if (hasData) {
-          dbg('CHART_SAVE', `Captured ${Object.keys(statePayload).length} TV localStorage keys. Pushing to backend...`);
-          fetch(`${BACKEND_URL.replace(/\/$/, '')}/api/chart/save`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol: currentBase, state: statePayload })
-          })
-          .then(res => {
-            if (res.ok) dbg('CHART_SAVE', '✅ Backend acknowledged chart save.');
-            else dbg('CHART_SAVE', `❌ Backend rejected save: HTTP ${res.status}`);
-          })
-          .catch(err => dbg('CHART_SAVE', `❌ Fetch failed: ${err.message}`));
-        }
-      } catch (e) {
-        dbg('CHART_SAVE', `Exception: ${e.message}`);
-      }
-    }, 5000);
-  }
-
-  function resetChartDrawings() {
-    if (confirm('Reset chart drawings and state? This will clear local and backend cache.')) {
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('ss-') || key.startsWith('tradingview_') || key.includes('tv-')) {
-          localStorage.removeItem(key);
-        }
-      });
-      if (BACKEND_URL && backendHealthy) {
-        fetch(`${BACKEND_URL.replace(/\/$/, '')}/api/chart/clear`, { method: 'POST' }).catch(() => {});
-      }
-      updateChart(currentBase);
-      appendMsg('sys', 'Chart drawings reset.');
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // STATUS PANEL
-  // ═══════════════════════════════════════════════════════════════════════
-  function buildStatusPanel(){
-    const p = document.getElementById('ex-status-panel');
-    if (!p) return;
-    p.innerHTML = '';
-    EXCHANGES.forEach(({id})=>{
-      const dot = document.createElement('span');
-      dot.id = `dot-${id}`;
-      dot.className = 'status-dot connecting';
-      dot.style.display = 'none';
-      p.appendChild(dot);
-    });
-  }
-
-  function refreshStreamCount(){
-    const n = Object.values(exStatus).filter(s => s === 'connected').length;
-    const el = document.getElementById('stat-streams');
-    if (el) el.textContent = `${n}/${TOTAL_EX}`;
-  }
-
-  function setEx(id,state){
-    exStatus[id] = state;
-    const d = document.getElementById(`dot-${id}`);
-    if (d) d.className = `status-dot ${state}`;
-    refreshStreamCount();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // INGEST & RENDER
-  // ═══════════════════════════════════════════════════════════════════════
-  function ingest({exchange,price,qty,isBuy,ts}){
-    tape.push({exchange,price,qty,isBuy,ts:ts||Date.now()});
-    stamps.push(Date.now());
-    if (tape.length > MAX_TAPE) tape.shift();
-    lastPrice = price;
-    vol += qty;
-    scheduleTape();
-    updateStats();
-  }
-
-  let tapeRaf = false;
-  function scheduleTape(){
-    if (tapeRaf) return;
-    tapeRaf = true;
-    requestAnimationFrame(()=>{
-      tapeRaf = false;
-      const el = document.getElementById('market-trades');
-      const frag = document.createDocumentFragment();
-      tape.forEach(t=>{
-        const row = document.createElement('div');
-        row.className = `tape-row ${t.isBuy ? 'tape-buy' : 'tape-sell'} ex-${t.exchange}`;
-        const tm = new Date(t.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-        row.innerHTML = `<span>${t.price.toFixed(2)}</span><span class="t-qty">${t.qty.toFixed(4)}</span><span class="t-time">${tm}</span>`;
-        frag.appendChild(row);
-      });
-      el.innerHTML = '';
-      el.appendChild(frag);
-      if (lastPrice > 0) {
-        document.getElementById('ticker-price').textContent = `$${lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-      }
-    });
-  }
-
-  let bookRaf = false;
-  function scheduleBook(){
-    if (bookRaf) return;
-    bookRaf = true;
-    requestAnimationFrame(()=>{
-      bookRaf = false;
-      const aEl = document.getElementById('dom-asks');
-      const bEl = document.getElementById('dom-bids');
-      const sp = document.getElementById('dom-spread');
-      const va = book.asks.slice(0, MAX_LEVELS);
-      const vb = book.bids.slice(0, MAX_LEVELS);
-      const all = [...va.map(r=>parseFloat(r[1])), ...vb.map(r=>parseFloat(r[1]))];
-      const mx = all.length ? Math.max(...all) : 1;
-
-      const makeRows = (levels, side)=>{
-        const f = document.createDocumentFragment();
-        const tc = side === 'ask' ? 'text-red-400' : 'text-green-400';
-        const bc = side === 'ask' ? 'bg-red-500' : 'bg-green-500';
-        levels.forEach(([price,qty])=>{
-          const p = parseFloat(price);
-          const q = parseFloat(qty);
-          const pct = Math.min(100, (q / mx) * 100).toFixed(1);
-          const r = document.createElement('div');
-          r.className = `depth-row ${tc}`;
-          r.innerHTML = `<div class="depth-bar ${bc}" style="width:${pct}%"></div><span class="depth-col">${p.toFixed(2)}</span><span class="depth-col">${q.toFixed(4)}</span>`;
-          f.appendChild(r);
-        });
-        return f;
-      };
-
-      aEl.innerHTML = ''; aEl.appendChild(makeRows(va, 'ask'));
-      bEl.innerHTML = ''; bEl.appendChild(makeRows(vb, 'bid'));
-
-      if (book.asks.length && book.bids.length) {
-        const s = parseFloat(book.asks[0][0]) - parseFloat(book.bids[0][0]);
-        sp.textContent = `SPREAD: $${s.toFixed(2)}`;
-      }
-    });
-  }
-
-  function updateStats(){
-    const now = Date.now();
-    stamps = stamps.filter(t => now - t < TPS_WIN);
-    document.getElementById('stat-tps').textContent = (stamps.length / (TPS_WIN / 1000)).toFixed(1);
-    document.getElementById('stat-vol').textContent = vol >= 1000 ? `${(vol / 1000).toFixed(1)}K` : vol.toFixed(2);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // WS FACTORY + RECONNECT STATE
-  // ═══════════════════════════════════════════════════════════════════════
-  const streamFactories = {};
-  const retryDelay = {};
-  const failCount = {};
-
-  function makeWS(id,url,{onopen,onmessage,onping,pingMs}={}){
-    return new Promise((res,rej)=>{
-      let ws;
-      try { ws = new WebSocket(url); } catch(e) { return rej(e); }
-      ws.binaryType = 'arraybuffer';
-      sockets[id] = ws;
-      let settled = false;
-
-      ws.onopen = ()=>{
-        settled = true;
-        failCount[id] = 0;
-        retryDelay[id] = 1500;
-        setEx(id, 'connected');
-        if (onopen) onopen(ws);
-        if (onping && pingMs) {
-          pings[id] = setInterval(()=>{ if (ws.readyState === 1) onping(ws); }, pingMs);
-        }
-        res(ws);
-      };
-
-      ws.onmessage = ev => { try { onmessage(ev, ws); } catch(_) {} };
-      ws.onerror = ()=>{};
-      ws.onclose = ()=>{
-        if (ws._dead) return;
-        clearInterval(pings[id]);
-        setEx(id, 'disconnected');
-        if (!settled) return rej(new Error('closed'));
-        scheduleReconnect(id, 1500);
-      };
-    });
-  }
-
-  async function gunzip(ab){
-    const ds = new DecompressionStream('gzip');
-    const w = ds.writable.getWriter();
-    w.write(new Uint8Array(ab));
-    w.close();
-    const chunks = [];
-    const r = ds.readable.getReader();
-    while (true) {
-      const {done,value} = await r.read();
-      if (done) break;
-      chunks.push(value);
-    }
-    const tot = chunks.reduce((a,c)=>a+c.length,0);
-    const out = new Uint8Array(tot);
-    let off = 0;
-    chunks.forEach(c=>{ out.set(c, off); off += c.length; });
-    return new TextDecoder().decode(out);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // STREAM MANAGER
-  // ═══════════════════════════════════════════════════════════════════════
-  function closeAll(){
-    Object.keys(sockets).forEach(id=>{
-      const ws = sockets[id];
-      if (ws) { ws._dead = true; ws.onclose = null; ws.close(); }
-      delete sockets[id];
-    });
-    Object.keys(pings).forEach(id=>{ clearInterval(pings[id]); delete pings[id]; });
-    Object.keys(failCount).forEach(id=>{ delete failCount[id]; });
-    Object.keys(retryDelay).forEach(id=>{ delete retryDelay[id]; });
-    EXCHANGES.forEach(e=>setEx(e.id, 'disconnected'));
-  }
-
-  function scheduleReconnect(id, delay=1500){
-    const factory = streamFactories[id];
-    if (!factory || DISABLED_EX.has(id)) return;
-    const next = Math.min(retryDelay[id] || delay, 30000);
-    retryDelay[id] = next * 1.6;
-    setTimeout(() => openStream(id, factory, next), next);
-  }
-
-  function openStream(id,factory,retry=1500){
-    streamFactories[id] = factory;
-    retryDelay[id] = retry;
-    const sym = SYM[currentBase]?.[id];
-    if (!sym || DISABLED_EX.has(id)) { setEx(id, 'disconnected'); return; }
-    setEx(id, 'connecting');
-    factory(sym,id)
-      .then(()=>{ failCount[id] = 0; retryDelay[id] = 1500; })
-      .catch((err)=>{
-        failCount[id] = (failCount[id] || 0) + 1;
-        dbg('WS FAIL', `${id} attempt ${failCount[id]}: ${err?.message || err}`);
-        if (failCount[id] >= 6) {
-          dbg('WS DISABLE', `${id} disabled after ${failCount[id]} failed handshake attempts`);
-          setEx(id, 'disconnected');
-          return;
-        }
-        scheduleReconnect(id, retry);
-      });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // ADAPTERS (Includes Grey Hat KuCoin & Phemex)
-  // ═══════════════════════════════════════════════════════════════════════
-  function connectBinance(sym,id){
-    return makeWS(id,`wss://stream.binance.com:9443/stream?streams=${sym}@depth20@100ms/${sym}@trade`,{
-      onmessage(ev){
-        const env = JSON.parse(ev.data);
-        if (env.stream?.includes('@depth')) { book.bids = env.data.bids; book.asks = env.data.asks; scheduleBook(); }
-        else if (env.stream?.includes('@trade')) { const d = env.data; ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T}); }
-      }
-    });
-  }
-
-  function connectBinanceFut(sym,id){
-    return makeWS(id,`wss://fstream.binance.com/stream?streams=${sym}@aggTrade`,{
-      onmessage(ev){
-        const env = JSON.parse(ev.data);
-        if (env.stream?.includes('@aggTrade')) { const d = env.data; ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T}); }
-      }
-    });
-  }
-
-  function connectBybit(sym,id){
-    return makeWS(id,'wss://stream.bybit.com/v5/public/spot',{
-      onopen(ws){ ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.topic?.startsWith('publicTrade')) (d.data || []).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
-      },
-      onping(ws){ ws.send(JSON.stringify({op:'ping'})); }, pingMs:20000
-    });
-  }
-
-  function connectBybitLin(sym,id){
-    return makeWS(id,'wss://stream.bybit.com/v5/public/linear',{
-      onopen(ws){ ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${sym}`]})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.topic?.startsWith('publicTrade')) (d.data || []).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
-      },
-      onping(ws){ ws.send(JSON.stringify({op:'ping'})); }, pingMs:20000
-    });
-  }
-
-  function connectOKX(sym,id){
-    return makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{
-      onopen(ws){ ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.arg?.channel === 'trades') (d.data || []).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
-      },
-      onping(ws){ ws.send('ping'); }, pingMs:25000
-    });
-  }
-
-  function connectOKXFut(sym,id){
-    return makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{
-      onopen(ws){ ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:sym}]})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.arg?.channel === 'trades') (d.data || []).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
-      },
-      onping(ws){ ws.send('ping'); }, pingMs:25000
-    });
-  }
-
-  function connectGate(sym,id){
-    return makeWS(id,'wss://api.gateio.ws/ws/v4/',{
-      onopen(ws){ ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.trades',event:'subscribe',payload:[sym]})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.channel === 'spot.trades' && d.event === 'update') {
-          const t = d.result;
-          ingest({exchange:'GATE',price:+t.price,qty:+t.amount,isBuy:t.side==='buy',ts:t.create_time_ms||Date.now()});
-        }
-      },
-      onping(ws){ ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.ping',event:'',payload:null})); }, pingMs:20000
-    });
-  }
-
-  function connectMEXC(sym,id){
-    return makeWS(id,'wss://wbs.mexc.com/ws',{
-      onopen(ws){ ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${sym}`]})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.c?.includes('deals')) (d.d?.deals || []).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}));
-      },
-      onping(ws){ ws.send(JSON.stringify({method:'PING'})); }, pingMs:20000
-    });
-  }
-
-  function connectBitget(sym,id){
-    return makeWS(id,'wss://ws.bitget.com/v2/ws/public',{
-      onopen(ws){ ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:sym}]})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.action === 'snapshot' || d.action === 'update') (d.data || []).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}));
-      },
-      onping(ws){ ws.send('ping'); }, pingMs:25000
-    });
-  }
-
-  // 10. KuCoin — Grey Hat Backend Proxy
-  async function connectKucoin(sym,id){
-    if (!BACKEND_URL) return Promise.reject(new Error('backend not configured'));
-    setEx(id, 'connecting');
-    let td;
-    try {
-      const endpoint = `${BACKEND_URL}/api/kucoin/bullet-public`;
-      dbg('KUCOIN', `token fetch via backend: ${endpoint}`);
-      const r = await fetch(endpoint, { method:'POST' });
-      td = await r.json();
-    } catch(e) {
-      dbg('KUCOIN', 'token fetch failed:', e.message);
-      return Promise.reject(new Error('kucoin token'));
-    }
-    if (!td?.data?.token || !Array.isArray(td.data.instanceServers) || !td.data.instanceServers.length) {
-      dbg('KUCOIN', 'invalid bullet-public response', td);
-      return Promise.reject(new Error('kucoin bullet response invalid'));
-    }
-    const {token, instanceServers} = td.data;
-    const url = `${instanceServers[0].endpoint}?token=${token}`;
-    const pi = instanceServers[0].pingInterval;
-    let mid = 1;
-    return makeWS(id,url,{
-      onopen(ws){
-        ws.send(JSON.stringify({id:mid++,type:'subscribe',topic:`/market/match:${sym}`,privateChannel:false,response:true}));
-      },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.type === 'message' && d.topic?.includes('/market/match')) {
-          const t = d.data;
-          ingest({exchange:'KUCOIN',price:+t.price,qty:+t.size,isBuy:t.side==='buy',ts:+t.time/1e6});
-        }
-      },
-      onping(ws){ ws.send(JSON.stringify({id:mid++,type:'ping'})); },
-      pingMs:pi||18000
-    });
-  }
-
-  function connectBitstamp(sym,id){
-    return makeWS(id,'wss://ws.bitstamp.net',{
-      onopen(ws){ ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${sym}`}})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.event === 'trade') { const t = d.data; ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000}); }
-      }
-    });
-  }
-
-  function connectGemini(sym,id){
-    return makeWS(id,`wss://api.gemini.com/v2/marketdata?symbols=${sym}`,{
-      onopen(ws){ ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2',symbols:[sym]}]})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.type === 'trade') ingest({exchange:'GEMINI',price:+d.price,qty:+d.quantity,isBuy:d.side==='buy',ts:d.timestamp||Date.now()});
-      }
-    });
-  }
-
-  function connectKraken(sym,id){
-    return makeWS(id,'wss://ws.kraken.com/v2',{
-      onopen(ws){ ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[sym]},req_id:1})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.channel === 'trade' && d.type === 'update') {
-          (d.data || []).forEach(t=>ingest({exchange:'KRAKEN',price:+t.price,qty:+t.qty,isBuy:t.side==='buy',ts:new Date(t.timestamp).getTime()}));
-        }
-      },
-      onping(ws){ ws.send(JSON.stringify({method:'ping'})); }, pingMs:30000
-    });
-  }
-
-  function connectCoinbase(sym,id){
-    return makeWS(id,'wss://advanced-trade-ws.coinbase.com',{
-      onopen(ws){ ws.send(JSON.stringify({type:'subscribe',product_ids:[sym],channel:'market_trades'})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.channel === 'market_trades') {
-          (d.events || []).forEach(e=>{ (e.trades || []).forEach(t=>ingest({exchange:'COINBASE',price:+t.price,qty:+t.size,isBuy:t.side==='BUY',ts:new Date(t.time).getTime()})); });
-        }
-      }
-    });
-  }
-
-  function connectBitfinex(sym,id){
-    return makeWS(id,'wss://api-pub.bitfinex.com/ws/2',{
-      onopen(ws){ ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbol:sym})); },
-      onmessage:async(ev)=>{
-        let text;
-        if (ev.data instanceof ArrayBuffer) { try { text = await gunzip(ev.data); } catch { text = new TextDecoder().decode(ev.data); } }
-        else { text = ev.data; }
-        const d = JSON.parse(text);
-        if (Array.isArray(d) && d[1] === 'te') {
-          const[,,[,ts,amt,price]] = d;
-          ingest({exchange:'BITFINEX',price:+price,qty:Math.abs(+amt),isBuy:+amt>0,ts});
-        }
-      },
-      onping(ws){ ws.send(JSON.stringify({event:'ping'})); }, pingMs:30000
-    });
-  }
-
-  function connectHTX(sym,id){
-    return makeWS(id,'wss://api.huobi.pro/ws',{
-      onopen(ws){ ws.send(JSON.stringify({sub:`market.${sym}.trade.detail`,id:'omni'})); },
-      onmessage:async(ev)=>{
-        let text;
-        try { text = await gunzip(ev.data); } catch { return; }
-        const d = JSON.parse(text);
-        if (d.ping) { sockets[id]?.send(JSON.stringify({pong:d.ping})); return; }
-        if (d.ch?.includes('trade.detail') && d.tick) {
-          (d.tick.data || []).forEach(t=>ingest({exchange:'HTX',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.ts}));
-        }
-      }
-    });
-  }
-
-  // 17. Phemex — Grey Hat Backend WebSocket Proxy
-  function connectPhemex(sym,id){
-    if (!BACKEND_URL) return Promise.reject(new Error('backend not configured'));
-    const wsBase = wsBaseFromHttpUrl(BACKEND_URL);
-    if (!wsBase) return Promise.reject(new Error('invalid backend URL'));
-    const url = `${wsBase}/api/ws/phemex`;
-    return makeWS(id,url,{
-      onopen(ws){ ws.send(JSON.stringify({id:1,method:'trade.subscribe',params:[sym]})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.result === 'pong') return;
-        if (d.type === 'snapshot' || d.type === 'incremental') {
-          (d.trades || []).forEach(t=>{
-            ingest({exchange:'PHEMEX',price:+t[2]/1e4,qty:+t[3],isBuy:t[1]==='Buy',ts:Math.floor(+t[0]/1e6)});
-          });
-        }
-      },
-      onping(ws){ ws.send(JSON.stringify({id:99,method:'server.ping',params:[]})); },
-      pingMs:20000
-    });
-  }
-
-  function connectPoloniex(sym,id){
-    return makeWS(id,'wss://ws.poloniex.com/ws/public',{
-      onopen(ws){ ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbols:[sym]})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.channel === 'trades' && d.data) {
-          d.data.forEach(t=>ingest({exchange:'POLONIEX',price:+t.price,qty:+t.quantity,isBuy:t.takerSide==='buy',ts:t.ts||Date.now()}));
-        }
-      },
-      onping(ws){ ws.send(JSON.stringify({event:'ping'})); }, pingMs:30000
-    });
-  }
-
-  function connectBingX(sym,id){
-    return makeWS(id,'wss://open-api-ws.bingx.com/market',{
-      onopen(ws){ ws.send(JSON.stringify({id:'omni-bingx',reqType:'sub',dataType:`${sym}@trade`})); },
-      onmessage:async(ev)=>{
-        let text;
-        if (ev.data instanceof ArrayBuffer) { try { text = await gunzip(ev.data); } catch { text = new TextDecoder().decode(ev.data); } }
-        else { text = ev.data; }
-        if (text === 'Ping') { sockets[id]?.send('Pong'); return; }
-        try {
-          const d = JSON.parse(text);
-          if (d.data) ingest({exchange:'BINGX',price:+d.data.p,qty:+d.data.q,isBuy:d.data.m===false,ts:d.data.T||Date.now()});
-        } catch {}
-      }
-    });
-  }
-
-  function connectWooX(sym,id){
-    return makeWS(id,'wss://wss.woo.org/ws/stream/broadcast',{
-      onopen(ws){ ws.send(JSON.stringify({event:'subscribe',topic:`${sym}@trade`})); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.topic?.includes('@trade') && d.data) {
-          ingest({exchange:'WOOX',price:+d.data.price,qty:+d.data.size,isBuy:d.data.side==='BUY',ts:d.data.ts||Date.now()});
-        }
-      },
-      onping(ws){ ws.send(JSON.stringify({event:'ping'})); }, pingMs:25000
-    });
-  }
-
-  function connectDeribit(sym,id){
-    return makeWS(id,'wss://www.deribit.com/ws/api/v2',{
-      onopen(ws){ ws.send(JSON.stringify({jsonrpc:'2.0',id:1,method:'public/subscribe',params:{channels:[`trades.${sym}.raw`]} })); },
-      onmessage(ev){
-        const d = JSON.parse(ev.data);
-        if (d.method === 'subscription' && d.params?.channel?.startsWith('trades')) {
-          (d.params.data || []).forEach(t=>ingest({exchange:'DERIBIT',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.timestamp}));
-        }
-      },
-      onping(ws){ ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}})); }, pingMs:30000
-    });
-  }
-
-  const ADAPTERS = {
-    BINANCE:connectBinance, BINANCEFUT:connectBinanceFut,
-    BYBIT:connectBybit,     BYBITLIN:connectBybitLin,
-    OKX:connectOKX,         OKXFUT:connectOKXFut,
-    GATE:connectGate,       MEXC:connectMEXC,
-    BITGET:connectBitget,   KUCOIN:connectKucoin,
-    BITSTAMP:connectBitstamp, GEMINI:connectGemini,
-    KRAKEN:connectKraken,   COINBASE:connectCoinbase,
-    BITFINEX:connectBitfinex, HTX:connectHTX,
-    PHEMEX:connectPhemex,   POLONIEX:connectPoloniex,
-    BINGX:connectBingX,     WOOX:connectWooX,
-    DERIBIT:connectDeribit,
-  };
-
-  function launchAll(){
-    EXCHANGES.forEach(({id})=>{
-      const f = ADAPTERS[id];
-      if (!f) return;
-      setTimeout(()=>openStream(id,(s,x)=>f(s,x)), Math.random() * 2000);
-    });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // SYMBOL SWITCH
-  // ═══════════════════════════════════════════════════════════════════════
-  function switchSymbol(b){
-    currentBase = b;
-    tape = []; stamps = []; lastPrice = 0; vol = 0;
-    book.asks = []; book.bids = [];
-    document.getElementById('ticker-price').textContent = '--';
-    document.getElementById('dom-spread').textContent = 'SPREAD: --';
-    document.getElementById('market-trades').innerHTML = '';
-    document.getElementById('dom-asks').innerHTML = '';
-    document.getElementById('dom-bids').innerHTML = '';
-    closeAll();
-    updateChart(b);
-    setTimeout(launchAll, 300);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // AI — Key modal (Grey Hat AES-GCM Integrated)
-  // ═══════════════════════════════════════════════════════════════════════
-  function openKeyModal(){
-    document.getElementById('key-modal').classList.remove('hidden');
-    document.getElementById('nim-key-input').value = nimKey || '';
-    document.getElementById('key-err').classList.add('hidden');
-  }
-
-  function dismissModal(){
-    document.getElementById('key-modal').classList.add('hidden');
-  }
-
-  async function saveNimKey(){
-    const v = document.getElementById('nim-key-input').value.trim();
-    const err = document.getElementById('key-err');
-
-    if (!v.startsWith('nvapi-')) {
-      err.textContent = 'Key must start with nvapi-';
-      err.classList.remove('hidden');
-      err.style.color = '#f87171';
-      return;
-    }
-
-    err.textContent = 'Encrypting and verifying...';
-    err.classList.remove('hidden');
-    err.style.color = '#facc15';
-
-    if (BACKEND_URL && backendHealthy) {
-      try {
-        const encrypted = await encryptAES(v, SHARED_SECRET_HEX);
-        const res = await fetch(`${BACKEND_URL.replace(/\/$/, '')}/api/config/keys`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(encrypted)
-        });
-
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(`Backend rejected key: ${res.status} ${errText}`);
-        }
-      } catch (e) {
-        err.textContent = `Failed to save key: ${e.message}`;
-        err.style.color = '#f87171';
-        return;
-      }
-    }
-
-    nimKey = v;
-    sessionStorage.setItem('nim_key', nimKey);
-    err.classList.add('hidden');
-    dismissModal();
-
-    appendMsg('sys', '✓ Key encrypted and saved. GLM-5.2 ready.');
-    dbg('KEY', 'saved and encrypted via AES-GCM');
-  }
-
-  function toggleAiPanel(){
-    const panel = document.getElementById('ai-panel');
-    const chev = document.getElementById('ai-chevron');
-    aiOpen = !aiOpen;
-    panel.style.height = aiOpen ? '310px' : '32px';
-    chev.textContent = aiOpen ? '▼' : '▲';
-    ['ai-messages','ai-input-row','proxy-bar'].forEach(id=>{
-      document.getElementById(id).style.display = aiOpen ? '' : 'none';
-    });
-  }
-
-  function appendMsg(role,text){
-    const el = document.getElementById('ai-messages');
-    const div = document.createElement('div');
-    if (role === 'user')       div.className = 'msg-user';
-    else if (role === 'think') div.className = 'msg-think';
-    else if (role === 'error') div.className = 'msg-err';
-    else if (role === 'sys')   div.className = 'msg-sys';
-    else                       div.className = 'msg-ai';
-    div.textContent = text;
-    el.appendChild(div);
-    el.scrollTop = el.scrollHeight;
-    return div;
-  }
-
-  function buildMarketCtx(){
-    const recent = tape.slice(-30);
-    const buys = recent.filter(t=>t.isBuy).length;
-    const sells = recent.length - buys;
-    const avgP = recent.length ? (recent.reduce((a,t)=>a+t.price,0)/recent.length).toFixed(2) : 'N/A';
-    const bestAsk = book.asks[0] ? parseFloat(book.asks[0][0]).toFixed(2) : 'N/A';
-    const bestBid = book.bids[0] ? parseFloat(book.bids[0][0]).toFixed(2) : 'N/A';
-    const spread = (book.asks[0] && book.bids[0]) ? (parseFloat(book.asks[0][0]) - parseFloat(book.bids[0][0])).toFixed(2) : 'N/A';
-    const active = Object.entries(exStatus).filter(([,s]) => s === 'connected').map(([id]) => id).join(', ') || 'none';
-
-    return `[Live Snapshot — ${currentBase} @ ${new Date().toISOString()}]
-Last: $${lastPrice > 0 ? lastPrice.toFixed(2) : '--'} | Ask: $${bestAsk} | Bid: $${bestBid} | Spread: $${spread}
-Last 30 trades → Buys: ${buys}, Sells: ${sells} | Avg: $${avgP}
-Session vol: ${vol >= 1000 ? (vol / 1000).toFixed(2) + 'K' : vol.toFixed(4)}
-Feeds active: ${active}
-Backend: ${BACKEND_URL || 'not configured'} (${backendHealthy ? 'healthy' : 'unhealthy'})
-`;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // AI — Send to GLM-5.2 via configured backend
-  // ═══════════════════════════════════════════════════════════════════════
-  async function sendToGLM(){
-    if (aiBusy) return;
-    if (!BACKEND_URL) { openBackendModal(); appendMsg('error', 'No backend configured. Configure a backend URL first.'); return; }
-    if (!nimKey) { openKeyModal(); return; }
-
-    const inp = document.getElementById('ai-input');
-    const btn = document.getElementById('ai-send-btn');
-    const userMsg = inp.value.trim();
-    if (!userMsg) return;
-
-    inp.value = ''; inp.style.height = 'auto';
-    aiBusy = true; btn.disabled = true;
-    document.getElementById('nim-dot').classList.add('busy');
-    appendMsg('user', userMsg);
-
-    const messages = [
-      { role:'system', content:`You are a professional crypto market analyst in a live multi-exchange terminal.\nBe concise and analytical. Use bullets for lists.\n\n${buildMarketCtx()}` },
-      ...aiHistory,
-      {role:'user',content:userMsg},
-    ];
-    aiHistory.push({role:'user',content:userMsg});
-    const bubble = appendMsg('ai', '');
-
-    let fullText = '';
-    let thinkBubble = null;
-    let thinkText = '';
-    const nimUrl = `${BACKEND_URL.replace(/\/$/, '')}/api/nim/chat/completions`;
-    dbg('NIM', `→ POST ${nimUrl}`);
-
-    try {
-      const resp = await fetch(nimUrl, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${nimKey}` },
-        body:JSON.stringify({ model:NIM_MODEL, messages, temperature:0.6, top_p:0.9, max_tokens:1024, stream:true }),
-      });
-
-      dbg('NIM', `← ${resp.status} ${resp.statusText}`);
-
-      if (!resp.ok) {
-        let errBody = '(no body)';
-        try { errBody = await resp.text(); } catch {}
-        dbg('NIM ERROR', `${resp.status}:`, errBody.slice(0,400));
-        let msg = `HTTP ${resp.status} ${resp.statusText}`;
-        try {
-          const p = JSON.parse(errBody);
-          msg += '\n' + (p?.message || p?.detail || p?.error?.message || errBody.slice(0,300));
-        } catch { msg += '\n' + errBody.slice(0,300); }
-        if (resp.status === 401) msg += '\n→ Invalid or expired nvapi- key.';
-        if (resp.status === 403) msg += '\n→ Key lacks access to this model.';
-        if (resp.status === 429) msg += '\n→ Rate limit hit. Wait and retry.';
-        
-        bubble.remove(); aiHistory.pop();
-        appendMsg('error', msg);
-        return;
-      }
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
-
-      while (true) {
-        const {done,value} = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, {stream:true});
-        const lines = buf.split('\n');
-        buf = lines.pop();
-
-        for (const line of lines) {
-          if (!line.startsWith('data:')) continue;
-          const payload = line.slice(5).trim();
-          if (payload === '[DONE]') break;
-          try {
-            const chunk = JSON.parse(payload);
-            const delta = chunk.choices?.[0]?.delta;
-            if (!delta) continue;
-            if (delta.reasoning_content) {
-              thinkText += delta.reasoning_content;
-              if (!thinkBubble) thinkBubble = appendMsg('think', '');
-              thinkBubble.textContent = `💭 Thinking…\n${thinkText}`;
-              document.getElementById('ai-messages').scrollTop = 9999;
-            }
-            if (delta.content) {
-              fullText += delta.content;
-              bubble.textContent = fullText;
-              document.getElementById('ai-messages').scrollTop = 9999;
-            }
-          } catch {}
-        }
-      }
-
-      dbg('NIM', `stream done, ${fullText.length} chars`);
-      aiHistory.push({role:'assistant',content:fullText});
-      if (aiHistory.length > 20) aiHistory.splice(0,2);
-
-    } catch(err) {
-      bubble.remove(); aiHistory.pop();
-      dbg('NIM CATCH', err.message);
-      appendMsg('error', `Fetch failed: ${err.message}\n→ Check backend URL, backend CORS, and backend logs.`);
-    } finally {
-      aiBusy = false; btn.disabled = false;
-      document.getElementById('nim-dot').classList.remove('busy');
-    }
-  }
-
-  function handleAiKey(e){
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendToGLM(); }
-  }
-
-  document.addEventListener('keydown', e=>{ if (e.key === 'Escape') dismissModal(); });
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // TERMINAL START & BOOT
-  // ═══════════════════════════════════════════════════════════════════════
-  function startTerminal(){
-    if (terminalStarted) return;
-    terminalStarted = true;
-    updateProxyBar(
-      backendHealthy && !!BACKEND_URL,
-      backendHealthy && BACKEND_URL ? `Backend connected: ${BACKEND_URL}` : `Limited mode — backend not connected`
-    );
-    updateChart(currentBase);
-    launchAll();
-    if (nimKey) {
-      dismissModal();
-      appendMsg('ai', `GLM-5.2 ready. Watching ${currentBase} across all active feeds.`);
-    } else {
-      appendMsg('sys', 'Set your NVIDIA NIM key to enable AI analysis.');
-    }
-  }
-
-  window.addEventListener('DOMContentLoaded', async ()=>{
-    await unregisterOldServiceWorkers();
-    buildStatusPanel();
-    recalcTotalEx();
-    const input = document.getElementById('backend-url-input');
-    if (input && BACKEND_URL) input.value = BACKEND_URL;
-
-    if (BACKEND_URL) {
-      setBackendStatus('loading', `Checking saved backend: ${BACKEND_URL}`);
-      backendHealthy = await checkBackend(BACKEND_URL);
-      if (backendHealthy) setBackendStatus('ok', `Saved backend healthy: ${BACKEND_URL}`);
-      else setBackendStatus('bad', `Saved backend not reachable: ${BACKEND_URL}`);
-    } else {
-      setBackendStatus('idle', 'Enter a backend URL and click Test.');
-    }
-  });
-  </script>
+</div>
+
+<div id="debug"><div id="debug-log"></div></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// CONFIG / STATE
+// ════════════════════════════════════════════════════════════════
+const SHARED_SECRET_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const MAX_TAPE=90, MAX_LEVELS=11, TPS_WIN=2000, NIM_MODEL='z-ai/glm-5.2';
+let TOTAL_EX=21;
+
+let currentBase='BTCUSDT';
+let tape=[],stamps=[],lastPrice=0,vol=0,prevPrice=0;
+const sockets={},pings={};
+const book={asks:[],bids:[]};
+let customSpread=null;
+
+let nimKey=sessionStorage.getItem('nim_key')||'';
+let aiHistory=[],aiOpen=true,aiBusy=false;
+let BACKEND_URL=loadBackendUrl();
+let backendHealthy=false, started=false;
+
+const EXCHANGES=['BINANCE','BINANCEFUT','BYBIT','BYBITLIN','OKX','OKXFUT','GATE','MEXC','BITGET','KUCOIN','BITSTAMP','GEMINI','KRAKEN','COINBASE','BITFINEX','HTX','PHEMEX','POLONIEX','BINGX','WOOX','DERIBIT'];
+const exStatus={}; EXCHANGES.forEach(e=>exStatus[e]='disconnected');
+const DISABLED_EX=new Set(['KUCOIN','PHEMEX']);
+function recalcTotalEx(){TOTAL_EX=EXCHANGES.filter(e=>!DISABLED_EX.has(e)).length;refreshStreams();}
+
+const SYM={
+ BTCUSDT:{BINANCE:'btcusdt',BINANCEFUT:'btcusdt',BYBIT:'BTCUSDT',BYBITLIN:'BTCUSDT',OKX:'BTC-USDT',OKXFUT:'BTC-USDT-SWAP',GATE:'BTC_USDT',MEXC:'BTCUSDT',BITGET:'BTCUSDT',KUCOIN:'BTC-USDT',BITSTAMP:'btcusdt',GEMINI:'BTCUSD',KRAKEN:'BTC/USDT',COINBASE:'BTC-USDT',BITFINEX:'tBTCUSD',HTX:'btcusdt',PHEMEX:'BTCUSDT',POLONIEX:'BTC_USDT',BINGX:'BTC-USDT',WOOX:'SPOT_BTC_USDT',DERIBIT:'BTC_USDT'},
+ ETHUSDT:{BINANCE:'ethusdt',BINANCEFUT:'ethusdt',BYBIT:'ETHUSDT',BYBITLIN:'ETHUSDT',OKX:'ETH-USDT',OKXFUT:'ETH-USDT-SWAP',GATE:'ETH_USDT',MEXC:'ETHUSDT',BITGET:'ETHUSDT',KUCOIN:'ETH-USDT',BITSTAMP:'ethusdt',GEMINI:'ETHUSD',KRAKEN:'ETH/USDT',COINBASE:'ETH-USDT',BITFINEX:'tETHUSD',HTX:'ethusdt',PHEMEX:'ETHUSDT',POLONIEX:'ETH_USDT',BINGX:'ETH-USDT',WOOX:'SPOT_ETH_USDT',DERIBIT:'ETH_USDT'},
+ SOLUSDT:{BINANCE:'solusdt',BINANCEFUT:'solusdt',BYBIT:'SOLUSDT',BYBITLIN:'SOLUSDT',OKX:'SOL-USDT',OKXFUT:'SOL-USDT-SWAP',GATE:'SOL_USDT',MEXC:'SOLUSDT',BITGET:'SOLUSDT',KUCOIN:'SOL-USDT',BITSTAMP:'solusd',GEMINI:'SOLUSD',KRAKEN:'SOL/USDT',COINBASE:'SOL-USDT',BITFINEX:'tSOLUSD',HTX:'solusdt',PHEMEX:'SOLUSDT',POLONIEX:'SOL_USDT',BINGX:'SOL-USDT',WOOX:'SPOT_SOL_USDT',DERIBIT:null},
+ BNBUSDT:{BINANCE:'bnbusdt',BINANCEFUT:'bnbusdt',BYBIT:'BNBUSDT',BYBITLIN:'BNBUSDT',OKX:'BNB-USDT',OKXFUT:null,GATE:'BNB_USDT',MEXC:'BNBUSDT',BITGET:'BNBUSDT',KUCOIN:'BNB-USDT',BITSTAMP:null,GEMINI:null,KRAKEN:null,COINBASE:null,BITFINEX:null,HTX:'bnbusdt',PHEMEX:'BNBUSDT',POLONIEX:'BNB_USDT',BINGX:'BNB-USDT',WOOX:'SPOT_BNB_USDT',DERIBIT:null},
+ XRPUSDT:{BINANCE:'xrpusdt',BINANCEFUT:'xrpusdt',BYBIT:'XRPUSDT',BYBITLIN:'XRPUSDT',OKX:'XRP-USDT',OKXFUT:'XRP-USDT-SWAP',GATE:'XRP_USDT',MEXC:'XRPUSDT',BITGET:'XRPUSDT',KUCOIN:'XRP-USDT',BITSTAMP:'xrpusdt',GEMINI:'XRPUSD',KRAKEN:'XRP/USDT',COINBASE:'XRP-USDT',BITFINEX:'tXRPUSD',HTX:'xrpusdt',PHEMEX:'XRPUSDT',POLONIEX:'XRP_USDT',BINGX:'XRP-USDT',WOOX:'SPOT_XRP_USDT',DERIBIT:null},
+};
+
+// ════════════════════════════════════════════════════════════════
+// UTIL
+// ════════════════════════════════════════════════════════════════
+function loadBackendUrl(){try{return localStorage.getItem('backend_url')||''}catch{return''}}
+function saveBackendUrl(u){try{u?localStorage.setItem('backend_url',u):localStorage.removeItem('backend_url')}catch{}}
+function normalizeBackendUrl(r){let u=(r||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;try{return new URL(u).origin}catch{return''}}
+function wsBase(r){try{const u=new URL(r);return(u.protocol==='https:'?'wss://':'ws://')+u.host}catch{return''}}
+function dbg(l,...a){const m=a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ');console.log(`[${l}]`,m);
+ const el=document.getElementById('debug-log');if(!el)return;const d=document.createElement('div');
+ d.innerHTML=`<span style="color:#5b6478">${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span> <span style="color:#8b7cf6">[${l}]</span> ${m}`;
+ el.insertBefore(d,el.firstChild);if(el.children.length>60)el.lastChild.remove();}
+
+async function encryptAES(text,hexKey){
+ const enc=new TextEncoder();const kb=new Uint8Array(hexKey.match(/.{1,2}/g).map(b=>parseInt(b,16)));
+ const ck=await crypto.subtle.importKey("raw",kb,{name:"AES-GCM"},false,["encrypt"]);
+ const iv=crypto.getRandomValues(new Uint8Array(12));
+ const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},ck,enc.encode(text));
+ return{iv:btoa(String.fromCharCode(...iv)),ciphertext:btoa(String.fromCharCode(...new Uint8Array(ct)))};
+}
+
+// ════════════════════════════════════════════════════════════════
+// BACKEND
+// ════════════════════════════════════════════════════════════════
+function setNet(state,txt){const d=document.getElementById('net-dot'),t=document.getElementById('net-txt');
+ d.className='d '+(state==='ok'?'ok':state==='bad'?'bad':'warn');t.textContent=txt;}
+async function checkBackend(url){try{const c=new AbortController();const t=setTimeout(()=>c.abort(),4000);
+ const r=await fetch(`${url}/healthz`,{cache:'no-store',signal:c.signal});clearTimeout(t);
+ if(!r.ok)throw new Error(`HTTP ${r.status}`);const j=await r.json();return j?.ok===true;}catch(e){dbg('BACKEND',`health: ${e.message}`);return false;}}
+function openBackendModal(){document.getElementById('backend-modal').classList.remove('hidden');document.getElementById('backend-url').value=BACKEND_URL||'';}
+function closeBackendModal(){document.getElementById('backend-modal').classList.add('hidden');}
+async function testBackend(){const url=normalizeBackendUrl(document.getElementById('backend-url').value);const s=document.getElementById('backend-status');
+ if(!url){s.textContent='✗ Enter a valid URL.';s.style.color='var(--red)';return;}
+ s.textContent='⏳ Checking…';s.style.color='var(--amber)';
+ const ok=await checkBackend(url);s.textContent=ok?`✓ Healthy: ${url}`:`✗ Unreachable: ${url}`;s.style.color=ok?'var(--green)':'var(--red)';}
+async function connectBackend(){
+ const raw=document.getElementById('backend-url').value;const allow=document.getElementById('allow-nobackend').checked;
+ const url=normalizeBackendUrl(raw);const s=document.getElementById('backend-status');
+ if(!url){if(allow){BACKEND_URL='';backendHealthy=false;saveBackendUrl('');applyBackend();closeBackendModal();start();return;}
+  s.textContent='✗ Enter a URL or enable limited mode.';s.style.color='var(--red)';return;}
+ s.textContent='⏳ Checking…';s.style.color='var(--amber)';
+ const ok=await checkBackend(url);backendHealthy=ok;BACKEND_URL=url;saveBackendUrl(url);
+ if(!ok&&!allow){s.textContent='✗ Unreachable. Enable limited mode or fix backend.';s.style.color='var(--red)';return;}
+ applyBackend();closeBackendModal();start();
+}
+function applyBackend(){
+ if(backendHealthy&&BACKEND_URL){DISABLED_EX.delete('KUCOIN');DISABLED_EX.delete('PHEMEX');}
+ else{DISABLED_EX.add('KUCOIN');DISABLED_EX.add('PHEMEX');}
+ recalcTotalEx();
+ setNet(backendHealthy?'ok':(BACKEND_URL?'bad':'warn'),backendHealthy?'LINKED':(BACKEND_URL?'DOWN':'SOLO'));
+ if(started){closeAll();setTimeout(launchAll,300);}
+}
+
+// ════════════════════════════════════════════════════════════════
+// KEY MODAL
+// ════════════════════════════════════════════════════════════════
+function openKeyModal(){document.getElementById('key-modal').classList.remove('hidden');document.getElementById('nim-key').value=nimKey||'';document.getElementById('key-err').textContent='';}
+function closeKeyModal(){document.getElementById('key-modal').classList.add('hidden');}
+async function saveNimKey(){
+ const v=document.getElementById('nim-key').value.trim();const e=document.getElementById('key-err');
+ if(!v.startsWith('nvapi-')){e.textContent='✗ Key must start with nvapi-';e.style.color='var(--red)';return;}
+ e.textContent='⏳ Encrypting…';e.style.color='var(--amber)';
+ if(BACKEND_URL&&backendHealthy){try{const enc=await encryptAES(v,SHARED_SECRET_HEX);
+   const r=await fetch(`${BACKEND_URL.replace(/\/$/,'')}/api/config/keys`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(enc)});
+   if(!r.ok)throw new Error(`HTTP ${r.status}`);}catch(err){e.textContent=`✗ ${err.message}`;e.style.color='var(--red)';return;}}
+ nimKey=v;sessionStorage.setItem('nim_key',v);closeKeyModal();
+ addMsg('s','✓ Key encrypted & saved. GLM-5.2 ready.');dbg('KEY','saved');
+}
+
+// ════════════════════════════════════════════════════════════════
+// SPREAD (modifiable)
+// ════════════════════════════════════════════════════════════════
+function setCustomSpread(v){const n=parseFloat(v);customSpread=(v===''||isNaN(n))?null:n;
+ document.getElementById('spreadbar').classList.toggle('custom',customSpread!=null);scheduleBook();}
+function fmtSpread(n){return'$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6});}
+
+// ════════════════════════════════════════════════════════════════
+// INGEST + RENDER
+// ════════════════════════════════════════════════════════════════
+function ingest({exchange,price,qty,isBuy,ts}){
+ tape.push({exchange,price,qty,isBuy,ts:ts||Date.now()});stamps.push(Date.now());
+ if(tape.length>MAX_TAPE)tape.shift();
+ prevPrice=lastPrice;lastPrice=price;vol+=qty;
+ scheduleTape();updateStats();updatePrice();
+}
+function updatePrice(){
+ const el=document.getElementById('price');
+ el.textContent=lastPrice>0?lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'--';
+ if(prevPrice&&lastPrice!==prevPrice){el.classList.remove('up','dn');void el.offsetWidth;el.classList.add(lastPrice>prevPrice?'up':'dn');}
+}
+let tapeRaf=false;
+function scheduleTape(){if(tapeRaf)return;tapeRaf=true;requestAnimationFrame(()=>{tapeRaf=false;
+ const el=document.getElementById('tape');const f=document.createDocumentFragment();
+ tape.forEach(t=>{const r=document.createElement('div');
+  r.className=`tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}`;
+  const tm=new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  r.innerHTML=`<span>${t.price.toFixed(2)}</span><span class="q">${t.qty.toFixed(4)}</span><span class="t">${tm}</span>`;f.appendChild(r);});
+ el.innerHTML='';el.appendChild(f);
+ document.getElementById('tape-count').textContent=tape.length;
+});}
+let bookRaf=false;
+function scheduleBook(){if(bookRaf)return;bookRaf=true;requestAnimationFrame(()=>{bookRaf=false;
+ const aEl=document.getElementById('dom-asks'),bEl=document.getElementById('dom-bids');
+ const va=book.asks.slice(0,MAX_LEVELS),vb=book.bids.slice(0,MAX_LEVELS);
+ const all=[...va.map(r=>+r[1]),...vb.map(r=>+r[1])];const mx=all.length?Math.max(...all):1;
+ const rows=(lv,side)=>{const f=document.createDocumentFragment();
+  lv.forEach(([p,q])=>{const P=+p,Q=+q;const pct=Math.min(100,(Q/mx)*100).toFixed(1);
+   const d=document.createElement('div');d.className=`dom-row ${side==='ask'?'ask':'bid'}`;
+   d.innerHTML=`<div class="dom-bar" style="width:${pct}%;background:${side==='ask'?'var(--red)':'var(--green)'}"></div><span class="dom-col">${P.toFixed(2)}</span><span class="dom-col">${Q.toFixed(4)}</span>`;
+   f.appendChild(d);});return f;};
+ aEl.innerHTML='';aEl.appendChild(rows(va,'ask'));bEl.innerHTML='';bEl.appendChild(rows(vb,'bid'));
+ if(book.asks.length&&book.bids.length){const live=+book.asks[0][0]-+book.bids[0][0];
+  document.getElementById('spread-live').textContent=fmtSpread(customSpread!=null?customSpread:live);}
+});}
+function updateStats(){const now=Date.now();stamps=stamps.filter(t=>now-t<TPS_WIN);
+ document.getElementById('st-tps').textContent=(stamps.length/(TPS_WIN/1000)).toFixed(1);
+ document.getElementById('st-vol').textContent=vol>=1000?(vol/1000).toFixed(1)+'K':vol.toFixed(2);}
+function refreshStreams(){const n=Object.values(exStatus).filter(s=>s==='connected').length;
+ document.getElementById('st-streams').textContent=`${n}/${TOTAL_EX}`;}
+function setEx(id,s){exStatus[id]=s;refreshStreams();}
+
+// ════════════════════════════════════════════════════════════════
+// WS FACTORY
+// ════════════════════════════════════════════════════════════════
+const streamFactories={},retryDelay={},failCount={};
+function makeWS(id,url,{onopen,onmessage,onping,pingMs}={}){
+ return new Promise((res,rej)=>{let ws;try{ws=new WebSocket(url)}catch(e){return rej(e)}
+  ws.binaryType='arraybuffer';sockets[id]=ws;let settled=false;
+  ws.onopen=()=>{settled=true;failCount[id]=0;retryDelay[id]=1500;setEx(id,'connected');
+   if(onopen)onopen(ws);if(onping&&pingMs)pings[id]=setInterval(()=>{if(ws.readyState===1)onping(ws)},pingMs);res(ws);};
+  ws.onmessage=ev=>{try{onmessage(ev,ws)}catch{}};ws.onerror=()=>{};
+  ws.onclose=()=>{if(ws._dead)return;clearInterval(pings[id]);setEx(id,'disconnected');
+   if(!settled)return rej(new Error('closed'));scheduleReconnect(id,1500);};
+ });}
+async function gunzip(ab){const ds=new DecompressionStream('gzip');const w=ds.writable.getWriter();w.write(new Uint8Array(ab));w.close();
+ const ch=[];const r=ds.readable.getReader();while(true){const{done,value}=await r.read();if(done)break;ch.push(value);}
+ const t=ch.reduce((a,c)=>a+c.length,0);const o=new Uint8Array(t);let off=0;ch.forEach(c=>{o.set(c,off);off+=c.length});return new TextDecoder().decode(o);}
+function closeAll(){Object.keys(sockets).forEach(id=>{const ws=sockets[id];if(ws){ws._dead=true;ws.onclose=null;ws.close()}delete sockets[id]});
+ Object.keys(pings).forEach(id=>{clearInterval(pings[id]);delete pings[id]});
+ Object.keys(failCount).forEach(id=>delete failCount[id]);Object.keys(retryDelay).forEach(id=>delete retryDelay[id]);
+ EXCHANGES.forEach(e=>setEx(e,'disconnected'));}
+function scheduleReconnect(id,delay=1500){const f=streamFactories[id];if(!f||DISABLED_EX.has(id))return;
+ const next=Math.min(retryDelay[id]||delay,30000);retryDelay[id]=next*1.6;setTimeout(()=>openStream(id,f,next),next);}
+function openStream(id,factory,retry=1500){streamFactories[id]=factory;retryDelay[id]=retry;
+ const sym=SYM[currentBase]?.[id];if(!sym||DISABLED_EX.has(id)){setEx(id,'disconnected');return;}
+ setEx(id,'connecting');
+ factory(sym,id).then(()=>{failCount[id]=0;retryDelay[id]=1500;})
+  .catch(err=>{failCount[id]=(failCount[id]||0)+1;dbg('WS',`${id} fail ${failCount[id]}: ${err?.message||err}`);
+   if(failCount[id]>=6){setEx(id,'disconnected');return;}scheduleReconnect(id,retry);});}
+
+// ════════════════════════════════════════════════════════════════
+// ADAPTERS (21 venues)
+// ════════════════════════════════════════════════════════════════
+const A={
+BINANCE:(s,id)=>makeWS(id,`wss://stream.binance.com:9443/stream?streams=${s}@depth20@100ms/${s}@trade`,{onmessage(ev){const e=JSON.parse(ev.data);
+ if(e.stream?.includes('@depth')){book.bids=e.data.bids;book.asks=e.data.asks;scheduleBook();}
+ else if(e.stream?.includes('@trade')){const d=e.data;ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}}}),
+BINANCEFUT:(s,id)=>makeWS(id,`wss://fstream.binance.com/stream?streams=${s}@aggTrade`,{onmessage(ev){const e=JSON.parse(ev.data);
+ if(e.stream?.includes('@aggTrade')){const d=e.data;ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}}}),
+BYBIT:(s,id)=>makeWS(id,'wss://stream.bybit.com/v5/public/spot',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${s}`]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}))},
+ onping(ws){ws.send(JSON.stringify({op:'ping'}))},pingMs:20000}),
+BYBITLIN:(s,id)=>makeWS(id,'wss://stream.bybit.com/v5/public/linear',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${s}`]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}))},
+ onping(ws){ws.send(JSON.stringify({op:'ping'}))},pingMs:20000}),
+OKX:(s,id)=>makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:s}]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}))},
+ onping(ws){ws.send('ping')},pingMs:25000}),
+OKXFUT:(s,id)=>makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:s}]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}))},
+ onping(ws){ws.send('ping')},pingMs:25000}),
+GATE:(s,id)=>makeWS(id,'wss://api.gateio.ws/ws/v4/',{onopen(ws){ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.trades',event:'subscribe',payload:[s]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='spot.trades'&&d.event==='update'){const t=d.result;ingest({exchange:'GATE',price:+t.price,qty:+t.amount,isBuy:t.side==='buy',ts:t.create_time_ms||Date.now()})}},
+ onping(ws){ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.ping',event:'',payload:null}))},pingMs:20000}),
+MEXC:(s,id)=>makeWS(id,'wss://wbs.mexc.com/ws',{onopen(ws){ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${s}`]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.c?.includes('deals'))(d.d?.deals||[]).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}))},
+ onping(ws){ws.send(JSON.stringify({method:'PING'}))},pingMs:20000}),
+BITGET:(s,id)=>makeWS(id,'wss://ws.bitget.com/v2/ws/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:s}]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.action==='snapshot'||d.action==='update')(d.data||[]).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}))},
+ onping(ws){ws.send('ping')},pingMs:25000}),
+KUCOIN:async(s,id)=>{if(!BACKEND_URL)return Promise.reject(new Error('no backend'));
+ let td;try{const r=await fetch(`${BACKEND_URL}/api/kucoin/bullet-public`,{method:'POST'});td=await r.json();}catch(e){return Promise.reject(e)}
+ if(!td?.data?.token||!td.data.instanceServers?.length)return Promise.reject(new Error('bullet invalid'));
+ const{token,instanceServers}=td.data;const url=`${instanceServers[0].endpoint}?token=${token}`;let mid=1;
+ return makeWS(id,url,{onopen(ws){ws.send(JSON.stringify({id:mid++,type:'subscribe',topic:`/market/match:${s}`,privateChannel:false,response:true}))},
+  onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='message'&&d.topic?.includes('/market/match')){const t=d.data;ingest({exchange:'KUCOIN',price:+t.price,qty:+t.size,isBuy:t.side==='buy',ts:+t.time/1e6})}},
+  onping(ws){ws.send(JSON.stringify({id:mid++,type:'ping'}))},pingMs:instanceServers[0].pingInterval||18000});},
+BITSTAMP:(s,id)=>makeWS(id,'wss://ws.bitstamp.net',{onopen(ws){ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${s}`}}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.event==='trade'){const t=d.data;ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000})}}}),
+GEMINI:(s,id)=>makeWS(id,`wss://api.gemini.com/v2/marketdata?symbols=${s}`,{onopen(ws){ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2',symbols:[s]}]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='trade')ingest({exchange:'GEMINI',price:+d.price,qty:+d.quantity,isBuy:d.side==='buy',ts:d.timestamp||Date.now()})}}),
+KRAKEN:(s,id)=>makeWS(id,'wss://ws.kraken.com/v2',{onopen(ws){ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[s]},req_id:1}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='trade'&&d.type==='update')(d.data||[]).forEach(t=>ingest({exchange:'KRAKEN',price:+t.price,qty:+t.qty,isBuy:t.side==='buy',ts:new Date(t.timestamp).getTime()}))},
+ onping(ws){ws.send(JSON.stringify({method:'ping'}))},pingMs:30000}),
+COINBASE:(s,id)=>makeWS(id,'wss://advanced-trade-ws.coinbase.com',{onopen(ws){ws.send(JSON.stringify({type:'subscribe',product_ids:[s],channel:'market_trades'}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='market_trades')(d.events||[]).forEach(e=>(e.trades||[]).forEach(t=>ingest({exchange:'COINBASE',price:+t.price,qty:+t.size,isBuy:t.side==='BUY',ts:new Date(t.time).getTime()})))}}),
+BITFINEX:(s,id)=>makeWS(id,'wss://api-pub.bitfinex.com/ws/2',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbol:s}))},
+ onmessage:async ev=>{let t;if(ev.data instanceof ArrayBuffer){try{t=await gunzip(ev.data)}catch{t=new TextDecoder().decode(ev.data)}}else t=ev.data;
+  const d=JSON.parse(t);if(Array.isArray(d)&&d[1]==='te'){const[,,[,ts,amt,price]]=d;ingest({exchange:'BITFINEX',price:+price,qty:Math.abs(+amt),isBuy:+amt>0,ts})}},
+ onping(ws){ws.send(JSON.stringify({event:'ping'}))},pingMs:30000}),
+HTX:(s,id)=>makeWS(id,'wss://api.huobi.pro/ws',{onopen(ws){ws.send(JSON.stringify({sub:`market.${s}.trade.detail`,id:'omni'}))},
+ onmessage:async ev=>{let t;try{t=await gunzip(ev.data)}catch{return}const d=JSON.parse(t);
+  if(d.ping){sockets[id]?.send(JSON.stringify({pong:d.ping}));return;}
+  if(d.ch?.includes('trade.detail')&&d.tick)(d.tick.data||[]).forEach(x=>ingest({exchange:'HTX',price:+x.price,qty:+x.amount,isBuy:x.direction==='buy',ts:x.ts}))}}),
+PHEMEX:(s,id)=>{if(!BACKEND_URL)return Promise.reject(new Error('no backend'));const b=wsBase(BACKEND_URL);if(!b)return Promise.reject(new Error('bad url'));
+ return makeWS(id,`${b}/api/ws/phemex`,{onopen(ws){ws.send(JSON.stringify({id:1,method:'trade.subscribe',params:[s]}))},
+  onmessage(ev){const d=JSON.parse(ev.data);if(d.result==='pong')return;if(d.type==='snapshot'||d.type==='incremental')(d.trades||[]).forEach(t=>ingest({exchange:'PHEMEX',price:+t[2]/1e4,qty:+t[3],isBuy:t[1]==='Buy',ts:Math.floor(+t[0]/1e6)}))},
+  onping(ws){ws.send(JSON.stringify({id:99,method:'server.ping',params:[]}))},pingMs:20000});},
+POLONIEX:(s,id)=>makeWS(id,'wss://ws.poloniex.com/ws/public',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbols:[s]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='trades'&&d.data)d.data.forEach(t=>ingest({exchange:'POLONIEX',price:+t.price,qty:+t.quantity,isBuy:t.takerSide==='buy',ts:t.ts||Date.now()}))},
+ onping(ws){ws.send(JSON.stringify({event:'ping'}))},pingMs:30000}),
+BINGX:(s,id)=>makeWS(id,'wss://open-api-ws.bingx.com/market',{onopen(ws){ws.send(JSON.stringify({id:'omni',reqType:'sub',dataType:`${s}@trade`}))},
+ onmessage:async ev=>{let t;if(ev.data instanceof ArrayBuffer){try{t=await gunzip(ev.data)}catch{t=new TextDecoder().decode(ev.data)}}else t=ev.data;
+  if(t==='Ping'){sockets[id]?.send('Pong');return;}try{const d=JSON.parse(t);if(d.data)ingest({exchange:'BINGX',price:+d.data.p,qty:+d.data.q,isBuy:d.data.m===false,ts:d.data.T||Date.now()})}catch{}}}),
+WOOX:(s,id)=>makeWS(id,'wss://wss.woo.org/ws/stream/broadcast',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',topic:`${s}@trade`}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.includes('@trade')&&d.data)ingest({exchange:'WOOX',price:+d.data.price,qty:+d.data.size,isBuy:d.data.side==='BUY',ts:d.data.ts||Date.now()})},
+ onping(ws){ws.send(JSON.stringify({event:'ping'}))},pingMs:25000}),
+DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:1,method:'public/subscribe',params:{channels:[`trades.${s}.raw`]}}))},
+ onmessage(ev){const d=JSON.parse(ev.data);if(d.method==='subscription'&&d.params?.channel?.startsWith('trades'))(d.params.data||[]).forEach(t=>ingest({exchange:'DERIBIT',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.timestamp}))},
+ onping(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}}))},pingMs:30000}),
+};
+function launchAll(){EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*2000);});}
+
+function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;book.asks=[];book.bids=[];
+ document.getElementById('price').textContent='--';document.getElementById('spread-live').textContent='$--';
+ document.getElementById('tape').innerHTML='';document.getElementById('dom-asks').innerHTML='';document.getElementById('dom-bids').innerHTML='';
+ closeAll();setTimeout(launchAll,300);}
+
+// ════════════════════════════════════════════════════════════════
+// AI
+// ════════════════════════════════════════════════════════════════
+function toggleAi(){aiOpen=!aiOpen;document.getElementById('ai').style.height=aiOpen?'230px':'31px';
+ document.getElementById('ai-chev').textContent=aiOpen?'▼':'▲';
+ ['ai-msgs','ai-inrow'].forEach(id=>document.getElementById(id).style.display=aiOpen?'':'none');}
+function addMsg(r,t){const el=document.getElementById('ai-msgs');const d=document.createElement('div');
+ d.className=r==='u'?'m-u':r==='t'?'m-t':r==='e'?'m-e':r==='s'?'m-s':'m-a';d.textContent=t;
+ el.appendChild(d);el.scrollTop=el.scrollHeight;return d;}
+function buildCtx(){const rec=tape.slice(-30);const buys=rec.filter(t=>t.isBuy).length;
+ const avg=rec.length?(rec.reduce((a,t)=>a+t.price,0)/rec.length).toFixed(2):'N/A';
+ const ba=book.asks[0]?+book.asks[0][0]:'N/A';const bb=book.bids[0]?+book.bids[0][0]:'N/A';
+ const active=Object.entries(exStatus).filter(([,s])=>s==='connected').map(([id])=>id).join(',')||'none';
+ return`[${currentBase} @ ${new Date().toISOString()}] Last:$${lastPrice?lastPrice.toFixed(2):'--'} Ask:$${ba} Bid:$${bb}\nLast30: ${buys} buys/${rec.length-buys} sells Avg:$${avg}\nFeeds:${active} Backend:${BACKEND_URL||'none'}(${backendHealthy?'ok':'down'})`;}
+async function sendToGLM(){
+ if(aiBusy)return;
+ if(!BACKEND_URL){openBackendModal();addMsg('e','No backend. Configure one first.');return;}
+ if(!nimKey){openKeyModal();return;}
+ const inp=document.getElementById('ai-in');const btn=document.getElementById('ai-send');
+ const msg=inp.value.trim();if(!msg)return;
+ inp.value='';aiBusy=true;btn.disabled=true;document.getElementById('nim-dot').classList.add('busy');
+ addMsg('u',msg);
+ const messages=[{role:'system',content:`You are a professional crypto orderflow analyst in a live multi-exchange tape terminal. Be concise, use bullets.\n\n${buildCtx()}`},...aiHistory,{role:'user',content:msg}];
+ aiHistory.push({role:'user',content:msg});
+ const bubble=addMsg('a','');let full='',thinkB=null,think='';
+ const url=`${BACKEND_URL.replace(/\/$/,'')}/api/nim/chat/completions`;
+ dbg('NIM',`→ ${url}`);
+ try{
+  const resp=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${nimKey}`},
+   body:JSON.stringify({model:NIM_MODEL,messages,temperature:0.6,top_p:0.9,max_tokens:1024,stream:true})});
+  if(!resp.ok){let eb='';try{eb=await resp.text()}catch{}
+   let m=`HTTP ${resp.status}`;try{const p=JSON.parse(eb);m+='\n'+(p?.message||p?.detail||eb.slice(0,200))}catch{m+='\n'+eb.slice(0,200)}
+   if(resp.status===401)m+='\n→ Invalid nvapi- key.';if(resp.status===429)m+='\n→ Rate limit.';
+   bubble.remove();aiHistory.pop();addMsg('e',m);return;}
+  const reader=resp.body.getReader();const dec=new TextDecoder();let buf='';
+  while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});
+   const lines=buf.split('\n');buf=lines.pop();
+   for(const line of lines){if(!line.startsWith('data:'))continue;const pl=line.slice(5).trim();if(pl==='[DONE]')break;
+    try{const ch=JSON.parse(pl);const d=ch.choices?.[0]?.delta;if(!d)continue;
+     if(d.reasoning_content){think+=d.reasoning_content;if(!thinkB)thinkB=addMsg('t','');thinkB.textContent='💭 '+think;document.getElementById('ai-msgs').scrollTop=1e4;}
+     if(d.content){full+=d.content;bubble.textContent=full;document.getElementById('ai-msgs').scrollTop=1e4;}}catch{}}}
+  aiHistory.push({role:'assistant',content:full});if(aiHistory.length>20)aiHistory.splice(0,2);
+ }catch(err){bubble.remove();aiHistory.pop();addMsg('e',`Fetch failed: ${err.message}`);}
+ finally{aiBusy=false;btn.disabled=false;document.getElementById('nim-dot').classList.remove('busy');}
+}
+
+// ════════════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════════════
+function start(){if(started)return;started=true;
+ setNet(backendHealthy?'ok':(BACKEND_URL?'bad':'warn'),backendHealthy?'LINKED':(BACKEND_URL?'DOWN':'SOLO'));
+ launchAll();
+ if(nimKey)addMsg('a',`GLM-5.2 ready. Watching ${currentBase} across the tape.`);
+ else addMsg('s','Set your NIM key (🔑) to enable AI.');}
+window.addEventListener('DOMContentLoaded',async()=>{
+ recalcTotalEx();
+ if(BACKEND_URL){setNet('warn','…');backendHealthy=await checkBackend(BACKEND_URL);
+  setNet(backendHealthy?'ok':'bad',backendHealthy?'LINKED':'DOWN');}
+ else setNet('warn','SOLO');
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeKeyModal();closeBackendModal();}});
+</script>
 </body>
 </html>
