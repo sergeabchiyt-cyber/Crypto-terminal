@@ -230,7 +230,8 @@ let bucketWidth=null, nimKey=sessionStorage.getItem('nim_key')||'';
 let aiHistory=[], aiBusy=false, lastLadder=null;
 let BACKEND_URL=loadBackendUrl(), backendHealthy=false, started=false;
 let domPool = [];
-let ladderCenter = 0; // Stabilizes DOM centering to prevent UI jitter
+let ladderCenter = 0; 
+let smoothMaxVol = 0; // Smoothed max volume to stabilize DOM bars
 let statsTimer = null;
 
 const EXCHANGES=['BINANCE','BINANCEFUT','BYBIT','BYBITLIN','OKX','OKXFUT','GATE','MEXC','BITGET','KUCOIN','BITSTAMP','GEMINI','KRAKEN','COINBASE','BITFINEX','HTX','PHEMEX','POLONIEX','BINGX','WOOX','DERIBIT'];
@@ -317,7 +318,9 @@ function applyDepth(d){
  for(const[p,q]of d.a){q==='0'?deep.asks.delete(+p):deep.asks.set(+p,+q);}
  deep.lastId=d.u;}
 function openDeepBook(base){
- closeDeepBook();
+ if (deep.ws) { try { deep.ws._dead = true; deep.ws.close(); } catch {} deep.ws = null; }
+ deep.ready = false;
+ deep.buf = [];
  const sym=base.toLowerCase();
  deep.ws=new WebSocket(`wss://stream.binance.com:9443/ws/${sym}@depth@100ms`);
  deep.ws.onmessage=ev=>{const d=JSON.parse(ev.data);
@@ -329,6 +332,8 @@ function openDeepBook(base){
  fetch(`https://api.binance.com/api/v3/depth?symbol=${base}&limit=${SNAP_LIMIT}`)
   .then(r=>r.json()).then(snap=>{
    if(!snap||!snap.lastUpdateId){dbg('DOM','binance snapshot failed');return;}
+   deep.bids.clear();
+   deep.asks.clear();
    deep.lastId=snap.lastUpdateId;
    for(const[p,q]of snap.bids)deep.bids.set(+p,+q);
    for(const[p,q]of snap.asks)deep.asks.set(+p,+q);
@@ -344,7 +349,14 @@ function openDeepBook(base){
 function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n; ladderCenter=0; scheduleAgg();}
 function autoBW(mid){return bucketWidth||DEFAULT_TICK[currentBase]||0.10;}
 function bwDecimals(bw){return bw>=1?(bw%1===0?2:2):bw>=.1?2:bw>=.01?2:4;}
-function fmtQty(n){return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1000?(n/1000).toFixed(1)+'K':n>=10?n.toFixed(0):n>0?n.toFixed(2):'';}
+function fmtQty(n){
+ if(n>=1e6) return (n/1e6).toFixed(1)+'M';
+ if(n>=1000) return (n/1000).toFixed(1)+'K';
+ if(n>=10) return n.toFixed(0);
+ if(n>=1) return n.toFixed(2);
+ if(n>0) return n.toFixed(3);
+ return '';
+}
 
 function initDOMPool() {
   const container = document.getElementById('dom-ladder');
@@ -391,7 +403,6 @@ function renderLadder(){
  const mid=refMid();if(!mid)return;
  const bw=autoBW(mid);
  
- // Stabilize centering so the UI doesn't jump unless the price trends 
  if (!ladderCenter || Math.abs(mid - ladderCenter) > bw * 3) {
      ladderCenter = Math.round(mid / bw) * bw;
  }
@@ -404,7 +415,6 @@ function renderLadder(){
  const bidB=new Map(), askB=new Map();
  let activeVenues=0, bestBid=0, bestAsk=Infinity;
 
- // Synthesize L2 Deep Book & Venue Streams
  if(deep.bids.size||deep.asks.size){
   activeVenues++;
   for(const[p,q]of deep.bids){if(p>bestBid)bestBid=p;const b=Math.floor(p/bw)*bw;const k=b.toFixed(dec);bidB.set(k,(bidB.get(k)||0)+q);}
@@ -418,17 +428,27 @@ function renderLadder(){
   }
  }
 
- let maxVol=1e-9, totalBid=0, totalAsk=0;
+ let currentMaxVol = 1e-9, totalBid=0, totalAsk=0;
  for(let i=0; i<NUM_RUNGS; i++){
   const p=topPrice-(i*bw);
   const k=p.toFixed(dec);
   const bq=bidB.get(k)||0;
   const aq=askB.get(k)||0;
-  if(bq>maxVol)maxVol=bq; if(aq>maxVol)maxVol=aq;
+  if(bq>currentMaxVol)currentMaxVol=bq; 
+  if(aq>currentMaxVol)currentMaxVol=aq;
   totalBid+=bq; totalAsk+=aq;
  }
 
- const wallThreshold = maxVol * 0.75;
+ // Smooth maxVol to prevent violent bar resizing
+ if (currentMaxVol > smoothMaxVol) {
+     smoothMaxVol = currentMaxVol; // Instantly jump up
+ } else if (smoothMaxVol > 1e-9) {
+     smoothMaxVol = smoothMaxVol * 0.85 + currentMaxVol * 0.15; // Smooth decay down
+ } else {
+     smoothMaxVol = currentMaxVol;
+ }
+
+ const wallThreshold = smoothMaxVol * 0.75;
 
  for(let i=0; i<NUM_RUNGS; i++){
   const p=topPrice-(i*bw);
@@ -437,28 +457,42 @@ function renderLadder(){
   const bq=bidB.get(k)||0;
   const aq=askB.get(k)||0;
 
-  node.priceCell.textContent=k;
+  if(node.priceCell.textContent !== k) node.priceCell.textContent=k;
+  
   if(Math.abs(p-lastPrice)<(bw/2)) node.row.classList.add('last-price');
   else node.row.classList.remove('last-price');
 
   if(bq>wallThreshold) node.row.classList.add('wall-bid'); else node.row.classList.remove('wall-bid');
   if(aq>wallThreshold) node.row.classList.add('wall-ask'); else node.row.classList.remove('wall-ask');
 
-  if(bq>0){
-   node.bidVal.textContent=fmtQty(bq);
-   node.bidBar.style.width=Math.min(100,(bq/maxVol)*100).toFixed(1)+'%';
-  } else { node.bidVal.textContent=''; node.bidBar.style.width='0%'; }
-
-  if(aq>0){
-   node.askVal.textContent=fmtQty(aq);
-   node.askBar.style.width=Math.min(100,(aq/maxVol)*100).toFixed(1)+'%';
-  } else { node.askVal.textContent=''; node.askBar.style.width='0%'; }
+  const bqStr = bq > 0 ? fmtQty(bq) : '';
+  const aqStr = aq > 0 ? fmtQty(aq) : '';
+  
+  if(node.bidVal.textContent !== bqStr) node.bidVal.textContent = bqStr;
+  if(node.askVal.textContent !== aqStr) node.askVal.textContent = aqStr;
+  
+  const bidW = bq > 0 ? Math.min(100, (bq/smoothMaxVol)*100).toFixed(1)+'%' : '0%';
+  const askW = aq > 0 ? Math.min(100, (aq/smoothMaxVol)*100).toFixed(1)+'%' : '0%';
+  
+  if(node.bidBar.style.width !== bidW) node.bidBar.style.width = bidW;
+  if(node.askBar.style.width !== askW) node.askBar.style.width = askW;
  }
 
- document.getElementById('liq-bid').textContent='ΣB '+fmtQty(totalBid);
- document.getElementById('liq-ask').textContent='ΣA '+fmtQty(totalAsk);
- document.getElementById('spread-live').textContent=(bestAsk<Infinity&&bestBid>0)?'$'+(bestAsk-bestBid).toFixed(dec):'--';
- document.getElementById('depth-info').textContent=`${activeVenues} feeds · step $${bw} · ${NUM_RUNGS} rungs`;
+ const liqBidEl = document.getElementById('liq-bid');
+ const liqAskEl = document.getElementById('liq-ask');
+ const spreadEl = document.getElementById('spread-live');
+ const depthEl = document.getElementById('depth-info');
+ 
+ const liqBidStr = 'ΣB ' + fmtQty(totalBid);
+ const liqAskStr = 'ΣA ' + fmtQty(totalAsk);
+ const spreadStr = (bestAsk<Infinity&&bestBid>0) ? '$'+(bestAsk-bestBid).toFixed(dec) : '--';
+ const depthStr = `${activeVenues} feeds · step $${bw} · ${NUM_RUNGS} rungs`;
+
+ if(liqBidEl.textContent !== liqBidStr) liqBidEl.textContent = liqBidStr;
+ if(liqAskEl.textContent !== liqAskStr) liqAskEl.textContent = liqAskStr;
+ if(spreadEl.textContent !== spreadStr) spreadEl.textContent = spreadStr;
+ if(depthEl.textContent !== depthStr) depthEl.textContent = depthStr;
+ 
  lastLadder={bw,sb:totalBid,sa:totalAsk,venues:activeVenues};
 }
 
