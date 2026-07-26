@@ -3,120 +3,138 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>OMNI STREAM</title>
+<title>OMNI STREAM - FULL MULTI-VENUE FIXED ENGINE</title>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg0:#0b0e14;--bg1:#12161f;--bg2:#1a1f2c;--line:#242c3d;
-  --txt:#dfe3ec;--dim:#78829a;--green:#17d2ad;--red:#f6465d;
-  --amber:#f0b90b;--purple:#8b7cf6;
+:root {
+  --bg0: #0b0e14; --bg1: #12161f; --bg2: #1a1f2c; --line: #242c3d;
+  --txt: #dfe3ec; --dim: #78829a; --green: #17d2ad;
+  --green-bar: rgba(23, 210, 173, 0.22);
+  --red: #f6465d;
+  --red-bar: rgba(246, 70, 93, 0.22);
+  --amber: #f0b90b; --purple: #8b7cf6;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
-body{font-family:'JetBrains Mono',monospace;color:var(--txt);background:var(--bg0);display:flex;flex-direction:column;height:100vh}
-::-webkit-scrollbar{width:3px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#2a3347;border-radius:2px}
-.disp{font-family:'Chakra Petch',sans-serif}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; font-family: 'JetBrains Mono', monospace; color: var(--txt); background: var(--bg0); display: flex; flex-direction: column; height: 100vh; }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a3347; border-radius: 2px; }
+.disp { font-family: 'Chakra Petch', sans-serif; }
 
-/* ── settings (top, inline) ── */
-#settings{flex-shrink:0;border-bottom:1px solid var(--line);padding:5px 7px;display:flex;flex-direction:column;gap:4px;background:linear-gradient(180deg,var(--bg1),var(--bg0))}
-#settings .row{display:flex;align-items:center;gap:5px}
-#settings .lbl{font-size:7px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;width:28px;flex-shrink:0}
-#backend-url{flex:1;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 6px;border-radius:4px;outline:none;min-width:0}
-#backend-url:focus{border-color:var(--green)}
-.sbtn{border:1px solid var(--line);background:var(--bg2);color:var(--dim);font-size:8px;font-weight:700;font-family:'Chakra Petch',sans-serif;padding:3px 7px;border-radius:4px;cursor:pointer;transition:.12s;flex-shrink:0}
-.sbtn:hover{color:var(--txt);border-color:#3a4560}
-.sbtn.go{background:var(--green);color:#06251d;border-color:var(--green)}
-#backend-status{font-size:7.5px;color:var(--dim);min-height:10px;line-height:1.2}
-.d{width:5px;height:5px;border-radius:50%;display:inline-block;flex-shrink:0}
-.d.ok{background:var(--green);box-shadow:0 0 4px var(--green)}
-.d.warn{background:var(--amber);box-shadow:0 0 4px var(--amber);animation:pulse 1s infinite}
-.d.bad{background:var(--red);box-shadow:0 0 4px var(--red)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-select{background:var(--bg1);border:1px solid var(--line);color:var(--amber);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;outline:none;padding:2px 4px;cursor:pointer}
-#price{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:14px;line-height:1}
-#price.up{color:var(--green)}
-#price.dn{color:var(--red)}
-.chk{display:flex;align-items:center;gap:4px;font-size:7.5px;color:var(--dim);cursor:pointer}
-.chk input{accent-color:var(--purple);width:10px;height:10px}
+/* Control Header */
+#settings { flex-shrink: 0; border-bottom: 1px solid var(--line); padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--bg1), var(--bg0)); }
+#settings .row { display: flex; align-items: center; gap: 5px; }
+#settings .lbl { font-size: 7px; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; width: 28px; flex-shrink: 0; }
+#backend-url { flex: 1; background: var(--bg0); border: 1px solid var(--line); color: var(--txt); font-size: 9px; font-family: 'JetBrains Mono', monospace; padding: 3px 6px; border-radius: 4px; outline: none; min-width: 0; }
+#backend-url:focus { border-color: var(--green); }
+.sbtn { border: 1px solid var(--line); background: var(--bg2); color: var(--dim); font-size: 8px; font-weight: 700; font-family: 'Chakra Petch', sans-serif; padding: 3px 7px; border-radius: 4px; cursor: pointer; transition: .12s; flex-shrink: 0; }
+.sbtn:hover { color: var(--txt); border-color: #3a4560; }
+.sbtn.go { background: var(--green); color: #06251d; border-color: var(--green); }
+#backend-status { font-size: 7.5px; color: var(--dim); min-height: 10px; line-height: 1.2; }
+.d { width: 5px; height: 5px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.d.ok { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.d.warn { background: var(--amber); box-shadow: 0 0 4px var(--amber); animation: pulse 1s infinite; }
+.d.bad { background: var(--red); box-shadow: 0 0 4px var(--red); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+select { background: var(--bg1); border: 1px solid var(--line); color: var(--amber); border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; outline: none; padding: 2px 4px; cursor: pointer; }
+#price { font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 14px; line-height: 1; }
+#price.up { color: var(--green); }
+#price.dn { color: var(--red); }
+.chk { display: flex; align-items: center; gap: 4px; font-size: 7.5px; color: var(--dim); cursor: pointer; }
+.chk input { accent-color: var(--purple); width: 10px; height: 10px; }
 
-/* ── orderflow (middle, fills) ── */
-#orderflow{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative}
-.sec-h{display:flex;align-items:center;justify-content:space-between;padding:2px 6px;font-size:7px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;border-bottom:1px solid var(--line);flex-shrink:0;background:rgba(255,255,255,.015)}
-.live-dot{width:3px;height:3px;border-radius:50%;background:var(--green);box-shadow:0 0 4px var(--green);animation:pulse 1.6s infinite;display:inline-block}
+/* Main Stream Container */
+#orderflow { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; position: relative; }
+.sec-h { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px; font-size: 7px; letter-spacing: .12em; color: var(--dim); text-transform: uppercase; border-bottom: 1px solid var(--line); flex-shrink: 0; background: rgba(255, 255, 255, .015); }
+.live-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--green); box-shadow: 0 0 4px var(--green); animation: pulse 1.6s infinite; display: inline-block; }
 
-#dom-wrap{flex-shrink:0;display:flex;flex-direction:column;border-bottom:1px solid var(--line)}
-.dom-row{position:relative;display:flex;justify-content:space-between;padding:0 6px;font-size:9px;line-height:1.55}
-.dom-bar{position:absolute;top:0;bottom:0;right:0;opacity:.13;pointer-events:none}
-.dom-col{position:relative;z-index:1}
-.ask{color:var(--red)}.bid{color:var(--green)}
-#spreadbar{display:flex;align-items:center;justify-content:center;gap:5px;padding:1px 4px;font-size:8px;font-weight:700;color:var(--amber);flex-shrink:0}
-#spread-input{width:44px;text-align:center;font-size:8px;padding:1px 3px;color:var(--amber);background:var(--bg1);border:1px solid var(--line);border-radius:3px;outline:none}
+/* Zero-Allocation Unified DOM Ladder */
+#dom-wrap { flex: 0 0 54%; display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line); background: var(--bg0); }
+.dom-header-grid { display: grid; grid-template-columns: 1fr 100px 1fr; background: var(--bg1); border-bottom: 1px solid var(--line); font-size: 8px; font-weight: 700; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; text-align: center; padding: 3px 0; flex-shrink: 0; }
 
-#tape-wrap{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-#tape{flex:1;overflow:hidden;display:flex;flex-direction:column-reverse}
-.tape-row{display:grid;grid-template-columns:1fr .65fr .75fr;font-size:9px;line-height:1.55;padding:0 6px 0 7px;border-left:2px solid transparent;border-bottom:1px solid rgba(36,44,61,.3)}
-.tape-row .q{text-align:right}.tape-row .t{text-align:right;color:var(--dim);font-size:7.5px}
-.tb{color:var(--green)}.ts{color:var(--red)}
-.ex-BINANCE{border-color:#f0b90b}.ex-BINANCEFUT{border-color:#f3d06d}.ex-BYBIT{border-color:#ff6b35}.ex-BYBITLIN{border-color:#ff9a6c}
-.ex-OKX{border-color:#60a5fa}.ex-OKXFUT{border-color:#93c5fd}.ex-GATE{border-color:#34d399}.ex-MEXC{border-color:#a78bfa}
-.ex-BITGET{border-color:#fb923c}.ex-KUCOIN{border-color:#22d3ee}.ex-BITSTAMP{border-color:#84cc16}.ex-GEMINI{border-color:#e879f9}
-.ex-KRAKEN{border-color:#7c3aed}.ex-COINBASE{border-color:#0ea5e9}.ex-BITFINEX{border-color:#f97316}.ex-HTX{border-color:#10b981}
-.ex-PHEMEX{border-color:#d946ef}.ex-POLONIEX{border-color:#fcd34d}.ex-BINGX{border-color:#38bdf8}.ex-WOOX{border-color:#ec4899}.ex-DERIBIT{border-color:#c084fc}
+#dom-ladder { flex: 1; overflow-y: hidden; display: flex; flex-direction: column; }
+.dom-row { display: grid; grid-template-columns: 1fr 100px 1fr; height: 18px; line-height: 18px; font-size: 9px; border-bottom: 1px solid rgba(36, 44, 61, 0.3); position: relative; }
+.dom-cell-bid { position: relative; text-align: right; padding-right: 6px; }
+.dom-cell-price { text-align: center; font-weight: 700; color: var(--txt); background: rgba(255, 255, 255, .012); border-left: 1px solid var(--line); border-right: 1px solid var(--line); z-index: 2; user-select: none; }
+.dom-cell-ask { position: relative; text-align: left; padding-left: 6px; }
 
-#stats-row{display:flex;gap:4px;padding:3px 6px;border-top:1px solid var(--line);flex-shrink:0}
-.stat{flex:1;background:var(--bg1);border:1px solid var(--line);border-radius:4px;padding:2px 5px}
-.stat .l{font-size:6.5px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
-.stat .v{font-size:10px;font-weight:700}
+.dom-bar-bid { position: absolute; top: 0; bottom: 0; right: 0; background: var(--green-bar); border-left: 2px solid var(--green); pointer-events: none; z-index: 1; transition: width 0.05s linear; }
+.dom-bar-ask { position: absolute; top: 0; bottom: 0; left: 0; background: var(--red-bar); border-right: 2px solid var(--red); pointer-events: none; z-index: 1; transition: width 0.05s linear; }
+.dom-val { position: relative; z-index: 2; font-weight: 600; }
+.dom-row.last-price .dom-cell-price { background: rgba(139, 124, 246, 0.28); color: #fff; border-color: var(--purple); box-shadow: inset 0 0 0 1px var(--purple); }
+.dom-row.wall-bid .dom-cell-bid .dom-val { color: var(--green); text-shadow: 0 0 6px var(--green); }
+.dom-row.wall-ask .dom-cell-ask .dom-val { color: var(--red); text-shadow: 0 0 6px var(--red); }
 
-/* ── AI (bottom, overlaps orderflow) ── */
-#ai{position:absolute;bottom:0;left:0;right:0;z-index:50;background:var(--bg1);border-top:1px solid var(--purple);
-  display:flex;flex-direction:column;transform:translateY(100%);transition:transform .2s ease;
-  height:55%;max-height:320px;box-shadow:0 -8px 30px rgba(0,0,0,.5)}
-#ai.open{transform:none}
-#ai-head{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;cursor:pointer;flex-shrink:0;border-bottom:1px solid var(--line)}
-.ai-badge{display:flex;align-items:center;gap:5px;font-size:8.5px;font-weight:700;letter-spacing:.12em;color:var(--purple);text-transform:uppercase}
-.nim-dot{width:5px;height:5px;border-radius:50%;background:#76b900;box-shadow:0 0 5px #76b900}
-.nim-dot.busy{animation:pulse .6s infinite}
-#ai-msgs{flex:1;overflow-y:auto;padding:6px 8px;display:flex;flex-direction:column;gap:4px;font-size:10px;line-height:1.45;min-height:0}
-.m-u{align-self:flex-end;background:#1c3a5e;color:#bfdbfe;border-radius:7px 7px 2px 7px;padding:4px 7px;max-width:88%;white-space:pre-wrap;word-break:break-word}
-.m-a{align-self:flex-start;background:var(--bg2);color:#cfd4e0;border-radius:7px 7px 7px 2px;padding:4px 7px;max-width:92%;white-space:pre-wrap;word-break:break-word;border-left:2px solid var(--purple)}
-.m-t{align-self:flex-start;background:#10141f;color:var(--dim);border-radius:4px;padding:3px 6px;font-style:italic;font-size:8.5px;border-left:2px solid #374151;max-width:92%;white-space:pre-wrap}
-.m-e{align-self:center;background:#3b0d0d;color:#fca5a5;border-radius:4px;padding:3px 7px;font-size:8.5px}
-.m-s{align-self:center;color:var(--dim);font-size:8.5px;font-style:italic}
-#ai-inrow{display:flex;gap:4px;padding:5px 7px;border-top:1px solid var(--line);flex-shrink:0}
-#ai-in{flex:1;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:10px;font-family:'JetBrains Mono',monospace;padding:4px 7px;border-radius:5px;outline:none;resize:none;min-height:26px;max-height:52px}
-#ai-in:focus{border-color:var(--purple)}
-#ai-send{background:var(--purple);color:#fff;font-size:9px;font-weight:700;border:none;border-radius:5px;padding:0 10px;cursor:pointer;font-family:'Chakra Petch',sans-serif}
-#ai-send:disabled{opacity:.4;cursor:not-allowed}
+#spreadbar { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px; font-size: 8px; font-weight: 700; color: var(--amber); flex-shrink: 0; background: var(--bg1); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+#spreadbar .liq { font-size: 7.5px; }
+#spreadbar .liq.b { color: var(--green); }
+#spreadbar .liq.a { color: var(--red); }
+#bw-input { width: 50px; text-align: center; font-size: 8px; padding: 1px 3px; color: var(--purple); background: var(--bg0); border: 1px solid var(--line); border-radius: 3px; outline: none; }
+#bw-input:focus { border-color: var(--purple); }
 
-/* AI toggle tab (always visible at bottom) */
-#ai-tab{flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:5px;padding:3px 0;cursor:pointer;border-top:1px solid var(--line);background:var(--bg1);transition:.12s;font-size:8px;font-weight:700;letter-spacing:.14em;color:var(--purple);text-transform:uppercase;font-family:'Chakra Petch',sans-serif}
-#ai-tab:hover{background:var(--bg2)}
+/* Tape Container */
+#tape-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+#tape { flex: 1; overflow: hidden; display: flex; flex-direction: column-reverse; }
+.tape-row { display: grid; grid-template-columns: 1fr .65fr .75fr; font-size: 9px; line-height: 1.55; padding: 0 6px 0 7px; border-left: 2px solid transparent; border-bottom: 1px solid rgba(36, 44, 61, .3); }
+.tape-row .q { text-align: right; } .tape-row .t { text-align: right; color: var(--dim); font-size: 7.5px; }
+.tb { color: var(--green); } .ts { color: var(--red); }
+.ex-BINANCE { border-color: #f0b90b; } .ex-BINANCEFUT { border-color: #f3d06d; } .ex-BYBIT { border-color: #ff6b35; } .ex-BYBITLIN { border-color: #ff9a6c; }
+.ex-OKX { border-color: #60a5fa; } .ex-OKXFUT { border-color: #93c5fd; } .ex-GATE { border-color: #34d399; } .ex-MEXC { border-color: #a78bfa; }
+.ex-BITGET { border-color: #fb923c; } .ex-KUCOIN { border-color: #22d3ee; } .ex-BITSTAMP { border-color: #84cc16; } .ex-GEMINI { border-color: #e879f9; }
+.ex-KRAKEN { border-color: #7c3aed; } .ex-COINBASE { border-color: #0ea5e9; } .ex-BITFINEX { border-color: #f97316; } .ex-HTX { border-color: #10b981; }
+.ex-PHEMEX { border-color: #d946ef; } .ex-POLONIEX { border-color: #fcd34d; } .ex-BINGX { border-color: #38bdf8; } .ex-WOOX { border-color: #ec4899; } .ex-DERIBIT { border-color: #c084fc; }
 
-/* key modal (only modal kept — for password input) */
-.modal{position:fixed;inset:0;background:rgba(5,7,12,.85);backdrop-filter:blur(4px);z-index:70;display:flex;align-items:center;justify-content:center}
-.modal.hidden{display:none}
-.modal-box{background:var(--bg1);border:1px solid #333d55;border-radius:10px;padding:18px;width:340px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.6)}
-.modal input[type=password]{width:100%;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font-size:11px;font-family:'JetBrains Mono',monospace;padding:7px 9px;border-radius:6px;outline:none;margin:8px 0}
-.modal input:focus{border-color:var(--green)}
-.mbtn{border:none;border-radius:6px;font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer;font-family:'Chakra Petch',sans-serif}
-.mbtn-p{background:var(--purple);color:#fff}
-.mbtn-d{background:var(--bg2);color:var(--dim);border:1px solid var(--line)}
+#stats-row { display: flex; gap: 4px; padding: 3px 6px; border-top: 1px solid var(--line); flex-shrink: 0; background: var(--bg0); }
+.stat { flex: 1; background: var(--bg1); border: 1px solid var(--line); border-radius: 4px; padding: 2px 5px; }
+.stat .l { font-size: 6.5px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
+.stat .v { font-size: 10px; font-weight: 700; }
 
-#debug{position:fixed;bottom:0;left:0;right:0;height:100px;background:#080a10;border-top:1px solid #333d55;z-index:80;font-size:8px;overflow-y:auto;padding:4px 8px;color:#9aa3b8;display:none}
-#debug.open{display:block}
+/* AI Integration Drawer & Modals */
+#ai { position: absolute; bottom: 0; left: 0; right: 0; z-index: 50; background: var(--bg1); border-top: 1px solid var(--purple); display: flex; flex-direction: column; transform: translateY(100%); transition: transform .2s ease; height: 55%; max-height: 320px; box-shadow: 0 -8px 30px rgba(0, 0, 0, .5); }
+#ai.open { transform: none; }
+#ai-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; cursor: pointer; flex-shrink: 0; border-bottom: 1px solid var(--line); }
+.ai-badge { display: flex; align-items: center; gap: 5px; font-size: 8.5px; font-weight: 700; letter-spacing: .12em; color: var(--purple); text-transform: uppercase; }
+.nim-dot { width: 5px; height: 5px; border-radius: 50%; background: #76b900; box-shadow: 0 0 5px #76b900; }
+.nim-dot.busy { animation: pulse .6s infinite; }
+#ai-msgs { flex: 1; overflow-y: auto; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; font-size: 10px; line-height: 1.45; min-height: 0; }
+.m-u { align-self: flex-end; background: #1c3a5e; color: #bfdbfe; border-radius: 7px 7px 2px 7px; padding: 4px 7px; max-width: 88%; white-space: pre-wrap; word-break: break-word; }
+.m-a { align-self: flex-start; background: var(--bg2); color: #cfd4e0; border-radius: 7px 7px 7px 2px; padding: 4px 7px; max-width: 92%; white-space: pre-wrap; word-break: break-word; border-left: 2px solid var(--purple); }
+.m-t { align-self: flex-start; background: #10141f; color: var(--dim); border-radius: 4px; padding: 3px 6px; font-style: italic; font-size: 8.5px; border-left: 2px solid #374151; max-width: 92%; white-space: pre-wrap; }
+.m-e { align-self: center; background: #3b0d0d; color: #fca5a5; border-radius: 4px; padding: 3px 7px; font-size: 8.5px; }
+.m-s { align-self: center; color: var(--dim); font-size: 8.5px; font-style: italic; }
+#ai-inrow { display: flex; gap: 4px; padding: 5px 7px; border-top: 1px solid var(--line); flex-shrink: 0; }
+#ai-in { flex: 1; background: var(--bg0); border: 1px solid var(--line); color: var(--txt); font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 4px 7px; border-radius: 5px; outline: none; resize: none; min-height: 26px; max-height: 52px; }
+#ai-in:focus { border-color: var(--purple); }
+#ai-send { background: var(--purple); color: #fff; font-size: 9px; font-weight: 700; border: none; border-radius: 5px; padding: 0 10px; cursor: pointer; font-family: 'Chakra Petch', sans-serif; }
+#ai-send:disabled { opacity: .4; cursor: not-allowed; }
+
+#ai-tab { flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 3px 0; cursor: pointer; border-top: 1px solid var(--line); background: var(--bg1); transition: .12s; font-size: 8px; font-weight: 700; letter-spacing: .14em; color: var(--purple); text-transform: uppercase; font-family: 'Chakra Petch', sans-serif; }
+#ai-tab:hover { background: var(--bg2); }
+
+.modal { position: fixed; inset: 0; background: rgba(5, 7, 12, .85); backdrop-filter: blur(4px); z-index: 70; display: flex; align-items: center; justify-content: center; }
+.modal.hidden { display: none; }
+.modal-box { background: var(--bg1); border: 1px solid #333d55; border-radius: 10px; padding: 18px; width: 340px; max-width: 92vw; box-shadow: 0 20px 60px rgba(0, 0, 0, .6); }
+.modal input[type=password] { width: 100%; background: var(--bg0); border: 1px solid var(--line); color: var(--txt); font-size: 11px; font-family: 'JetBrains Mono', monospace; padding: 7px 9px; border-radius: 6px; outline: none; margin: 8px 0; }
+.modal input:focus { border-color: var(--green); }
+.mbtn { border: none; border-radius: 6px; font-size: 11px; font-weight: 700; padding: 7px 12px; cursor: pointer; font-family: 'Chakra Petch', sans-serif; }
+.mbtn-p { background: var(--purple); color: #fff; }
+.mbtn-d { background: var(--bg2); color: var(--dim); border: 1px solid var(--line); }
+
+#debug { position: fixed; bottom: 0; left: 0; right: 0; height: 100px; background: #080a10; border-top: 1px solid #333d55; z-index: 80; font-size: 8px; overflow-y: auto; padding: 4px 8px; color: #9aa3b8; display: none; }
+#debug.open { display: block; }
 </style>
 </head>
 <body>
 
-<!-- ═══ SETTINGS (inline, top) ═══ -->
 <div id="settings">
   <div class="row">
     <span class="disp" style="font-weight:700;font-size:11px;letter-spacing:.1em;flex-shrink:0">OMNI<span style="color:var(--green)">·</span>S</span>
     <select id="asset" onchange="switchSymbol(this.value)">
-      <option value="BTCUSDT">BTC</option><option value="ETHUSDT">ETH</option><option value="SOLUSDT">SOL</option><option value="BNBUSDT">BNB</option><option value="XRPUSDT">XRP</option>
+      <option value="BTCUSDT">BTC</option>
+      <option value="ETHUSDT">ETH</option>
+      <option value="SOLUSDT">SOL</option>
+      <option value="BNBUSDT">BNB</option>
+      <option value="XRPUSDT">XRP</option>
     </select>
     <span id="price" class="up">--</span>
     <span style="flex:1"></span>
@@ -138,25 +156,40 @@ select{background:var(--bg1);border:1px solid var(--line);color:var(--amber);bor
   </div>
 </div>
 
-<!-- ═══ ORDERFLOW (middle) ═══ -->
 <div id="orderflow">
   <div id="dom-wrap">
-    <div class="sec-h"><span style="display:flex;align-items:center;gap:3px"><span class="live-dot"></span>Depth</span><span style="color:var(--amber)">BINANCE</span></div>
-    <div id="dom-asks" style="display:flex;flex-direction:column-reverse;overflow:hidden"></div>
-    <div id="spreadbar"><span>SPR</span><span id="spread-live">--</span><input id="spread-input" type="number" step="any" min="0" placeholder="auto" oninput="setCustomSpread(this.value)"/></div>
-    <div id="dom-bids" style="display:flex;flex-direction:column;overflow:hidden"></div>
+    <div class="sec-h">
+      <span style="display:flex;align-items:center;gap:3px"><span class="live-dot"></span>Synthesized Multi-Venue Depth</span>
+      <span id="depth-info">—</span>
+    </div>
+    <div class="dom-header-grid">
+      <span>Bids</span>
+      <span>Price</span>
+      <span>Asks</span>
+    </div>
+    <div id="dom-ladder"></div>
+    <div id="spreadbar">
+      <span class="liq b" id="liq-bid" title="Σ resting bid qty in view">ΣB --</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="color:var(--dim)">TICK:</span>
+        <input id="bw-input" type="number" step="any" min="0" placeholder="Auto" title="Tick Step width $ — empty = auto per asset" oninput="setBucketWidth(this.value)"/>
+      </div>
+      <span>SPR <span id="spread-live">--</span></span>
+      <span class="liq a" id="liq-ask" title="Σ resting ask qty in view">ΣA --</span>
+    </div>
   </div>
+
   <div id="tape-wrap">
     <div class="sec-h"><span style="display:flex;align-items:center;gap:3px"><span class="live-dot"></span>Time &amp; Sales</span><span id="tape-count" style="color:var(--dim)">0</span></div>
     <div id="tape"></div>
   </div>
+
   <div id="stats-row">
     <div class="stat"><div class="l">Streams</div><div class="v" id="st-streams" style="color:var(--green)">0/0</div></div>
     <div class="stat"><div class="l">Trades/s</div><div class="v" id="st-tps" style="color:var(--amber)">0</div></div>
     <div class="stat"><div class="l">Vol</div><div class="v" id="st-vol" style="color:#60a5fa">--</div></div>
   </div>
 
-  <!-- AI (overlaps orderflow from bottom) -->
   <div id="ai">
     <div id="ai-head" onclick="toggleAi()">
       <span class="ai-badge"><span class="nim-dot" id="nim-dot"></span>NIM · GLM-5.2</span>
@@ -164,16 +197,14 @@ select{background:var(--bg1);border:1px solid var(--line);color:var(--amber);bor
     </div>
     <div id="ai-msgs"></div>
     <div id="ai-inrow">
-      <textarea id="ai-in" rows="1" placeholder="Ask…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendToGLM()}"></textarea>
+      <textarea id="ai-in" rows="1" placeholder="Ask orderflow dynamic…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendToGLM()}"></textarea>
       <button id="ai-send" onclick="sendToGLM()">→</button>
     </div>
   </div>
 </div>
 
-<!-- AI toggle tab -->
-<div id="ai-tab" onclick="toggleAi()"><span class="nim-dot" style="width:4px;height:4px"></span>AI</div>
+<div id="ai-tab" onclick="toggleAi()"><span class="nim-dot" style="width:4px;height:4px"></span>AI Orderflow Analyst</div>
 
-<!-- ═══ KEY MODAL (password only) ═══ -->
 <div id="key-modal" class="modal hidden">
   <div class="modal-box">
     <div class="disp" style="font-weight:700;font-size:12px">NIM <span style="color:var(--purple)">GLM-5.2</span> Key</div>
@@ -190,19 +221,20 @@ select{background:var(--bg1);border:1px solid var(--line);color:var(--amber);bor
 
 <script>
 const SHARED_SECRET_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-const MAX_TAPE=80,MAX_LEVELS=8,TPS_WIN=2000,NIM_MODEL='z-ai/glm-5.2';
-let TOTAL_EX=21,currentBase='BTCUSDT';
-let tape=[],stamps=[],lastPrice=0,prevPrice=0,vol=0;
-const sockets={},pings={};
-const book={asks:[],bids:[]};
-let customSpread=null,nimKey=sessionStorage.getItem('nim_key')||'';
-let aiHistory=[],aiBusy=false;
-let BACKEND_URL=loadBackendUrl(),backendHealthy=false,started=false;
+const MAX_TAPE=80, TPS_WIN=2000, NIM_MODEL='z-ai/glm-5.2';
+const SNAP_LIMIT=3000, NUM_RUNGS=36;
+let TOTAL_EX=21, currentBase='BTCUSDT';
+let tape=[], stamps=[], lastPrice=0, prevPrice=0, vol=0;
+const sockets={}, pings={};
+let bucketWidth=null, nimKey=sessionStorage.getItem('nim_key')||'';
+let aiHistory=[], aiBusy=false, lastLadder=null;
+let BACKEND_URL=loadBackendUrl(), backendHealthy=false, started=false;
+let domPool = [];
 
 const EXCHANGES=['BINANCE','BINANCEFUT','BYBIT','BYBITLIN','OKX','OKXFUT','GATE','MEXC','BITGET','KUCOIN','BITSTAMP','GEMINI','KRAKEN','COINBASE','BITFINEX','HTX','PHEMEX','POLONIEX','BINGX','WOOX','DERIBIT'];
-const exStatus={};EXCHANGES.forEach(e=>exStatus[e]='disconnected');
-const DISABLED_EX=new Set(['KUCOIN','PHEMEX']);
-function recalcTotalEx(){TOTAL_EX=EXCHANGES.filter(e=>!DISABLED_EX.has(e)).length;refreshStreams();}
+const exStatus={}; EXCHANGES.forEach(e=>exStatus[e]='disconnected');
+const DISABLED_EX=new Set(['KUCOIN','PHEMEX','MEXC']);
+function recalcTotalEx(){ TOTAL_EX=EXCHANGES.filter(e=>!DISABLED_EX.has(e)).length; refreshStreams(); }
 
 const SYM={
  BTCUSDT:{BINANCE:'btcusdt',BINANCEFUT:'btcusdt',BYBIT:'BTCUSDT',BYBITLIN:'BTCUSDT',OKX:'BTC-USDT',OKXFUT:'BTC-USDT-SWAP',GATE:'BTC_USDT',MEXC:'BTCUSDT',BITGET:'BTCUSDT',KUCOIN:'BTC-USDT',BITSTAMP:'btcusdt',GEMINI:'BTCUSD',KRAKEN:'BTC/USDT',COINBASE:'BTC-USDT',BITFINEX:'tBTCUSD',HTX:'btcusdt',PHEMEX:'BTCUSDT',POLONIEX:'BTC_USDT',BINGX:'BTC-USDT',WOOX:'SPOT_BTC_USDT',DERIBIT:'BTC_USDT'},
@@ -211,6 +243,8 @@ const SYM={
  BNBUSDT:{BINANCE:'bnbusdt',BINANCEFUT:'bnbusdt',BYBIT:'BNBUSDT',BYBITLIN:'BNBUSDT',OKX:'BNB-USDT',OKXFUT:null,GATE:'BNB_USDT',MEXC:'BNBUSDT',BITGET:'BNBUSDT',KUCOIN:'BNB-USDT',BITSTAMP:null,GEMINI:null,KRAKEN:null,COINBASE:null,BITFINEX:null,HTX:'bnbusdt',PHEMEX:'BNBUSDT',POLONIEX:'BNB_USDT',BINGX:'BNB-USDT',WOOX:'SPOT_BNB_USDT',DERIBIT:null},
  XRPUSDT:{BINANCE:'xrpusdt',BINANCEFUT:'xrpusdt',BYBIT:'XRPUSDT',BYBITLIN:'XRPUSDT',OKX:'XRP-USDT',OKXFUT:'XRP-USDT-SWAP',GATE:'XRP_USDT',MEXC:'XRPUSDT',BITGET:'XRPUSDT',KUCOIN:'XRP-USDT',BITSTAMP:'xrpusdt',GEMINI:'XRPUSD',KRAKEN:'XRP/USDT',COINBASE:'XRP-USDT',BITFINEX:'tXRPUSD',HTX:'xrpusdt',PHEMEX:'XRPUSDT',POLONIEX:'XRP_USDT',BINGX:'XRP-USDT',WOOX:'SPOT_XRP_USDT',DERIBIT:null},
 };
+
+const DEFAULT_TICK = { BTCUSDT: 0.50, ETHUSDT: 0.25, SOLUSDT: 0.05, BNBUSDT: 0.10, XRPUSDT: 0.0001 };
 
 function loadBackendUrl(){try{return localStorage.getItem('backend_url')||''}catch{return''}}
 function saveBackendUrl(u){try{u?localStorage.setItem('backend_url',u):localStorage.removeItem('backend_url')}catch{}}
@@ -251,8 +285,9 @@ async function connectBackend(){
 function applyBackend(){
  if(backendHealthy&&BACKEND_URL){DISABLED_EX.delete('KUCOIN');DISABLED_EX.delete('PHEMEX');}
  else{DISABLED_EX.add('KUCOIN');DISABLED_EX.add('PHEMEX');}
+ DISABLED_EX.add('MEXC');
  recalcTotalEx();setNet(backendHealthy?'ok':(BACKEND_URL?'bad':'warn'),backendHealthy?'OK':(BACKEND_URL?'DOWN':'SOLO'));
- if(started){closeAll();setTimeout(launchAll,300);}}
+ if(started){closeAll();closeDeepBook();clearVenueBooks();setTimeout(launchAll,300);}}
 
 function openKeyModal(){document.getElementById('key-modal').classList.remove('hidden');document.getElementById('nim-key').value=nimKey||'';document.getElementById('key-err').textContent='';}
 function closeKeyModal(){document.getElementById('key-modal').classList.add('hidden');}
@@ -263,35 +298,176 @@ async function saveNimKey(){
    await fetch(`${BACKEND_URL}/api/config/keys`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(enc)});}catch{}}
  nimKey=v;sessionStorage.setItem('nim_key',v);closeKeyModal();addMsg('s','✓ key saved');}
 
-function setCustomSpread(v){const n=parseFloat(v);customSpread=(v===''||isNaN(n))?null:n;scheduleBook();}
-function fmtSpread(n){return'$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:4});}
+const venueBooks={};
+function vBook(v){if(!venueBooks[v])venueBooks[v]=new Map();return venueBooks[v];}
+function setVenueLevels(v,levels){const m=vBook(v);m.clear();
+ for(const l of levels){const p=+l[0],q=+l[1];if(p>0&&q>0)m.set(p,q);}scheduleAgg();}
+function applyVenueDelta(v,deltas){const m=vBook(v);
+ for(const l of deltas){const p=+l[0],q=+l[1];if(!(p>0))continue;q<=0?m.delete(p):m.set(p,q);}scheduleAgg();}
+function clearVenueBooks(){for(const v in venueBooks)delete venueBooks[v];}
+const pq=l=>[l.price??l[0],l.qty??l.quantity??l.size??l.amount??l[1]];
+
+const deep={bids:new Map(),asks:new Map(),lastId:0,ready:false,buf:[],ws:null};
+function closeDeepBook(){if(deep.ws){try{deep.ws._dead=true;deep.ws.close()}catch{}deep.ws=null}
+ deep.bids.clear();deep.asks.clear();deep.buf=[];deep.ready=false;deep.lastId=0;}
+function applyDepth(d){
+ for(const[p,q]of d.b){q==='0'?deep.bids.delete(+p):deep.bids.set(+p,+q);}
+ for(const[p,q]of d.a){q==='0'?deep.asks.delete(+p):deep.asks.set(+p,+q);}
+ deep.lastId=d.u;}
+function openDeepBook(base){
+ closeDeepBook();
+ const sym=base.toLowerCase();
+ deep.ws=new WebSocket(`wss://stream.binance.com:9443/ws/${sym}@depth@100ms`);
+ deep.ws.onmessage=ev=>{const d=JSON.parse(ev.data);
+  if(d.e!=='depthUpdate')return;
+  if(!deep.ready){deep.buf.push(d);if(deep.buf.length>2000)deep.buf.shift();return;}
+  if(d.U!==deep.lastId+1){dbg('DOM','binance gap, resyncing');deep.ready=false;openDeepBook(currentBase);return;}
+  applyDepth(d);scheduleAgg();};
+ deep.ws.onclose=()=>{if(deep.ws&&!deep.ws._dead)setTimeout(()=>{if(currentBase===base)openDeepBook(base)},3000);};
+ fetch(`https://api.binance.com/api/v3/depth?symbol=${base}&limit=${SNAP_LIMIT}`)
+  .then(r=>r.json()).then(snap=>{
+   if(!snap||!snap.lastUpdateId){dbg('DOM','binance snapshot failed');return;}
+   deep.lastId=snap.lastUpdateId;
+   for(const[p,q]of snap.bids)deep.bids.set(+p,+q);
+   for(const[p,q]of snap.asks)deep.asks.set(+p,+q);
+   let synced=false;
+   for(const d of deep.buf){
+    if(d.u<deep.lastId+1)continue;
+    if(!synced&&d.U>deep.lastId+1)continue;
+    applyDepth(d);synced=true;}
+   deep.buf=[];deep.ready=true;
+   dbg('DOM',`binance ${deep.bids.size}b/${deep.asks.size}a`);scheduleAgg();
+  }).catch(e=>dbg('DOM',`snapshot: ${e.message}`));}
+
+function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n;scheduleAgg();}
+function autoBW(mid){return bucketWidth||DEFAULT_TICK[currentBase]||0.10;}
+function bwDecimals(bw){return bw>=1?(bw%1===0?2:2):bw>=.1?2:bw>=.01?2:4;}
+function fmtQty(n){return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1000?(n/1000).toFixed(1)+'K':n>=10?n.toFixed(0):n>0?n.toFixed(2):'';}
+
+function initDOMPool() {
+  const container = document.getElementById('dom-ladder');
+  container.innerHTML = '';
+  domPool = [];
+  for (let i = 0; i < NUM_RUNGS; i++) {
+    const row = document.createElement('div');
+    row.className = 'dom-row';
+    row.innerHTML = `
+      <div class="dom-cell-bid">
+        <div class="dom-bar-bid"></div>
+        <span class="dom-val"></span>
+      </div>
+      <div class="dom-cell-price"></div>
+      <div class="dom-cell-ask">
+        <div class="dom-bar-ask"></div>
+        <span class="dom-val"></span>
+      </div>
+    `;
+    container.appendChild(row);
+    domPool.push({
+      row,
+      priceCell: row.children[1],
+      bidVal: row.children[0].children[1],
+      bidBar: row.children[0].children[0],
+      askVal: row.children[2].children[1],
+      askBar: row.children[2].children[0]
+    });
+  }
+}
+
+function refMid(){
+ if(deep.bids.size&&deep.asks.size){
+  let bb=0,ba=Infinity;
+  for(const p of deep.bids.keys()){if(p>bb)bb=p;}
+  for(const p of deep.asks.keys()){if(p<ba)ba=p;}
+  if(bb&&ba<Infinity)return(bb+ba)/2;}
+ return lastPrice>0?lastPrice:0;}
+
+let aggTimer=null;
+function scheduleAgg(){if(aggTimer)return;aggTimer=requestAnimationFrame(()=>{aggTimer=null;renderLadder();});}
+
+function renderLadder(){
+ const mid=refMid();if(!mid)return;
+ const bw=autoBW(mid);
+ const dec=bwDecimals(bw);
+ const centerPrice=Math.round(mid/bw)*bw;
+ const halfRows=Math.floor(NUM_RUNGS/2);
+ const topPrice=centerPrice+(halfRows*bw);
+
+ const bidB=new Map(), askB=new Map();
+ let activeVenues=0, bestBid=0, bestAsk=Infinity;
+
+ // Synthesize L2 Deep Book & Venue Streams
+ if(deep.bids.size||deep.asks.size){
+  activeVenues++;
+  for(const[p,q]of deep.bids){if(p>bestBid)bestBid=p;const b=Math.floor(p/bw)*bw;const k=b.toFixed(dec);bidB.set(k,(bidB.get(k)||0)+q);}
+  for(const[p,q]of deep.asks){if(p<bestAsk)bestAsk=p;const a=Math.ceil(p/bw)*bw;const k=a.toFixed(dec);askB.set(k,(askB.get(k)||0)+q);}
+ }
+ for(const v in venueBooks){
+  const m=venueBooks[v];if(!m.size||v==='BINANCE')continue;activeVenues++;
+  for(const[p,q]of m){
+   if(p<=mid){if(p>bestBid)bestBid=p;const b=Math.floor(p/bw)*bw;const k=b.toFixed(dec);bidB.set(k,(bidB.get(k)||0)+q);}
+   else{if(p<bestAsk)bestAsk=p;const a=Math.ceil(p/bw)*bw;const k=a.toFixed(dec);askB.set(k,(askB.get(k)||0)+q);}
+  }
+ }
+
+ let maxVol=1e-9, totalBid=0, totalAsk=0;
+ for(let i=0; i<NUM_RUNGS; i++){
+  const p=topPrice-(i*bw);
+  const k=p.toFixed(dec);
+  const bq=bidB.get(k)||0;
+  const aq=askB.get(k)||0;
+  if(bq>maxVol)maxVol=bq; if(aq>maxVol)maxVol=aq;
+  totalBid+=bq; totalAsk+=aq;
+ }
+
+ const wallThreshold = maxVol * 0.75;
+
+ for(let i=0; i<NUM_RUNGS; i++){
+  const p=topPrice-(i*bw);
+  const k=p.toFixed(dec);
+  const node=domPool[i];
+  const bq=bidB.get(k)||0;
+  const aq=askB.get(k)||0;
+
+  node.priceCell.textContent=k;
+  if(Math.abs(p-lastPrice)<(bw/2)) node.row.classList.add('last-price');
+  else node.row.classList.remove('last-price');
+
+  if(bq>wallThreshold) node.row.classList.add('wall-bid'); else node.row.classList.remove('wall-bid');
+  if(aq>wallThreshold) node.row.classList.add('wall-ask'); else node.row.classList.remove('wall-ask');
+
+  if(bq>0){
+   node.bidVal.textContent=fmtQty(bq);
+   node.bidBar.style.width=Math.min(100,(bq/maxVol)*100).toFixed(1)+'%';
+  } else { node.bidVal.textContent=''; node.bidBar.style.width='0%'; }
+
+  if(aq>0){
+   node.askVal.textContent=fmtQty(aq);
+   node.askBar.style.width=Math.min(100,(aq/maxVol)*100).toFixed(1)+'%';
+  } else { node.askVal.textContent=''; node.askBar.style.width='0%'; }
+ }
+
+ document.getElementById('liq-bid').textContent='ΣB '+fmtQty(totalBid);
+ document.getElementById('liq-ask').textContent='ΣA '+fmtQty(totalAsk);
+ document.getElementById('spread-live').textContent=(bestAsk<Infinity&&bestBid>0)?'$'+(bestAsk-bestBid).toFixed(dec):'--';
+ document.getElementById('depth-info').textContent=`${activeVenues} feeds · step $${bw} · ${NUM_RUNGS} rungs`;
+ lastLadder={bw,sb:totalBid,sa:totalAsk,venues:activeVenues};
+}
 
 function ingest({exchange,price,qty,isBuy,ts}){
  tape.push({exchange,price,qty,isBuy,ts:ts||Date.now()});stamps.push(Date.now());
  if(tape.length>MAX_TAPE)tape.shift();
  prevPrice=lastPrice;lastPrice=price;vol+=qty;
- scheduleTape();updateStats();updatePrice();}
+ scheduleTape();updateStats();updatePrice();scheduleAgg();}
 function updatePrice(){const el=document.getElementById('price');
  el.textContent=lastPrice>0?lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'--';
  if(prevPrice&&lastPrice!==prevPrice){el.classList.remove('up','dn');void el.offsetWidth;el.classList.add(lastPrice>prevPrice?'up':'dn');}}
 let tapeRaf=false;
 function scheduleTape(){if(tapeRaf)return;tapeRaf=true;requestAnimationFrame(()=>{tapeRaf=false;
  const el=document.getElementById('tape');const f=document.createDocumentFragment();
- tape.forEach(t=>{const r=document.createElement('div');r.className=`tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}`;
+ tape.slice().reverse().forEach(t=>{const r=document.createElement('div');r.className=`tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}`;
   r.innerHTML=`<span>${t.price.toFixed(2)}</span><span class="q">${t.qty.toFixed(4)}</span><span class="t">${new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>`;f.appendChild(r);});
  el.innerHTML='';el.appendChild(f);document.getElementById('tape-count').textContent=tape.length;});}
-let bookRaf=false;
-function scheduleBook(){if(bookRaf)return;bookRaf=true;requestAnimationFrame(()=>{bookRaf=false;
- const aEl=document.getElementById('dom-asks'),bEl=document.getElementById('dom-bids');
- const va=book.asks.slice(0,MAX_LEVELS),vb=book.bids.slice(0,MAX_LEVELS);
- const all=[...va.map(r=>+r[1]),...vb.map(r=>+r[1])];const mx=all.length?Math.max(...all):1;
- const rows=(lv,side)=>{const f=document.createDocumentFragment();
-  lv.forEach(([p,q])=>{const P=+p,Q=+q;const pct=Math.min(100,(Q/mx)*100).toFixed(1);
-   const d=document.createElement('div');d.className=`dom-row ${side==='ask'?'ask':'bid'}`;
-   d.innerHTML=`<div class="dom-bar" style="width:${pct}%;background:${side==='ask'?'var(--red)':'var(--green)'}"></div><span class="dom-col">${P.toFixed(2)}</span><span class="dom-col">${Q.toFixed(4)}</span>`;f.appendChild(d);});return f;};
- aEl.innerHTML='';aEl.appendChild(rows(va,'ask'));bEl.innerHTML='';bEl.appendChild(rows(vb,'bid'));
- if(book.asks.length&&book.bids.length){const live=+book.asks[0][0]-+book.bids[0][0];
-  document.getElementById('spread-live').textContent=fmtSpread(customSpread!=null?customSpread:live);}});}
 function updateStats(){const now=Date.now();stamps=stamps.filter(t=>now-t<TPS_WIN);
  document.getElementById('st-tps').textContent=(stamps.length/(TPS_WIN/1000)).toFixed(1);
  document.getElementById('st-vol').textContent=vol>=1000?(vol/1000).toFixed(1)+'K':vol.toFixed(1);}
@@ -320,82 +496,174 @@ function openStream(id,factory,retry=1500){streamFactories[id]=factory;retryDela
  const sym=SYM[currentBase]?.[id];if(!sym||DISABLED_EX.has(id)){setEx(id,'disconnected');return;}
  setEx(id,'connecting');
  factory(sym,id).then(()=>{failCount[id]=0;retryDelay[id]=1500;})
-  .catch(err=>{failCount[id]=(failCount[id]||0)+1;
-   if(failCount[id]>=6){setEx(id,'disconnected');return;}scheduleReconnect(id,retry);});}
+  .catch(()=>{failCount[id]=(failCount[id]||0)+1;scheduleReconnect(id,retry);});}
+
+const cbLv={bid:[],ask:[]};
+const bfChans={};
+function cbFlush(){const m=vBook('COINBASE');m.clear();
+ for(const s of['bid','ask'])for(const l of cbLv[s]){if(l&&l[1]>0)m.set(l[0],l[1]);}scheduleAgg();}
 
 const A={
-BINANCE:(s,id)=>makeWS(id,`wss://stream.binance.com:9443/stream?streams=${s}@depth20@100ms/${s}@trade`,{onmessage(ev){const e=JSON.parse(ev.data);
- if(e.stream?.includes('@depth')){book.bids=e.data.bids;book.asks=e.data.asks;scheduleBook();}
- else if(e.stream?.includes('@trade')){const d=e.data;ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}}}),
-BINANCEFUT:(s,id)=>makeWS(id,`wss://fstream.binance.com/stream?streams=${s}@aggTrade`,{onmessage(ev){const e=JSON.parse(ev.data);
- if(e.stream?.includes('@aggTrade')){const d=e.data;ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}}}),
-BYBIT:(s,id)=>makeWS(id,'wss://stream.bybit.com/v5/public/spot',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${s}`]}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}))},
+BINANCE:(s,id)=>makeWS(id,`wss://stream.binance.com:9443/stream?streams=${s}@trade`,{onmessage(ev){const e=JSON.parse(ev.data);
+ if(e.stream?.includes('@trade')){const d=e.data;ingest({exchange:'BINANCE',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}}}),
+BINANCEFUT:(s,id)=>makeWS(id,`wss://fstream.binance.com/stream?streams=${s}@aggTrade/${s}@depth20@500ms`,{onmessage(ev){const e=JSON.parse(ev.data);
+ if(e.stream?.includes('@aggTrade')){const d=e.data;ingest({exchange:'BINANCEFUT',price:+d.p,qty:+d.q,isBuy:!d.m,ts:d.T});}
+ else if(e.stream?.includes('@depth')){const d=e.data;setVenueLevels('BINANCEFUT',[...(d.bids||[]),...(d.asks||[])]);}}}),
+BYBIT:(s,id)=>makeWS(id,'wss://stream.bybit.com/v5/public/spot',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${s}`,`orderbook.200.${s}`]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBIT',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
+  else if(d.topic?.startsWith('orderbook')){const b=d.data||{};
+   d.type==='snapshot'?setVenueLevels('BYBIT',[...(b.b||[]),...(b.a||[])])
+                     :applyVenueDelta('BYBIT',[...(b.b||[]),...(b.a||[])]);}},
  onping(ws){ws.send(JSON.stringify({op:'ping'}))},pingMs:20000}),
-BYBITLIN:(s,id)=>makeWS(id,'wss://stream.bybit.com/v5/public/linear',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${s}`]}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}))},
+BYBITLIN:(s,id)=>makeWS(id,'wss://stream.bybit.com/v5/public/linear',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${s}`,`orderbook.500.${s}`]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.topic?.startsWith('publicTrade'))(d.data||[]).forEach(t=>ingest({exchange:'BYBITLIN',price:+t.p,qty:+t.v,isBuy:t.S==='Buy',ts:t.T}));
+  else if(d.topic?.startsWith('orderbook')){const b=d.data||{};
+   d.type==='snapshot'?setVenueLevels('BYBITLIN',[...(b.b||[]),...(b.a||[])])
+                     :applyVenueDelta('BYBITLIN',[...(b.b||[]),...(b.a||[])]);}},
  onping(ws){ws.send(JSON.stringify({op:'ping'}))},pingMs:20000}),
-OKX:(s,id)=>makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:s}]}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}))},
+OKX:(s,id)=>makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:s},{channel:'books',instId:s}]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKX',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
+  else if(d.arg?.channel==='books'){const b=(d.data||[])[0]||{};
+   d.action==='snapshot'?setVenueLevels('OKX',[...(b.bids||[]),...(b.asks||[])])
+                        :applyVenueDelta('OKX',[...(b.bids||[]),...(b.asks||[])]);}},
  onping(ws){ws.send('ping')},pingMs:25000}),
-OKXFUT:(s,id)=>makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:s}]}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}))},
+OKXFUT:(s,id)=>makeWS(id,'wss://ws.okx.com:8443/ws/v5/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{channel:'trades',instId:s},{channel:'books',instId:s}]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.arg?.channel==='trades')(d.data||[]).forEach(t=>ingest({exchange:'OKXFUT',price:+t.px,qty:+t.sz,isBuy:t.side==='buy',ts:+t.ts}));
+  else if(d.arg?.channel==='books'){const b=(d.data||[])[0]||{};
+   d.action==='snapshot'?setVenueLevels('OKXFUT',[...(b.bids||[]),...(b.asks||[])])
+                        :applyVenueDelta('OKXFUT',[...(b.bids||[]),...(b.asks||[])]);}},
  onping(ws){ws.send('ping')},pingMs:25000}),
-GATE:(s,id)=>makeWS(id,'wss://api.gateio.ws/ws/v4/',{onopen(ws){ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.trades',event:'subscribe',payload:[s]}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='spot.trades'&&d.event==='update'){const t=d.result;ingest({exchange:'GATE',price:+t.price,qty:+t.amount,isBuy:t.side==='buy',ts:t.create_time_ms||Date.now()})}},
+GATE:(s,id)=>makeWS(id,'wss://api.gateio.ws/ws/v4/',{onopen(ws){
+  ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.trades',event:'subscribe',payload:[s]}));
+  ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.order_book',event:'subscribe',payload:[s,50,'100ms']}));},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.channel==='spot.trades'&&d.event==='update'){const t=d.result;ingest({exchange:'GATE',price:+t.price,qty:+t.amount,isBuy:t.side==='buy',ts:t.create_time_ms||Date.now()});}
+  else if(d.channel==='spot.order_book'&&d.event==='update'){const r=d.result||{};setVenueLevels('GATE',[...(r.bids||[]),...(r.asks||[])]);}},
  onping(ws){ws.send(JSON.stringify({time:Math.floor(Date.now()/1000),channel:'spot.ping',event:'',payload:null}))},pingMs:20000}),
-MEXC:(s,id)=>makeWS(id,'wss://wbs.mexc.com/ws',{onopen(ws){ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${s}`]}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.c?.includes('deals'))(d.d?.deals||[]).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}))},
+MEXC:(s,id)=>makeWS(id,'wss://wbs.mexc.com/ws',{onopen(ws){ws.send(JSON.stringify({method:'SUBSCRIPTION',params:[`spot@public.deals.v3.api@${s}`,`spot@public.limit.depth.v3.api@${s}`]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.c?.includes('deals'))(d.d?.deals||[]).forEach(t=>ingest({exchange:'MEXC',price:+t.p,qty:+t.v,isBuy:t.S===1,ts:t.t}));
+  else if(d.c?.includes('depth')&&d.d){const lv=[];(d.d.bids||[]).concat(d.d.asks||[]).forEach(x=>lv.push([x.p,x.q]));setVenueLevels('MEXC',lv);}},
  onping(ws){ws.send(JSON.stringify({method:'PING'}))},pingMs:20000}),
-BITGET:(s,id)=>makeWS(id,'wss://ws.bitget.com/v2/ws/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:s}]}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.action==='snapshot'||d.action==='update')(d.data||[]).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}))},
+BITGET:(s,id)=>makeWS(id,'wss://ws.bitget.com/v2/ws/public',{onopen(ws){ws.send(JSON.stringify({op:'subscribe',args:[{instType:'SPOT',channel:'trade',instId:s},{instType:'SPOT',channel:'books15',instId:s}]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.arg?.channel==='trade'&&(d.action==='snapshot'||d.action==='update'))(d.data||[]).forEach(t=>ingest({exchange:'BITGET',price:+t[1],qty:+t[2],isBuy:t[3]==='buy',ts:+t[0]}));
+  else if(d.arg?.channel==='books15'){const b=(d.data||[])[0]||{};setVenueLevels('BITGET',[...(b.bids||[]),...(b.asks||[])]);}},
  onping(ws){ws.send('ping')},pingMs:25000}),
 KUCOIN:async(s,id)=>{if(!BACKEND_URL)return Promise.reject(new Error('no backend'));
  let td;try{const r=await fetch(`${BACKEND_URL}/api/kucoin/bullet-public`,{method:'POST'});td=await r.json();}catch(e){return Promise.reject(e)}
  if(!td?.data?.token||!td.data.instanceServers?.length)return Promise.reject(new Error('bullet invalid'));
  const{token,instanceServers}=td.data;const url=`${instanceServers[0].endpoint}?token=${token}`;let mid=1;
- return makeWS(id,url,{onopen(ws){ws.send(JSON.stringify({id:mid++,type:'subscribe',topic:`/market/match:${s}`,privateChannel:false,response:true}))},
-  onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='message'&&d.topic?.includes('/market/match')){const t=d.data;ingest({exchange:'KUCOIN',price:+t.price,qty:+t.size,isBuy:t.side==='buy',ts:+t.time/1e6})}},
+ return makeWS(id,url,{onopen(ws){ws.send(JSON.stringify({id:mid++,type:'subscribe',topic:[`/market/match:${s}`,`/market/level2Depth50:${s}`],privateChannel:false,response:true}))},
+  onmessage(ev){const d=JSON.parse(ev.data);
+   if(d.type==='message'&&d.topic?.includes('/market/match')){const t=d.data;ingest({exchange:'KUCOIN',price:+t.price,qty:+t.size,isBuy:t.side==='buy',ts:+t.time/1e6});}
+   else if(d.type==='message'&&d.topic?.includes('level2Depth50')){const b=d.data||{};setVenueLevels('KUCOIN',[...(b.bids||[]),...(b.asks||[])]);}},
   onping(ws){ws.send(JSON.stringify({id:mid++,type:'ping'}))},pingMs:instanceServers[0].pingInterval||18000});},
-BITSTAMP:(s,id)=>makeWS(id,'wss://ws.bitstamp.net',{onopen(ws){ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${s}`}}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.event==='trade'){const t=d.data;ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000})}}}),
-GEMINI:(s,id)=>makeWS(id,`wss://api.gemini.com/v2/marketdata?symbols=${s}`,{onopen(ws){ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2',symbols:[s]}]}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.type==='trade')ingest({exchange:'GEMINI',price:+d.price,qty:+d.quantity,isBuy:d.side==='buy',ts:d.timestamp||Date.now()})}}),
-KRAKEN:(s,id)=>makeWS(id,'wss://ws.kraken.com/v2',{onopen(ws){ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[s]},req_id:1}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='trade'&&d.type==='update')(d.data||[]).forEach(t=>ingest({exchange:'KRAKEN',price:+t.price,qty:+t.qty,isBuy:t.side==='buy',ts:new Date(t.timestamp).getTime()}))},
+BITSTAMP:(s,id)=>makeWS(id,'wss://ws.bitstamp.net',{onopen(ws){
+  ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`live_trades_${s}`}}));
+  ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:`order_book_${s}`}}));},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.event==='trade'){const t=d.data;ingest({exchange:'BITSTAMP',price:+t.price,qty:+t.amount,isBuy:t.type===0,ts:+t.microtimestamp/1000});}
+  else if(d.event==='data'&&d.channel?.startsWith('order_book')){const b=d.data||{};setVenueLevels('BITSTAMP',[...(b.bids||[]),...(b.asks||[])]);}}}),
+GEMINI:(s,id)=>makeWS(id,`wss://api.gemini.com/v2/marketdata?symbols=${s}`,{onopen(ws){ws.send(JSON.stringify({type:'subscribe',subscriptions:[{name:'l2_updates',symbols:[s]}]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.type==='l2_updates'&&d.symbol===s){
+   (d.trades||[]).forEach(t=>ingest({exchange:'GEMINI',price:+t.price,qty:+t.amount,isBuy:t.maker_side==='ask',ts:d.timestampms||Date.now()}));
+   const m=vBook('GEMINI');
+   if(!m._geminiInit){m.clear();m._geminiInit=true;}
+   (d.changes||[]).forEach(c=>{applyVenueDelta('GEMINI',[[+c[1],+c[2]]]);});
+  }}}),
+KRAKEN:(s,id)=>makeWS(id,'wss://ws.kraken.com/v2',{onopen(ws){
+  ws.send(JSON.stringify({method:'subscribe',params:{channel:'trade',symbol:[s]},req_id:1}));
+  ws.send(JSON.stringify({method:'subscribe',params:{channel:'book',symbol:[s]},req_id:2}));},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.channel==='trade'&&d.type==='update')(d.data||[]).forEach(t=>ingest({exchange:'KRAKEN',price:+t.price,qty:+t.qty,isBuy:t.side==='buy',ts:new Date(t.timestamp).getTime()}));
+  else if(d.channel==='book'){
+   if(d.type==='snapshot'){const b=(d.data||[])[0]||{};setVenueLevels('KRAKEN',[...(b.bids||[]),...(b.asks||[])].map(pq));}
+   else if(d.type==='update')(d.data||[]).forEach(u=>applyVenueDelta('KRAKEN',[[u.price,u.qty]]));}},
  onping(ws){ws.send(JSON.stringify({method:'ping'}))},pingMs:30000}),
-COINBASE:(s,id)=>makeWS(id,'wss://advanced-trade-ws.coinbase.com',{onopen(ws){ws.send(JSON.stringify({type:'subscribe',product_ids:[s],channel:'market_trades'}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='market_trades')(d.events||[]).forEach(e=>(e.trades||[]).forEach(t=>ingest({exchange:'COINBASE',price:+t.price,qty:+t.size,isBuy:t.side==='BUY',ts:new Date(t.time).getTime()})))}}),
-BITFINEX:(s,id)=>makeWS(id,'wss://api-pub.bitfinex.com/ws/2',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbol:s}))},
+COINBASE:(s,id)=>makeWS(id,'wss://advanced-trade-ws.coinbase.com',{onopen(ws){
+ ws.send(JSON.stringify({type:'subscribe',product_ids:[s],channel:'market_trades'}));
+ ws.send(JSON.stringify({type:'subscribe',product_ids:[s],channel:'level2'}));},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.channel==='market_trades')(d.events||[]).forEach(e=>(e.trades||[]).forEach(t=>ingest({exchange:'COINBASE',price:+t.price,qty:+t.size,isBuy:t.side==='BUY',ts:new Date(t.time).getTime()})));
+  else if(d.channel==='level2')(d.events||[]).forEach(e=>{
+   if(e.type==='snapshot'){cbLv.bid=[];cbLv.ask=[];}
+   (e.updates||[]).forEach(u=>{(u.side==='bid'?cbLv.bid:cbLv.ask)[+u.level]=[+u.price,+u.size];});
+   cbFlush();});}}),
+BITFINEX:(s,id)=>makeWS(id,'wss://api-pub.bitfinex.com/ws/2',{onopen(ws){
+  ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbol:s}));
+  ws.send(JSON.stringify({event:'subscribe',channel:'book',symbol:s,prec:'P0',freq:'F0',len:'100'}));},
  onmessage:async ev=>{let t;if(ev.data instanceof ArrayBuffer){try{t=await gunzip(ev.data)}catch{t=new TextDecoder().decode(ev.data)}}else t=ev.data;
-  const d=JSON.parse(t);if(Array.isArray(d)&&d[1]==='te'){const[,,[,ts,amt,price]]=d;ingest({exchange:'BITFINEX',price:+price,qty:Math.abs(+amt),isBuy:+amt>0,ts})}},
+  const d=JSON.parse(t);
+  if(d.event==='subscribed'){bfChans[d.channel]=d.chanId;return;}
+  if(!Array.isArray(d))return;
+  if(d[1]==='te'){const[,,[,ts,amt,price]]=d;ingest({exchange:'BITFINEX',price:+price,qty:Math.abs(+amt),isBuy:+amt>0,ts});return;}
+  if(d[0]===bfChans.book){const m=vBook('BITFINEX');
+   const apply=([p,c,q])=>{c===0?m.delete(+p):m.set(+p,Math.abs(+q));};
+   Array.isArray(d[1])&&Array.isArray(d[1][0])?d[1].forEach(apply):apply([d[1],d[2],d[3]]);
+   scheduleAgg();}},
  onping(ws){ws.send(JSON.stringify({event:'ping'}))},pingMs:30000}),
-HTX:(s,id)=>makeWS(id,'wss://api.huobi.pro/ws',{onopen(ws){ws.send(JSON.stringify({sub:`market.${s}.trade.detail`,id:'omni'}))},
+HTX:(s,id)=>makeWS(id,'wss://api.huobi.pro/ws',{onopen(ws){
+  ws.send(JSON.stringify({sub:`market.${s}.trade.detail`,id:'omni'}));
+  ws.send(JSON.stringify({sub:`market.${s}.depth.step0`,id:'omni2'}));},
  onmessage:async ev=>{let t;try{t=await gunzip(ev.data)}catch{return}const d=JSON.parse(t);
   if(d.ping){sockets[id]?.send(JSON.stringify({pong:d.ping}));return;}
-  if(d.ch?.includes('trade.detail')&&d.tick)(d.tick.data||[]).forEach(x=>ingest({exchange:'HTX',price:+x.price,qty:+x.amount,isBuy:x.direction==='buy',ts:x.ts}))}}),
+  if(d.ch?.includes('trade.detail')&&d.tick)(d.tick.data||[]).forEach(x=>ingest({exchange:'HTX',price:+x.price,qty:+x.amount,isBuy:x.direction==='buy',ts:x.ts}));
+  else if(d.ch?.includes('depth')&&d.tick)setVenueLevels('HTX',[...(d.tick.bids||[]),...(d.tick.asks||[])]);}}),
 PHEMEX:(s,id)=>{if(!BACKEND_URL)return Promise.reject(new Error('no backend'));const b=wsBase(BACKEND_URL);if(!b)return Promise.reject(new Error('bad url'));
- return makeWS(id,`${b}/api/ws/phemex`,{onopen(ws){ws.send(JSON.stringify({id:1,method:'trade.subscribe',params:[s]}))},
-  onmessage(ev){const d=JSON.parse(ev.data);if(d.result==='pong')return;if(d.type==='snapshot'||d.type==='incremental')(d.trades||[]).forEach(t=>ingest({exchange:'PHEMEX',price:+t[2]/1e4,qty:+t[3],isBuy:t[1]==='Buy',ts:Math.floor(+t[0]/1e6)}))},
+ return makeWS(id,`${b}/api/ws/phemex`,{onopen(ws){
+   ws.send(JSON.stringify({id:1,method:'trade.subscribe',params:[s]}));
+   ws.send(JSON.stringify({id:2,method:'depth.subscribe',params:[s]}));},
+  onmessage(ev){const d=JSON.parse(ev.data);if(d.result==='pong')return;
+   if(d.trades)(d.trades||[]).forEach(t=>ingest({exchange:'PHEMEX',price:+t[2]/1e4,qty:+t[3],isBuy:t[1]==='Buy',ts:Math.floor(+t[0]/1e6)}));
+   else if(d.depth){const lv=[...(d.depth.bids||[]),...(d.depth.asks||[])].map(([p,q])=>[p/1e4,q]);
+    d.type==='snapshot'?setVenueLevels('PHEMEX',lv):applyVenueDelta('PHEMEX',lv);}},
   onping(ws){ws.send(JSON.stringify({id:99,method:'server.ping',params:[]}))},pingMs:20000});},
-POLONIEX:(s,id)=>makeWS(id,'wss://ws.poloniex.com/ws/public',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:'trades',symbols:[s]}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.channel==='trades'&&d.data)d.data.forEach(t=>ingest({exchange:'POLONIEX',price:+t.price,qty:+t.quantity,isBuy:t.takerSide==='buy',ts:t.ts||Date.now()}))},
+POLONIEX:(s,id)=>makeWS(id,'wss://ws.poloniex.com/ws/public',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',channel:['trades','book_lv2'],symbols:[s]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.channel==='trades'&&d.data)d.data.forEach(t=>ingest({exchange:'POLONIEX',price:+t.price,qty:+t.quantity,isBuy:t.takerSide==='buy',ts:t.ts||Date.now()}));
+  else if(d.channel==='book_lv2'&&Array.isArray(d.data)){
+   const first=d.data[0];
+   if(first&&(first.bids||first.asks)){const lv=[...(first.bids||[]),...(first.asks||[])].map(pq);setVenueLevels('POLONIEX',lv);}
+   else{const deltas=d.data.filter(u=>u&&u.price!=null).map(u=>[u.price,u.quantity??u.qty??0]);
+    if(deltas.length)applyVenueDelta('POLONIEX',deltas);}}},
  onping(ws){ws.send(JSON.stringify({event:'ping'}))},pingMs:30000}),
-BINGX:(s,id)=>makeWS(id,'wss://open-api-ws.bingx.com/market',{onopen(ws){ws.send(JSON.stringify({id:'omni',reqType:'sub',dataType:`${s}@trade`}))},
+BINGX:(s,id)=>makeWS(id,'wss://open-api-ws.bingx.com/market',{onopen(ws){
+  ws.send(JSON.stringify({id:'omni',reqType:'sub',dataType:`${s}@trade`}));
+  ws.send(JSON.stringify({id:'omni2',reqType:'sub',dataType:`${s}@depth`}));},
  onmessage:async ev=>{let t;if(ev.data instanceof ArrayBuffer){try{t=await gunzip(ev.data)}catch{t=new TextDecoder().decode(ev.data)}}else t=ev.data;
-  if(t==='Ping'){sockets[id]?.send('Pong');return;}try{const d=JSON.parse(t);if(d.data)ingest({exchange:'BINGX',price:+d.data.p,qty:+d.data.q,isBuy:d.data.m===false,ts:d.data.T||Date.now()})}catch{}}}),
-WOOX:(s,id)=>makeWS(id,'wss://wss.woo.org/ws/stream/broadcast',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',topic:`${s}@trade`}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.topic?.includes('@trade')&&d.data)ingest({exchange:'WOOX',price:+d.data.price,qty:+d.data.size,isBuy:d.data.side==='BUY',ts:d.data.ts||Date.now()})},
+  if(t==='Ping'){sockets[id]?.send('Pong');return;}
+  try{const d=JSON.parse(t);if(!d.data)return;
+   if(d.dataType?.includes('@trade'))ingest({exchange:'BINGX',price:+d.data.p,qty:+d.data.q,isBuy:d.data.m===false,ts:d.data.T||Date.now()});
+   else if(d.dataType?.includes('@depth')&&(d.data.bids||d.data.asks))setVenueLevels('BINGX',[...(d.data.bids||[]),...(d.data.asks||[])]);
+  }catch{}}}),
+WOOX:(s,id)=>makeWS(id,'wss://wss.woo.org/ws/stream/broadcast',{onopen(ws){ws.send(JSON.stringify({event:'subscribe',topic:[`${s}@trade`,`${s}@orderbook`]}))},
+ onmessage(ev){const d=JSON.parse(ev.data);
+  if(d.topic?.includes('@trade')&&d.data)ingest({exchange:'WOOX',price:+d.data.price,qty:+d.data.size,isBuy:d.data.side==='BUY',ts:d.data.ts||Date.now()});
+  else if(d.topic?.includes('@orderbook')&&d.data){const b=d.data;setVenueLevels('WOOX',[...(b.bids||[]),...(b.asks||[])].map(pq));}},
  onping(ws){ws.send(JSON.stringify({event:'ping'}))},pingMs:25000}),
-DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:1,method:'public/subscribe',params:{channels:[`trades.${s}.raw`]}}))},
- onmessage(ev){const d=JSON.parse(ev.data);if(d.method==='subscription'&&d.params?.channel?.startsWith('trades'))(d.params.data||[]).forEach(t=>ingest({exchange:'DERIBIT',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.timestamp}))},
+DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:1,method:'public/subscribe',params:{channels:[`trades.${s}.raw`,`book.${s}.100ms`]}}))},
+ onmessage(ev){const d=JSON.parse(ev.data);const ch=d.params?.channel||'';
+  if(ch.startsWith('trades'))(d.params.data||[]).forEach(t=>ingest({exchange:'DERIBIT',price:+t.price,qty:+t.amount,isBuy:t.direction==='buy',ts:t.timestamp}));
+  else if(ch.startsWith('book')){const b=d.params.data||{};
+   b.type==='snapshot'?setVenueLevels('DERIBIT',[...(b.bids||[]),...(b.asks||[])].map(pq))
+                      :applyVenueDelta('DERIBIT',[...(b.bids||[]),...(b.asks||[])].map(pq));}},
  onping(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}}))},pingMs:30000}),
 };
+
 function launchAll(){EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*1500);});}
-function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;book.asks=[];book.bids=[];
+function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null;
+ cbLv.bid=[];cbLv.ask=[];for(const k in bfChans)delete bfChans[k];
  document.getElementById('price').textContent='--';document.getElementById('spread-live').textContent='--';
- document.getElementById('tape').innerHTML='';document.getElementById('dom-asks').innerHTML='';document.getElementById('dom-bids').innerHTML='';
- closeAll();setTimeout(launchAll,200);}
+ document.getElementById('liq-bid').textContent='ΣB --';document.getElementById('liq-ask').textContent='ΣA --';
+ document.getElementById('bw-input').value=''; bucketWidth=null;
+ document.getElementById('tape').innerHTML='';
+ closeAll();closeDeepBook();clearVenueBooks();openDeepBook(b);setTimeout(launchAll,200);}
 
 function toggleAi(){document.getElementById('ai').classList.toggle('open');}
 function addMsg(r,t){const el=document.getElementById('ai-msgs');const d=document.createElement('div');
@@ -403,9 +671,9 @@ function addMsg(r,t){const el=document.getElementById('ai-msgs');const d=documen
  el.appendChild(d);el.scrollTop=el.scrollHeight;return d;}
 function buildCtx(){const rec=tape.slice(-30);const buys=rec.filter(t=>t.isBuy).length;
  const avg=rec.length?(rec.reduce((a,t)=>a+t.price,0)/rec.length).toFixed(2):'N/A';
- const ba=book.asks[0]?+book.asks[0][0]:'N/A';const bb=book.bids[0]?+book.bids[0][0]:'N/A';
+ const L=lastLadder;
  const active=Object.entries(exStatus).filter(([,s])=>s==='connected').map(([id])=>id).join(',')||'none';
- return`[${currentBase}] Last:$${lastPrice?lastPrice.toFixed(2):'--'} Ask:$${ba} Bid:$${bb} 30t:${buys}B/${rec.length-buys}S avg:$${avg} feeds:${active}`;}
+ return`[${currentBase}] Last:$${lastPrice?lastPrice.toFixed(2):'--'} 30t:${buys}B/${rec.length-buys}S avg:$${avg}\nDepth:${L?`${L.venues}venues step$${L.bw} Σbid ${fmtQty(L.sb)} Σask ${fmtQty(L.sa)}`:'n/a'}\nFeeds:${active}`;}
 async function sendToGLM(){
  if(aiBusy)return;
  if(!BACKEND_URL){addMsg('e','No backend — set URL above.');return;}
@@ -437,9 +705,11 @@ async function sendToGLM(){
 
 function start(){if(started)return;started=true;
  setNet(backendHealthy?'ok':(BACKEND_URL?'bad':'warn'),backendHealthy?'OK':(BACKEND_URL?'DOWN':'SOLO'));
- launchAll();
+ initDOMPool();
+ openDeepBook(currentBase);launchAll();
  if(nimKey)addMsg('a',`GLM-5.2 ready. ${currentBase} live.`);
  else addMsg('s','Set NIM key (🔑) for AI.');}
+
 window.addEventListener('DOMContentLoaded',async()=>{
  recalcTotalEx();
  if(BACKEND_URL){document.getElementById('backend-url').value=BACKEND_URL;
@@ -447,7 +717,9 @@ window.addEventListener('DOMContentLoaded',async()=>{
   setNet(backendHealthy?'ok':'bad',backendHealthy?'OK':'DOWN');
   document.getElementById('backend-status').textContent=backendHealthy?'✓ saved backend healthy':'✗ saved backend down';
   document.getElementById('backend-status').style.color=backendHealthy?'var(--green)':'var(--red)';
- }else setNet('warn','SOLO');});
+ }else setNet('warn','SOLO');
+ start();
+});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeKeyModal();document.getElementById('ai').classList.remove('open');}});
 </script>
 </body>
