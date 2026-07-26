@@ -452,6 +452,12 @@ function renderLadder(){
  document.getElementById('spread-live').textContent=(bestAsk<Infinity&&bestBid>0)?'$'+(bestAsk-bestBid).toFixed(dec):'--';
  document.getElementById('depth-info').textContent=`${activeVenues} feeds · step $${bw} · ${NUM_RUNGS} rungs`;
  lastLadder={bw,sb:totalBid,sa:totalAsk,venues:activeVenues};
+ 
+ // ── Center ladder on mid price ──
+ const ladderEl=document.getElementById('dom-ladder');
+ const rowH=18;
+ const targetScroll=Math.round(halfRows*rowH-(ladderEl.clientHeight-rowH)/2);
+ if(Math.abs(ladderEl.scrollTop-targetScroll)>1) ladderEl.scrollTop=targetScroll;
 }
 
 function ingest({exchange,price,qty,isBuy,ts}){
@@ -584,7 +590,7 @@ KRAKEN:(s,id)=>makeWS(id,'wss://ws.kraken.com/v2',{onopen(ws){
   if(d.channel==='trade'&&d.type==='update')(d.data||[]).forEach(t=>ingest({exchange:'KRAKEN',price:+t.price,qty:+t.qty,isBuy:t.side==='buy',ts:new Date(t.timestamp).getTime()}));
   else if(d.channel==='book'){
    if(d.type==='snapshot'){const b=(d.data||[])[0]||{};setVenueLevels('KRAKEN',[...(b.bids||[]),...(b.asks||[])].map(pq));}
-   else if(d.type==='update')(d.data||[]).forEach(u=>applyVenueDelta('KRAKEN',[[u.price,u.qty]]));}},
+   else if(d.type==='update')(d.data||[]).forEach(u=>{const lv=[...(u.bids||[]),...(u.asks||[])].map(p=>[+p[0],+p[1]]);if(lv.length)applyVenueDelta('KRAKEN',lv);});}},
  onping(ws){ws.send(JSON.stringify({method:'ping'}))},pingMs:30000}),
 COINBASE:(s,id)=>makeWS(id,'wss://advanced-trade-ws.coinbase.com',{onopen(ws){
  ws.send(JSON.stringify({type:'subscribe',product_ids:[s],channel:'market_trades'}));
@@ -711,13 +717,12 @@ function start(){if(started)return;started=true;
  else addMsg('s','Set NIM key (🔑) for AI.');}
 
 window.addEventListener('DOMContentLoaded',async()=>{
- recalcTotalEx();
  if(BACKEND_URL){document.getElementById('backend-url').value=BACKEND_URL;
   backendHealthy=await checkBackend(BACKEND_URL);
-  setNet(backendHealthy?'ok':'bad',backendHealthy?'OK':'DOWN');
   document.getElementById('backend-status').textContent=backendHealthy?'✓ saved backend healthy':'✗ saved backend down';
   document.getElementById('backend-status').style.color=backendHealthy?'var(--green)':'var(--red)';
- }else setNet('warn','SOLO');
+ }
+ applyBackend();
  start();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeKeyModal();document.getElementById('ai').classList.remove('open');}});
