@@ -37,7 +37,7 @@ html, body { height: 100%; overflow: hidden; font-family: 'JetBrains Mono', mono
 .d.bad { background: var(--red); box-shadow: 0 0 4px var(--red); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 select { background: var(--bg1); border: 1px solid var(--line); color: var(--amber); border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; outline: none; padding: 2px 4px; cursor: pointer; }
-#price { font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 14px; line-height: 1; }
+#price { font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 14px; line-height: 1; transition: color 0.15s; }
 #price.up { color: var(--green); }
 #price.dn { color: var(--red); }
 .chk { display: flex; align-items: center; gap: 4px; font-size: 7.5px; color: var(--dim); cursor: pointer; }
@@ -52,7 +52,7 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 #dom-wrap { flex: 0 0 54%; display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line); background: var(--bg0); }
 .dom-header-grid { display: grid; grid-template-columns: 1fr 100px 1fr; background: var(--bg1); border-bottom: 1px solid var(--line); font-size: 8px; font-weight: 700; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; text-align: center; padding: 3px 0; flex-shrink: 0; }
 
-#dom-ladder { flex: 1; overflow-y: hidden; display: flex; flex-direction: column; }
+#dom-ladder { flex: 1; overflow-y: hidden; display: flex; flex-direction: column; justify-content: center; }
 .dom-row { display: grid; grid-template-columns: 1fr 100px 1fr; height: 18px; line-height: 18px; font-size: 9px; border-bottom: 1px solid rgba(36, 44, 61, 0.3); position: relative; }
 .dom-cell-bid { position: relative; text-align: right; padding-right: 6px; }
 .dom-cell-price { text-align: center; font-weight: 700; color: var(--txt); background: rgba(255, 255, 255, .012); border-left: 1px solid var(--line); border-right: 1px solid var(--line); z-index: 2; user-select: none; }
@@ -230,6 +230,8 @@ let bucketWidth=null, nimKey=sessionStorage.getItem('nim_key')||'';
 let aiHistory=[], aiBusy=false, lastLadder=null;
 let BACKEND_URL=loadBackendUrl(), backendHealthy=false, started=false;
 let domPool = [];
+let ladderCenter = 0; // Stabilizes DOM centering to prevent UI jitter
+let statsTimer = null;
 
 const EXCHANGES=['BINANCE','BINANCEFUT','BYBIT','BYBITLIN','OKX','OKXFUT','GATE','MEXC','BITGET','KUCOIN','BITSTAMP','GEMINI','KRAKEN','COINBASE','BITFINEX','HTX','PHEMEX','POLONIEX','BINGX','WOOX','DERIBIT'];
 const exStatus={}; EXCHANGES.forEach(e=>exStatus[e]='disconnected');
@@ -339,7 +341,7 @@ function openDeepBook(base){
    dbg('DOM',`binance ${deep.bids.size}b/${deep.asks.size}a`);scheduleAgg();
   }).catch(e=>dbg('DOM',`snapshot: ${e.message}`));}
 
-function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n;scheduleAgg();}
+function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n; ladderCenter=0; scheduleAgg();}
 function autoBW(mid){return bucketWidth||DEFAULT_TICK[currentBase]||0.10;}
 function bwDecimals(bw){return bw>=1?(bw%1===0?2:2):bw>=.1?2:bw>=.01?2:4;}
 function fmtQty(n){return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1000?(n/1000).toFixed(1)+'K':n>=10?n.toFixed(0):n>0?n.toFixed(2):'';}
@@ -388,8 +390,14 @@ function scheduleAgg(){if(aggTimer)return;aggTimer=requestAnimationFrame(()=>{ag
 function renderLadder(){
  const mid=refMid();if(!mid)return;
  const bw=autoBW(mid);
+ 
+ // Stabilize centering so the UI doesn't jump unless the price trends 
+ if (!ladderCenter || Math.abs(mid - ladderCenter) > bw * 3) {
+     ladderCenter = Math.round(mid / bw) * bw;
+ }
+ const centerPrice = ladderCenter;
+ 
  const dec=bwDecimals(bw);
- const centerPrice=Math.round(mid/bw)*bw;
  const halfRows=Math.floor(NUM_RUNGS/2);
  const topPrice=centerPrice+(halfRows*bw);
 
@@ -452,12 +460,6 @@ function renderLadder(){
  document.getElementById('spread-live').textContent=(bestAsk<Infinity&&bestBid>0)?'$'+(bestAsk-bestBid).toFixed(dec):'--';
  document.getElementById('depth-info').textContent=`${activeVenues} feeds · step $${bw} · ${NUM_RUNGS} rungs`;
  lastLadder={bw,sb:totalBid,sa:totalAsk,venues:activeVenues};
- 
- // ── Center ladder on mid price ──
- const ladderEl=document.getElementById('dom-ladder');
- const rowH=18;
- const targetScroll=Math.round(halfRows*rowH-(ladderEl.clientHeight-rowH)/2);
- if(Math.abs(ladderEl.scrollTop-targetScroll)>1) ladderEl.scrollTop=targetScroll;
 }
 
 function ingest({exchange,price,qty,isBuy,ts}){
@@ -465,18 +467,33 @@ function ingest({exchange,price,qty,isBuy,ts}){
  if(tape.length>MAX_TAPE)tape.shift();
  prevPrice=lastPrice;lastPrice=price;vol+=qty;
  scheduleTape();updateStats();updatePrice();scheduleAgg();}
-function updatePrice(){const el=document.getElementById('price');
+ 
+function updatePrice(){
+ const el=document.getElementById('price');
  el.textContent=lastPrice>0?lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'--';
- if(prevPrice&&lastPrice!==prevPrice){el.classList.remove('up','dn');void el.offsetWidth;el.classList.add(lastPrice>prevPrice?'up':'dn');}}
+ if(prevPrice && lastPrice !== prevPrice){
+  el.classList.remove('up','dn');
+  el.classList.add(lastPrice > prevPrice ? 'up' : 'dn');
+ }
+}
+
 let tapeRaf=false;
 function scheduleTape(){if(tapeRaf)return;tapeRaf=true;requestAnimationFrame(()=>{tapeRaf=false;
  const el=document.getElementById('tape');const f=document.createDocumentFragment();
  tape.slice().reverse().forEach(t=>{const r=document.createElement('div');r.className=`tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}`;
   r.innerHTML=`<span>${t.price.toFixed(2)}</span><span class="q">${t.qty.toFixed(4)}</span><span class="t">${new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>`;f.appendChild(r);});
  el.innerHTML='';el.appendChild(f);document.getElementById('tape-count').textContent=tape.length;});}
-function updateStats(){const now=Date.now();stamps=stamps.filter(t=>now-t<TPS_WIN);
- document.getElementById('st-tps').textContent=(stamps.length/(TPS_WIN/1000)).toFixed(1);
- document.getElementById('st-vol').textContent=vol>=1000?(vol/1000).toFixed(1)+'K':vol.toFixed(1);}
+ 
+function updateStats(){
+ if(statsTimer) return;
+ statsTimer = setInterval(() => {
+  const now=Date.now();
+  stamps=stamps.filter(t=>now-t<TPS_WIN);
+  document.getElementById('st-tps').textContent=(stamps.length/(TPS_WIN/1000)).toFixed(1);
+  document.getElementById('st-vol').textContent=vol>=1000?(vol/1000).toFixed(1)+'K':vol.toFixed(1);
+ }, 500);
+}
+ 
 function refreshStreams(){const n=Object.values(exStatus).filter(s=>s==='connected').length;
  document.getElementById('st-streams').textContent=`${n}/${TOTAL_EX}`;}
 function setEx(id,s){exStatus[id]=s;refreshStreams();}
@@ -590,7 +607,15 @@ KRAKEN:(s,id)=>makeWS(id,'wss://ws.kraken.com/v2',{onopen(ws){
   if(d.channel==='trade'&&d.type==='update')(d.data||[]).forEach(t=>ingest({exchange:'KRAKEN',price:+t.price,qty:+t.qty,isBuy:t.side==='buy',ts:new Date(t.timestamp).getTime()}));
   else if(d.channel==='book'){
    if(d.type==='snapshot'){const b=(d.data||[])[0]||{};setVenueLevels('KRAKEN',[...(b.bids||[]),...(b.asks||[])].map(pq));}
-   else if(d.type==='update')(d.data||[]).forEach(u=>{const lv=[...(u.bids||[]),...(u.asks||[])].map(p=>[+p[0],+p[1]]);if(lv.length)applyVenueDelta('KRAKEN',lv);});}},
+   else if(d.type==='update'){
+       (d.data||[]).forEach(u => {
+           const lv = [];
+           if(u.bids) u.bids.forEach(p => lv.push([+p.price, +p.qty]));
+           if(u.asks) u.asks.forEach(p => lv.push([+p.price, +p.qty]));
+           if(lv.length) applyVenueDelta('KRAKEN', lv);
+       });
+   }
+  }},
  onping(ws){ws.send(JSON.stringify({method:'ping'}))},pingMs:30000}),
 COINBASE:(s,id)=>makeWS(id,'wss://advanced-trade-ws.coinbase.com',{onopen(ws){
  ws.send(JSON.stringify({type:'subscribe',product_ids:[s],channel:'market_trades'}));
@@ -663,7 +688,7 @@ DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(
 };
 
 function launchAll(){EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*1500);});}
-function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null;
+function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null; ladderCenter=0;
  cbLv.bid=[];cbLv.ask=[];for(const k in bfChans)delete bfChans[k];
  document.getElementById('price').textContent='--';document.getElementById('spread-live').textContent='--';
  document.getElementById('liq-bid').textContent='ΣB --';document.getElementById('liq-ask').textContent='ΣA --';
@@ -713,6 +738,7 @@ function start(){if(started)return;started=true;
  setNet(backendHealthy?'ok':(BACKEND_URL?'bad':'warn'),backendHealthy?'OK':(BACKEND_URL?'DOWN':'SOLO'));
  initDOMPool();
  openDeepBook(currentBase);launchAll();
+ updateStats();
  if(nimKey)addMsg('a',`GLM-5.2 ready. ${currentBase} live.`);
  else addMsg('s','Set NIM key (🔑) for AI.');}
 
