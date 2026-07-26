@@ -223,7 +223,7 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 <script>
 const SHARED_SECRET_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const MAX_TAPE=80, TPS_WIN=2000, NIM_MODEL='z-ai/glm-5.2';
-const SNAP_LIMIT=3000, NUM_RUNGS=40; // Increased to 40 for seamless continuous scroll
+const SNAP_LIMIT=3000, NUM_RUNGS=40;
 let TOTAL_EX=21, currentBase='BTCUSDT';
 let tape=[], stamps=[], lastPrice=0, prevPrice=0, vol=0;
 const sockets={}, pings={};
@@ -233,6 +233,8 @@ let BACKEND_URL=loadBackendUrl(), backendHealthy=false, started=false;
 let domPool = [];
 let smoothMaxVol = 0; 
 let statsTimer = null;
+let visualMid = 0; // Smoothed mid price for visual centering
+let lastTapeLen = 0;
 
 const EXCHANGES=['BINANCE','BINANCEFUT','BYBIT','BYBITLIN','OKX','OKXFUT','GATE','MEXC','BITGET','KUCOIN','BITSTAMP','GEMINI','KRAKEN','COINBASE','BITFINEX','HTX','PHEMEX','POLONIEX','BINGX','WOOX','DERIBIT'];
 const exStatus={}; EXCHANGES.forEach(e=>exStatus[e]='disconnected');
@@ -403,9 +405,12 @@ function renderLadder(){
  const mid=refMid();if(!mid)return;
  const bw=autoBW(mid);
  
- // Continuous sub-tick centering for buttery smooth movement
- const centerTick = Math.round(mid / bw) * bw;
- const fracOffset = (centerTick - mid) / bw * 18; // 18px row height
+ // Smooth visualMid to prevent 60fps jitter from micro-fluctuations
+ if (!visualMid) visualMid = mid;
+ visualMid += (mid - visualMid) * 0.1; 
+ 
+ const centerTick = Math.round(visualMid / bw) * bw;
+ const fracOffset = (centerTick - visualMid) / bw * 18;
  
  const innerEl = document.getElementById('dom-ladder-inner');
  const transformStr = `translateY(calc(-50% + ${fracOffset.toFixed(2)}px))`;
@@ -414,20 +419,39 @@ function renderLadder(){
  const dec=bwDecimals(bw);
  const halfRows=Math.floor(NUM_RUNGS/2);
  const topPrice=centerTick+(halfRows*bw);
+ 
+ // Optimization: Only calculate levels within view range
+ const viewRange = (halfRows + 2) * bw;
+ const minView = mid - viewRange;
+ const maxView = mid + viewRange;
 
  const bidB=new Map(), askB=new Map();
  let activeVenues=0, bestBid=0, bestAsk=Infinity;
 
  if(deep.bids.size||deep.asks.size){
   activeVenues++;
-  for(const[p,q]of deep.bids){if(p>bestBid)bestBid=p;const b=Math.floor(p/bw)*bw;const k=b.toFixed(dec);bidB.set(k,(bidB.get(k)||0)+q);}
-  for(const[p,q]of deep.asks){if(p<bestAsk)bestAsk=p;const a=Math.ceil(p/bw)*bw;const k=a.toFixed(dec);askB.set(k,(askB.get(k)||0)+q);}
+  for(const[p,q]of deep.bids){
+   if(p < minView) continue; // Skip out of view
+   if(p>bestBid)bestBid=p;
+   const b=Math.floor(p/bw)*bw;const k=b.toFixed(dec);bidB.set(k,(bidB.get(k)||0)+q);
+  }
+  for(const[p,q]of deep.asks){
+   if(p > maxView) continue; // Skip out of view
+   if(p<bestAsk)bestAsk=p;
+   const a=Math.ceil(p/bw)*bw;const k=a.toFixed(dec);askB.set(k,(askB.get(k)||0)+q);
+  }
  }
  for(const v in venueBooks){
   const m=venueBooks[v];if(!m.size||v==='BINANCE')continue;activeVenues++;
   for(const[p,q]of m){
-   if(p<=mid){if(p>bestBid)bestBid=p;const b=Math.floor(p/bw)*bw;const k=b.toFixed(dec);bidB.set(k,(bidB.get(k)||0)+q);}
-   else{if(p<bestAsk)bestAsk=p;const a=Math.ceil(p/bw)*bw;const k=a.toFixed(dec);askB.set(k,(askB.get(k)||0)+q);}
+   if(p < minView || p > maxView) continue; // Skip out of view
+   if(p<=mid){
+    if(p>bestBid)bestBid=p;
+    const b=Math.floor(p/bw)*bw;const k=b.toFixed(dec);bidB.set(k,(bidB.get(k)||0)+q);
+   } else {
+    if(p<bestAsk)bestAsk=p;
+    const a=Math.ceil(p/bw)*bw;const k=a.toFixed(dec);askB.set(k,(askB.get(k)||0)+q);
+   }
   }
  }
 
@@ -442,11 +466,10 @@ function renderLadder(){
   totalBid+=bq; totalAsk+=aq;
  }
 
- // Snappier smoothing for volume scaling
  if (currentMaxVol > smoothMaxVol) {
      smoothMaxVol = currentMaxVol;
  } else if (smoothMaxVol > 1e-9) {
-     smoothMaxVol = smoothMaxVol * 0.8 + currentMaxVol * 0.2;
+     smoothMaxVol = smoothMaxVol * 0.9 + currentMaxVol * 0.1; // Slower decay for stability
  } else {
      smoothMaxVol = currentMaxVol;
  }
@@ -515,11 +538,36 @@ function updatePrice(){
 }
 
 let tapeRaf=false;
-function scheduleTape(){if(tapeRaf)return;tapeRaf=true;requestAnimationFrame(()=>{tapeRaf=false;
- const el=document.getElementById('tape');const f=document.createDocumentFragment();
- tape.slice().reverse().forEach(t=>{const r=document.createElement('div');r.className=`tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}`;
-  r.innerHTML=`<span>${t.price.toFixed(2)}</span><span class="q">${t.qty.toFixed(4)}</span><span class="t">${new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>`;f.appendChild(r);});
- el.innerHTML='';el.appendChild(f);document.getElementById('tape-count').textContent=tape.length;});}
+function scheduleTape(){if(tapeRaf)return;tapeRaf=true;requestAnimationFrame(()=>{
+ tapeRaf=false;
+ const el=document.getElementById('tape');
+ const countEl=document.getElementById('tape-count');
+
+ // Only process new trades since last frame
+ const newItems = tape.slice(lastTapeLen);
+ if (newItems.length > 0) {
+  let html = '';
+  for (let i = newItems.length - 1; i >= 0; i--) {
+   const t = newItems[i];
+   html += `<div class="tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}"><span>${t.price.toFixed(2)}</span><span class="q">${t.qty.toFixed(4)}</span><span class="t">${new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span></div>`;
+  }
+  el.insertAdjacentHTML('afterbegin', html);
+  while (el.children.length > MAX_TAPE) {
+   el.removeChild(el.lastChild);
+  }
+ }
+ 
+ // Handle items removed by shift()
+ if (tape.length < lastTapeLen) {
+  const removedCount = lastTapeLen - tape.length;
+  for(let i=0; i<removedCount; i++) {
+   if(el.lastChild) el.removeChild(el.lastChild);
+  }
+ }
+ 
+ lastTapeLen = tape.length;
+ countEl.textContent = tape.length;
+});}
  
 function updateStats(){
  if(statsTimer) return;
@@ -725,7 +773,7 @@ DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(
 };
 
 function launchAll(){EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*1500);});}
-function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null; smoothMaxVol=0;
+function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null; smoothMaxVol=0; visualMid=0; lastTapeLen=0;
  cbLv.bid=[];cbLv.ask=[];for(const k in bfChans)delete bfChans[k];
  document.getElementById('price').textContent='--';document.getElementById('spread-live').textContent='--';
  document.getElementById('liq-bid').textContent='ΣB --';document.getElementById('liq-ask').textContent='ΣA --';
