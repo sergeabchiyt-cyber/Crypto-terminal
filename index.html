@@ -52,7 +52,8 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 #dom-wrap { flex: 0 0 54%; display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line); background: var(--bg0); }
 .dom-header-grid { display: grid; grid-template-columns: 1fr 100px 1fr; background: var(--bg1); border-bottom: 1px solid var(--line); font-size: 8px; font-weight: 700; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; text-align: center; padding: 3px 0; flex-shrink: 0; }
 
-#dom-ladder { flex: 1; overflow-y: hidden; display: flex; flex-direction: column; justify-content: center; }
+#dom-ladder { flex: 1; overflow-y: hidden; position: relative; }
+#dom-ladder-inner { position: absolute; top: 50%; left: 0; right: 0; will-change: transform; }
 .dom-row { display: grid; grid-template-columns: 1fr 100px 1fr; height: 18px; line-height: 18px; font-size: 9px; border-bottom: 1px solid rgba(36, 44, 61, 0.3); position: relative; }
 .dom-cell-bid { position: relative; text-align: right; padding-right: 6px; }
 .dom-cell-price { text-align: center; font-weight: 700; color: var(--txt); background: rgba(255, 255, 255, .012); border-left: 1px solid var(--line); border-right: 1px solid var(--line); z-index: 2; user-select: none; }
@@ -167,7 +168,7 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
       <span>Price</span>
       <span>Asks</span>
     </div>
-    <div id="dom-ladder"></div>
+    <div id="dom-ladder"><div id="dom-ladder-inner"></div></div>
     <div id="spreadbar">
       <span class="liq b" id="liq-bid" title="Σ resting bid qty in view">ΣB --</span>
       <div style="display:flex;align-items:center;gap:4px">
@@ -222,7 +223,7 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 <script>
 const SHARED_SECRET_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const MAX_TAPE=80, TPS_WIN=2000, NIM_MODEL='z-ai/glm-5.2';
-const SNAP_LIMIT=3000, NUM_RUNGS=36;
+const SNAP_LIMIT=3000, NUM_RUNGS=40; // Increased to 40 for seamless continuous scroll
 let TOTAL_EX=21, currentBase='BTCUSDT';
 let tape=[], stamps=[], lastPrice=0, prevPrice=0, vol=0;
 const sockets={}, pings={};
@@ -230,8 +231,7 @@ let bucketWidth=null, nimKey=sessionStorage.getItem('nim_key')||'';
 let aiHistory=[], aiBusy=false, lastLadder=null;
 let BACKEND_URL=loadBackendUrl(), backendHealthy=false, started=false;
 let domPool = [];
-let ladderCenter = 0; 
-let smoothMaxVol = 0; // Smoothed max volume to stabilize DOM bars
+let smoothMaxVol = 0; 
 let statsTimer = null;
 
 const EXCHANGES=['BINANCE','BINANCEFUT','BYBIT','BYBITLIN','OKX','OKXFUT','GATE','MEXC','BITGET','KUCOIN','BITSTAMP','GEMINI','KRAKEN','COINBASE','BITFINEX','HTX','PHEMEX','POLONIEX','BINGX','WOOX','DERIBIT'];
@@ -346,7 +346,7 @@ function openDeepBook(base){
    dbg('DOM',`binance ${deep.bids.size}b/${deep.asks.size}a`);scheduleAgg();
   }).catch(e=>dbg('DOM',`snapshot: ${e.message}`));}
 
-function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n; ladderCenter=0; scheduleAgg();}
+function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n; scheduleAgg();}
 function autoBW(mid){return bucketWidth||DEFAULT_TICK[currentBase]||0.10;}
 function bwDecimals(bw){return bw>=1?(bw%1===0?2:2):bw>=.1?2:bw>=.01?2:4;}
 function fmtQty(n){
@@ -359,7 +359,7 @@ function fmtQty(n){
 }
 
 function initDOMPool() {
-  const container = document.getElementById('dom-ladder');
+  const container = document.getElementById('dom-ladder-inner');
   container.innerHTML = '';
   domPool = [];
   for (let i = 0; i < NUM_RUNGS; i++) {
@@ -403,14 +403,17 @@ function renderLadder(){
  const mid=refMid();if(!mid)return;
  const bw=autoBW(mid);
  
- if (!ladderCenter || Math.abs(mid - ladderCenter) > bw * 3) {
-     ladderCenter = Math.round(mid / bw) * bw;
- }
- const centerPrice = ladderCenter;
+ // Continuous sub-tick centering for buttery smooth movement
+ const centerTick = Math.round(mid / bw) * bw;
+ const fracOffset = (centerTick - mid) / bw * 18; // 18px row height
+ 
+ const innerEl = document.getElementById('dom-ladder-inner');
+ const transformStr = `translateY(calc(-50% + ${fracOffset.toFixed(2)}px))`;
+ if(innerEl.style.transform !== transformStr) innerEl.style.transform = transformStr;
  
  const dec=bwDecimals(bw);
  const halfRows=Math.floor(NUM_RUNGS/2);
- const topPrice=centerPrice+(halfRows*bw);
+ const topPrice=centerTick+(halfRows*bw);
 
  const bidB=new Map(), askB=new Map();
  let activeVenues=0, bestBid=0, bestAsk=Infinity;
@@ -439,11 +442,11 @@ function renderLadder(){
   totalBid+=bq; totalAsk+=aq;
  }
 
- // Smooth maxVol to prevent violent bar resizing
+ // Snappier smoothing for volume scaling
  if (currentMaxVol > smoothMaxVol) {
-     smoothMaxVol = currentMaxVol; // Instantly jump up
+     smoothMaxVol = currentMaxVol;
  } else if (smoothMaxVol > 1e-9) {
-     smoothMaxVol = smoothMaxVol * 0.85 + currentMaxVol * 0.15; // Smooth decay down
+     smoothMaxVol = smoothMaxVol * 0.8 + currentMaxVol * 0.2;
  } else {
      smoothMaxVol = currentMaxVol;
  }
@@ -722,7 +725,7 @@ DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(
 };
 
 function launchAll(){EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*1500);});}
-function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null; ladderCenter=0;
+function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null; smoothMaxVol=0;
  cbLv.bid=[];cbLv.ask=[];for(const k in bfChans)delete bfChans[k];
  document.getElementById('price').textContent='--';document.getElementById('spread-live').textContent='--';
  document.getElementById('liq-bid').textContent='ΣB --';document.getElementById('liq-ask').textContent='ΣA --';
