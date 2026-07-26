@@ -21,7 +21,6 @@ html, body { height: 100%; overflow: hidden; font-family: 'JetBrains Mono', mono
 ::-webkit-scrollbar-thumb { background: #2a3347; border-radius: 2px; }
 .disp { font-family: 'Chakra Petch', sans-serif; }
 
-/* Control Header */
 #settings { flex-shrink: 0; border-bottom: 1px solid var(--line); padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--bg1), var(--bg0)); }
 #settings .row { display: flex; align-items: center; gap: 5px; }
 #settings .lbl { font-size: 7px; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; width: 28px; flex-shrink: 0; }
@@ -43,12 +42,10 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 .chk { display: flex; align-items: center; gap: 4px; font-size: 7.5px; color: var(--dim); cursor: pointer; }
 .chk input { accent-color: var(--purple); width: 10px; height: 10px; }
 
-/* Main Stream Container */
 #orderflow { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; position: relative; }
 .sec-h { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px; font-size: 7px; letter-spacing: .12em; color: var(--dim); text-transform: uppercase; border-bottom: 1px solid var(--line); flex-shrink: 0; background: rgba(255, 255, 255, .015); }
 .live-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--green); box-shadow: 0 0 4px var(--green); animation: pulse 1.6s infinite; display: inline-block; }
 
-/* Zero-Allocation Unified DOM Ladder */
 #dom-wrap { flex: 0 0 54%; display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line); background: var(--bg0); }
 .dom-header-grid { display: grid; grid-template-columns: 1fr 100px 1fr; background: var(--bg1); border-bottom: 1px solid var(--line); font-size: 8px; font-weight: 700; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; text-align: center; padding: 3px 0; flex-shrink: 0; }
 
@@ -59,8 +56,8 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 .dom-cell-price { text-align: center; font-weight: 700; color: var(--txt); background: rgba(255, 255, 255, .012); border-left: 1px solid var(--line); border-right: 1px solid var(--line); z-index: 2; user-select: none; }
 .dom-cell-ask { position: relative; text-align: left; padding-left: 6px; }
 
-.dom-bar-bid { position: absolute; top: 0; bottom: 0; right: 0; background: var(--green-bar); border-left: 2px solid var(--green); pointer-events: none; z-index: 1; transition: width 0.05s linear; }
-.dom-bar-ask { position: absolute; top: 0; bottom: 0; left: 0; background: var(--red-bar); border-right: 2px solid var(--red); pointer-events: none; z-index: 1; transition: width 0.05s linear; }
+.dom-bar-bid { position: absolute; top: 0; bottom: 0; right: 0; background: var(--green-bar); border-left: 2px solid var(--green); pointer-events: none; z-index: 1; }
+.dom-bar-ask { position: absolute; top: 0; bottom: 0; left: 0; background: var(--red-bar); border-right: 2px solid var(--red); pointer-events: none; z-index: 1; }
 .dom-val { position: relative; z-index: 2; font-weight: 600; }
 .dom-row.last-price .dom-cell-price { background: rgba(139, 124, 246, 0.28); color: #fff; border-color: var(--purple); box-shadow: inset 0 0 0 1px var(--purple); }
 .dom-row.wall-bid .dom-cell-bid .dom-val { color: var(--green); text-shadow: 0 0 6px var(--green); }
@@ -73,7 +70,6 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 #bw-input { width: 50px; text-align: center; font-size: 8px; padding: 1px 3px; color: var(--purple); background: var(--bg0); border: 1px solid var(--line); border-radius: 3px; outline: none; }
 #bw-input:focus { border-color: var(--purple); }
 
-/* Tape Container */
 #tape-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 #tape { flex: 1; overflow: hidden; display: flex; flex-direction: column-reverse; }
 .tape-row { display: grid; grid-template-columns: 1fr .65fr .75fr; font-size: 9px; line-height: 1.55; padding: 0 6px 0 7px; border-left: 2px solid transparent; border-bottom: 1px solid rgba(36, 44, 61, .3); }
@@ -90,7 +86,6 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 .stat .l { font-size: 6.5px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
 .stat .v { font-size: 10px; font-weight: 700; }
 
-/* AI Integration Drawer & Modals */
 #ai { position: absolute; bottom: 0; left: 0; right: 0; z-index: 50; background: var(--bg1); border-top: 1px solid var(--purple); display: flex; flex-direction: column; transform: translateY(100%); transition: transform .2s ease; height: 55%; max-height: 320px; box-shadow: 0 -8px 30px rgba(0, 0, 0, .5); }
 #ai.open { transform: none; }
 #ai-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; cursor: pointer; flex-shrink: 0; border-bottom: 1px solid var(--line); }
@@ -221,20 +216,38 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 <div id="debug"><div id="debug-log"></div></div>
 
 <script>
+/* ── constants ── */
 const SHARED_SECRET_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const MAX_TAPE=80, TPS_WIN=2000, NIM_MODEL='z-ai/glm-5.2';
 const SNAP_LIMIT=3000, NUM_RUNGS=40;
+const DOM_FPS_INTERVAL=66; /* ~15 fps render cadence for DOM ladder */
+
 let TOTAL_EX=21, currentBase='BTCUSDT';
 let tape=[], stamps=[], lastPrice=0, prevPrice=0, vol=0;
 const sockets={}, pings={};
 let bucketWidth=null, nimKey=sessionStorage.getItem('nim_key')||'';
 let aiHistory=[], aiBusy=false, lastLadder=null;
 let BACKEND_URL=loadBackendUrl(), backendHealthy=false, started=false;
-let domPool = [];
-let smoothMaxVol = 0; 
-let statsTimer = null;
-let visualMid = 0; // Smoothed mid price for visual centering
-let lastTapeLen = 0;
+let domPool=[];
+let smoothMaxVol=0;
+let statsTimer=null;
+let visualMid=0;
+
+/* ── FIX: tape pending queue (replaces broken lastTapeLen) ── */
+let pendingTrades=[];
+let tapeRaf=false;
+
+/* ── FIX: dirty-flag DOM render (replaces per-trade scheduleAgg) ── */
+let bookDirty=false;
+let domRenderInterval=null;
+
+/* ── FIX: pre-allocated bucket arrays (replaces per-frame Map alloc) ── */
+const bidBuckets=new Float64Array(NUM_RUNGS);
+const askBuckets=new Float64Array(NUM_RUNGS);
+const priceStrCache=new Array(NUM_RUNGS).fill('');
+
+/* ── FIX: incremental best bid/ask (replaces O(n) key scan in refMid) ── */
+let deepBestBid=0, deepBestAsk=Infinity;
 
 const EXCHANGES=['BINANCE','BINANCEFUT','BYBIT','BYBITLIN','OKX','OKXFUT','GATE','MEXC','BITGET','KUCOIN','BITSTAMP','GEMINI','KRAKEN','COINBASE','BITFINEX','HTX','PHEMEX','POLONIEX','BINGX','WOOX','DERIBIT'];
 const exStatus={}; EXCHANGES.forEach(e=>exStatus[e]='disconnected');
@@ -249,8 +262,9 @@ const SYM={
  XRPUSDT:{BINANCE:'xrpusdt',BINANCEFUT:'xrpusdt',BYBIT:'XRPUSDT',BYBITLIN:'XRPUSDT',OKX:'XRP-USDT',OKXFUT:'XRP-USDT-SWAP',GATE:'XRP_USDT',MEXC:'XRPUSDT',BITGET:'XRPUSDT',KUCOIN:'XRP-USDT',BITSTAMP:'xrpusdt',GEMINI:'XRPUSD',KRAKEN:'XRP/USDT',COINBASE:'XRP-USDT',BITFINEX:'tXRPUSD',HTX:'xrpusdt',PHEMEX:'XRPUSDT',POLONIEX:'XRP_USDT',BINGX:'XRP-USDT',WOOX:'SPOT_XRP_USDT',DERIBIT:null},
 };
 
-const DEFAULT_TICK = { BTCUSDT: 0.50, ETHUSDT: 0.25, SOLUSDT: 0.05, BNBUSDT: 0.10, XRPUSDT: 0.0001 };
+const DEFAULT_TICK={BTCUSDT:0.50,ETHUSDT:0.25,SOLUSDT:0.05,BNBUSDT:0.10,XRPUSDT:0.0001};
 
+/* ── utils ── */
 function loadBackendUrl(){try{return localStorage.getItem('backend_url')||''}catch{return''}}
 function saveBackendUrl(u){try{u?localStorage.setItem('backend_url',u):localStorage.removeItem('backend_url')}catch{}}
 function normalizeBackendUrl(r){let u=(r||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;try{return new URL(u).origin}catch{return''}}
@@ -292,7 +306,7 @@ function applyBackend(){
  else{DISABLED_EX.add('KUCOIN');DISABLED_EX.add('PHEMEX');}
  DISABLED_EX.add('MEXC');
  recalcTotalEx();setNet(backendHealthy?'ok':(BACKEND_URL?'bad':'warn'),backendHealthy?'OK':(BACKEND_URL?'DOWN':'SOLO'));
- if(started){closeAll();closeDeepBook();clearVenueBooks();setTimeout(launchAll,300);}}
+ if(started){closeAll();closeDeepBook();clearVenueBooks();markBookDirty();setTimeout(launchAll,300);}}
 
 function openKeyModal(){document.getElementById('key-modal').classList.remove('hidden');document.getElementById('nim-key').value=nimKey||'';document.getElementById('key-err').textContent='';}
 function closeKeyModal(){document.getElementById('key-modal').classList.add('hidden');}
@@ -303,286 +317,281 @@ async function saveNimKey(){
    await fetch(`${BACKEND_URL}/api/config/keys`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(enc)});}catch{}}
  nimKey=v;sessionStorage.setItem('nim_key',v);closeKeyModal();addMsg('s','✓ key saved');}
 
+/* ── venue books ── */
 const venueBooks={};
 function vBook(v){if(!venueBooks[v])venueBooks[v]=new Map();return venueBooks[v];}
 function setVenueLevels(v,levels){const m=vBook(v);m.clear();
- for(const l of levels){const p=+l[0],q=+l[1];if(p>0&&q>0)m.set(p,q);}scheduleAgg();}
+ for(const l of levels){const p=+l[0],q=+l[1];if(p>0&&q>0)m.set(p,q);}markBookDirty();}
 function applyVenueDelta(v,deltas){const m=vBook(v);
- for(const l of deltas){const p=+l[0],q=+l[1];if(!(p>0))continue;q<=0?m.delete(p):m.set(p,q);}scheduleAgg();}
+ for(const l of deltas){const p=+l[0],q=+l[1];if(!(p>0))continue;q<=0?m.delete(p):m.set(p,q);}markBookDirty();}
 function clearVenueBooks(){for(const v in venueBooks)delete venueBooks[v];}
 const pq=l=>[l.price??l[0],l.qty??l.quantity??l.size??l.amount??l[1]];
 
+/* ── deep book (Binance L2) ── */
 const deep={bids:new Map(),asks:new Map(),lastId:0,ready:false,buf:[],ws:null};
 function closeDeepBook(){if(deep.ws){try{deep.ws._dead=true;deep.ws.close()}catch{}deep.ws=null}
- deep.bids.clear();deep.asks.clear();deep.buf=[];deep.ready=false;deep.lastId=0;}
+ deep.bids.clear();deep.asks.clear();deep.buf=[];deep.ready=false;deep.lastId=0;
+ deepBestBid=0;deepBestAsk=Infinity;}
+
 function applyDepth(d){
- for(const[p,q]of d.b){q==='0'?deep.bids.delete(+p):deep.bids.set(+p,+q);}
- for(const[p,q]of d.a){q==='0'?deep.asks.delete(+p):deep.asks.set(+p,+q);}
- deep.lastId=d.u;}
+ for(const[p,q]of d.b){
+  const price=+p;
+  if(q==='0'){deep.bids.delete(price);if(price>=deepBestBid)deepBestBid=0;}
+  else{deep.bids.set(price,+q);if(price>deepBestBid)deepBestBid=price;}
+ }
+ for(const[p,q]of d.a){
+  const price=+p;
+  if(q==='0'){deep.asks.delete(price);if(price<=deepBestAsk)deepBestAsk=Infinity;}
+  else{deep.asks.set(price,+q);if(price<deepBestAsk)deepBestAsk=price;}
+ }
+ deep.lastId=d.u;
+ /* lazy rescan only when best was deleted */
+ if(deepBestBid===0&&deep.bids.size){for(const p of deep.bids.keys())if(p>deepBestBid)deepBestBid=p;}
+ if(deepBestAsk===Infinity&&deep.asks.size){for(const p of deep.asks.keys())if(p<deepBestAsk)deepBestAsk=p;}
+}
+
 function openDeepBook(base){
- if (deep.ws) { try { deep.ws._dead = true; deep.ws.close(); } catch {} deep.ws = null; }
- deep.ready = false;
- deep.buf = [];
+ if(deep.ws){try{deep.ws._dead=true;deep.ws.close()}catch{}deep.ws=null}
+ deep.ready=false;deep.buf=[];deepBestBid=0;deepBestAsk=Infinity;
  const sym=base.toLowerCase();
  deep.ws=new WebSocket(`wss://stream.binance.com:9443/ws/${sym}@depth@100ms`);
  deep.ws.onmessage=ev=>{const d=JSON.parse(ev.data);
   if(d.e!=='depthUpdate')return;
   if(!deep.ready){deep.buf.push(d);if(deep.buf.length>2000)deep.buf.shift();return;}
   if(d.U!==deep.lastId+1){dbg('DOM','binance gap, resyncing');deep.ready=false;openDeepBook(currentBase);return;}
-  applyDepth(d);scheduleAgg();};
+  applyDepth(d);markBookDirty();};
  deep.ws.onclose=()=>{if(deep.ws&&!deep.ws._dead)setTimeout(()=>{if(currentBase===base)openDeepBook(base)},3000);};
  fetch(`https://api.binance.com/api/v3/depth?symbol=${base}&limit=${SNAP_LIMIT}`)
   .then(r=>r.json()).then(snap=>{
    if(!snap||!snap.lastUpdateId){dbg('DOM','binance snapshot failed');return;}
-   deep.bids.clear();
-   deep.asks.clear();
+   deep.bids.clear();deep.asks.clear();
    deep.lastId=snap.lastUpdateId;
-   for(const[p,q]of snap.bids)deep.bids.set(+p,+q);
-   for(const[p,q]of snap.asks)deep.asks.set(+p,+q);
+   deepBestBid=0;deepBestAsk=Infinity;
+   for(const[p,q]of snap.bids){const pr=+p;deep.bids.set(pr,+q);if(pr>deepBestBid)deepBestBid=pr;}
+   for(const[p,q]of snap.asks){const pr=+p;deep.asks.set(pr,+q);if(pr<deepBestAsk)deepBestAsk=pr;}
    let synced=false;
    for(const d of deep.buf){
     if(d.u<deep.lastId+1)continue;
     if(!synced&&d.U>deep.lastId+1)continue;
     applyDepth(d);synced=true;}
    deep.buf=[];deep.ready=true;
-   dbg('DOM',`binance ${deep.bids.size}b/${deep.asks.size}a`);scheduleAgg();
+   dbg('DOM',`binance ${deep.bids.size}b/${deep.asks.size}a best ${deepBestBid}/${deepBestAsk}`);
+   markBookDirty();
   }).catch(e=>dbg('DOM',`snapshot: ${e.message}`));}
 
-function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n; scheduleAgg();}
+/* ── bucket width / formatting ── */
+function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n;markBookDirty();}
 function autoBW(mid){return bucketWidth||DEFAULT_TICK[currentBase]||0.10;}
 function bwDecimals(bw){return bw>=1?(bw%1===0?2:2):bw>=.1?2:bw>=.01?2:4;}
 function fmtQty(n){
- if(n>=1e6) return (n/1e6).toFixed(1)+'M';
- if(n>=1000) return (n/1000).toFixed(1)+'K';
- if(n>=10) return n.toFixed(0);
- if(n>=1) return n.toFixed(2);
- if(n>0) return n.toFixed(3);
+ if(n>=1e6)return(n/1e6).toFixed(1)+'M';
+ if(n>=1000)return(n/1000).toFixed(1)+'K';
+ if(n>=10)return n.toFixed(0);
+ if(n>=1)return n.toFixed(2);
+ if(n>0)return n.toFixed(3);
  return '';
 }
 
-function initDOMPool() {
-  const container = document.getElementById('dom-ladder-inner');
-  container.innerHTML = '';
-  domPool = [];
-  for (let i = 0; i < NUM_RUNGS; i++) {
-    const row = document.createElement('div');
-    row.className = 'dom-row';
-    row.innerHTML = `
-      <div class="dom-cell-bid">
-        <div class="dom-bar-bid"></div>
-        <span class="dom-val"></span>
-      </div>
-      <div class="dom-cell-price"></div>
-      <div class="dom-cell-ask">
-        <div class="dom-bar-ask"></div>
-        <span class="dom-val"></span>
-      </div>
-    `;
-    container.appendChild(row);
-    domPool.push({
-      row,
-      priceCell: row.children[1],
-      bidVal: row.children[0].children[1],
-      bidBar: row.children[0].children[0],
-      askVal: row.children[2].children[1],
-      askBar: row.children[2].children[0]
-    });
-  }
+/* ── DOM pool ── */
+function initDOMPool(){
+ const container=document.getElementById('dom-ladder-inner');
+ container.innerHTML='';domPool=[];priceStrCache.fill('');
+ for(let i=0;i<NUM_RUNGS;i++){
+  const row=document.createElement('div');
+  row.className='dom-row';
+  row.innerHTML=`
+   <div class="dom-cell-bid"><div class="dom-bar-bid"></div><span class="dom-val"></span></div>
+   <div class="dom-cell-price"></div>
+   <div class="dom-cell-ask"><div class="dom-bar-ask"></div><span class="dom-val"></span></div>`;
+  container.appendChild(row);
+  domPool.push({row,priceCell:row.children[1],
+   bidVal:row.children[0].children[1],bidBar:row.children[0].children[0],
+   askVal:row.children[2].children[1],askBar:row.children[2].children[0]});
+ }
 }
 
+/* ── FIX: O(1) mid via tracked best bid/ask ── */
 function refMid(){
+ if(deepBestBid>0&&deepBestAsk<Infinity)return(deepBestBid+deepBestAsk)/2;
  if(deep.bids.size&&deep.asks.size){
   let bb=0,ba=Infinity;
-  for(const p of deep.bids.keys()){if(p>bb)bb=p;}
-  for(const p of deep.asks.keys()){if(p<ba)ba=p;}
+  for(const p of deep.bids.keys())if(p>bb)bb=p;
+  for(const p of deep.asks.keys())if(p<ba)ba=p;
+  deepBestBid=bb;deepBestAsk=ba;
   if(bb&&ba<Infinity)return(bb+ba)/2;}
  return lastPrice>0?lastPrice:0;}
 
-let aggTimer=null;
-function scheduleAgg(){if(aggTimer)return;aggTimer=requestAnimationFrame(()=>{aggTimer=null;renderLadder();});}
+/* ── FIX: dirty-flag book render (replaces scheduleAgg RAF) ── */
+function markBookDirty(){bookDirty=true;}
 
 function renderLadder(){
  const mid=refMid();if(!mid)return;
  const bw=autoBW(mid);
- 
- // Smooth visualMid to prevent 60fps jitter from micro-fluctuations
- if (!visualMid) visualMid = mid;
- visualMid += (mid - visualMid) * 0.1; 
- 
- const centerTick = Math.round(visualMid / bw) * bw;
- const fracOffset = (centerTick - visualMid) / bw * 18;
- 
- const innerEl = document.getElementById('dom-ladder-inner');
- const transformStr = `translateY(calc(-50% + ${fracOffset.toFixed(2)}px))`;
- if(innerEl.style.transform !== transformStr) innerEl.style.transform = transformStr;
- 
+
+ if(!visualMid)visualMid=mid;
+ visualMid+=(mid-visualMid)*0.25;
+
+ const centerTick=Math.round(visualMid/bw)*bw;
+ const fracOffset=(centerTick-visualMid)/bw*18;
+
+ const innerEl=document.getElementById('dom-ladder-inner');
+ const transformStr=`translateY(calc(-50% + ${fracOffset.toFixed(2)}px))`;
+ if(innerEl.style.transform!==transformStr)innerEl.style.transform=transformStr;
+
  const dec=bwDecimals(bw);
  const halfRows=Math.floor(NUM_RUNGS/2);
  const topPrice=centerTick+(halfRows*bw);
- 
- // Optimization: Only calculate levels within view range
- const viewRange = (halfRows + 2) * bw;
- const minView = mid - viewRange;
- const maxView = mid + viewRange;
+ const invBw=1/bw;
 
- const bidB=new Map(), askB=new Map();
- let activeVenues=0, bestBid=0, bestAsk=Infinity;
+ /* FIX: zero-fill typed arrays instead of allocating Maps */
+ bidBuckets.fill(0);
+ askBuckets.fill(0);
 
+ let activeVenues=0,bestBid=0,bestAsk=Infinity;
+
+ /* aggregate Binance deep book via arithmetic bucket index */
  if(deep.bids.size||deep.asks.size){
   activeVenues++;
+  bestBid=deepBestBid;bestAsk=deepBestAsk;
   for(const[p,q]of deep.bids){
-   if(p < minView) continue; // Skip out of view
-   if(p>bestBid)bestBid=p;
-   const b=Math.floor(p/bw)*bw;const k=b.toFixed(dec);bidB.set(k,(bidB.get(k)||0)+q);
+   const idx=Math.round((topPrice-p)*invBw);
+   if(idx>=0&&idx<NUM_RUNGS)bidBuckets[idx]+=q;
   }
   for(const[p,q]of deep.asks){
-   if(p > maxView) continue; // Skip out of view
-   if(p<bestAsk)bestAsk=p;
-   const a=Math.ceil(p/bw)*bw;const k=a.toFixed(dec);askB.set(k,(askB.get(k)||0)+q);
+   const idx=Math.round((topPrice-p)*invBw);
+   if(idx>=0&&idx<NUM_RUNGS)askBuckets[idx]+=q;
   }
  }
+
+ /* aggregate venue books */
  for(const v in venueBooks){
   const m=venueBooks[v];if(!m.size||v==='BINANCE')continue;activeVenues++;
   for(const[p,q]of m){
-   if(p < minView || p > maxView) continue; // Skip out of view
-   if(p<=mid){
-    if(p>bestBid)bestBid=p;
-    const b=Math.floor(p/bw)*bw;const k=b.toFixed(dec);bidB.set(k,(bidB.get(k)||0)+q);
-   } else {
-    if(p<bestAsk)bestAsk=p;
-    const a=Math.ceil(p/bw)*bw;const k=a.toFixed(dec);askB.set(k,(askB.get(k)||0)+q);
-   }
+   const idx=Math.round((topPrice-p)*invBw);
+   if(idx<0||idx>=NUM_RUNGS)continue;
+   if(p<=mid){if(p>bestBid)bestBid=p;bidBuckets[idx]+=q;}
+   else{if(p<bestAsk)bestAsk=p;askBuckets[idx]+=q;}
   }
  }
 
- let currentMaxVol = 1e-9, totalBid=0, totalAsk=0;
- for(let i=0; i<NUM_RUNGS; i++){
-  const p=topPrice-(i*bw);
-  const k=p.toFixed(dec);
-  const bq=bidB.get(k)||0;
-  const aq=askB.get(k)||0;
-  if(bq>currentMaxVol)currentMaxVol=bq; 
+ /* max vol + totals in single pass */
+ let currentMaxVol=1e-9,totalBid=0,totalAsk=0;
+ for(let i=0;i<NUM_RUNGS;i++){
+  const bq=bidBuckets[i],aq=askBuckets[i];
+  if(bq>currentMaxVol)currentMaxVol=bq;
   if(aq>currentMaxVol)currentMaxVol=aq;
-  totalBid+=bq; totalAsk+=aq;
+  totalBid+=bq;totalAsk+=aq;
  }
 
- if (currentMaxVol > smoothMaxVol) {
-     smoothMaxVol = currentMaxVol;
- } else if (smoothMaxVol > 1e-9) {
-     smoothMaxVol = smoothMaxVol * 0.9 + currentMaxVol * 0.1; // Slower decay for stability
- } else {
-     smoothMaxVol = currentMaxVol;
- }
+ if(currentMaxVol>smoothMaxVol)smoothMaxVol=currentMaxVol;
+ else if(smoothMaxVol>1e-9)smoothMaxVol=smoothMaxVol*0.9+currentMaxVol*0.1;
+ else smoothMaxVol=currentMaxVol;
 
- const wallThreshold = smoothMaxVol * 0.75;
+ const wallThreshold=smoothMaxVol*0.75;
+ const invMax=100/smoothMaxVol;
 
- for(let i=0; i<NUM_RUNGS; i++){
+ /* render rows */
+ for(let i=0;i<NUM_RUNGS;i++){
   const p=topPrice-(i*bw);
   const k=p.toFixed(dec);
   const node=domPool[i];
-  const bq=bidB.get(k)||0;
-  const aq=askB.get(k)||0;
+  const bq=bidBuckets[i],aq=askBuckets[i];
 
-  if(node.priceCell.textContent !== k) node.priceCell.textContent=k;
-  
-  if(Math.abs(p-lastPrice)<(bw/2)) node.row.classList.add('last-price');
+  if(priceStrCache[i]!==k){priceStrCache[i]=k;node.priceCell.textContent=k;}
+
+  if(Math.abs(p-lastPrice)<(bw/2))node.row.classList.add('last-price');
   else node.row.classList.remove('last-price');
 
-  if(bq>wallThreshold) node.row.classList.add('wall-bid'); else node.row.classList.remove('wall-bid');
-  if(aq>wallThreshold) node.row.classList.add('wall-ask'); else node.row.classList.remove('wall-ask');
+  if(bq>wallThreshold)node.row.classList.add('wall-bid');else node.row.classList.remove('wall-bid');
+  if(aq>wallThreshold)node.row.classList.add('wall-ask');else node.row.classList.remove('wall-ask');
 
-  const bqStr = bq > 0 ? fmtQty(bq) : '';
-  const aqStr = aq > 0 ? fmtQty(aq) : '';
-  
-  if(node.bidVal.textContent !== bqStr) node.bidVal.textContent = bqStr;
-  if(node.askVal.textContent !== aqStr) node.askVal.textContent = aqStr;
-  
-  const bidW = bq > 0 ? Math.min(100, (bq/smoothMaxVol)*100).toFixed(1)+'%' : '0%';
-  const askW = aq > 0 ? Math.min(100, (aq/smoothMaxVol)*100).toFixed(1)+'%' : '0%';
-  
-  if(node.bidBar.style.width !== bidW) node.bidBar.style.width = bidW;
-  if(node.askBar.style.width !== askW) node.askBar.style.width = askW;
+  const bqStr=bq>0?fmtQty(bq):'';
+  const aqStr=aq>0?fmtQty(aq):'';
+  if(node.bidVal.textContent!==bqStr)node.bidVal.textContent=bqStr;
+  if(node.askVal.textContent!==aqStr)node.askVal.textContent=aqStr;
+
+  const bidW=bq>0?Math.min(100,bq*invMax).toFixed(1)+'%':'0%';
+  const askW=aq>0?Math.min(100,aq*invMax).toFixed(1)+'%':'0%';
+  if(node.bidBar.style.width!==bidW)node.bidBar.style.width=bidW;
+  if(node.askBar.style.width!==askW)node.askBar.style.width=askW;
  }
 
- const liqBidEl = document.getElementById('liq-bid');
- const liqAskEl = document.getElementById('liq-ask');
- const spreadEl = document.getElementById('spread-live');
- const depthEl = document.getElementById('depth-info');
- 
- const liqBidStr = 'ΣB ' + fmtQty(totalBid);
- const liqAskStr = 'ΣA ' + fmtQty(totalAsk);
- const spreadStr = (bestAsk<Infinity&&bestBid>0) ? '$'+(bestAsk-bestBid).toFixed(dec) : '--';
- const depthStr = `${activeVenues} feeds · step $${bw} · ${NUM_RUNGS} rungs`;
+ /* info bars */
+ const liqBidStr='ΣB '+fmtQty(totalBid);
+ const liqAskStr='ΣA '+fmtQty(totalAsk);
+ const spreadStr=(bestAsk<Infinity&&bestBid>0)?'$'+(bestAsk-bestBid).toFixed(dec):'--';
+ const depthStr=`${activeVenues} feeds · step $${bw} · ${NUM_RUNGS} rungs`;
 
- if(liqBidEl.textContent !== liqBidStr) liqBidEl.textContent = liqBidStr;
- if(liqAskEl.textContent !== liqAskStr) liqAskEl.textContent = liqAskStr;
- if(spreadEl.textContent !== spreadStr) spreadEl.textContent = spreadStr;
- if(depthEl.textContent !== depthStr) depthEl.textContent = depthStr;
- 
+ const el1=document.getElementById('liq-bid');if(el1.textContent!==liqBidStr)el1.textContent=liqBidStr;
+ const el2=document.getElementById('liq-ask');if(el2.textContent!==liqAskStr)el2.textContent=liqAskStr;
+ const el3=document.getElementById('spread-live');if(el3.textContent!==spreadStr)el3.textContent=spreadStr;
+ const el4=document.getElementById('depth-info');if(el4.textContent!==depthStr)el4.textContent=depthStr;
+
  lastLadder={bw,sb:totalBid,sa:totalAsk,venues:activeVenues};
 }
 
+/* ── FIX: trade ingestion — no DOM re-render, queue for tape ── */
 function ingest({exchange,price,qty,isBuy,ts}){
- tape.push({exchange,price,qty,isBuy,ts:ts||Date.now()});stamps.push(Date.now());
+ const trade={exchange,price,qty,isBuy,ts:ts||Date.now()};
+ tape.push(trade);
  if(tape.length>MAX_TAPE)tape.shift();
+ stamps.push(Date.now());
+ pendingTrades.push(trade);
  prevPrice=lastPrice;lastPrice=price;vol+=qty;
- scheduleTape();updateStats();updatePrice();scheduleAgg();}
- 
+ updatePrice();
+ scheduleTape();
+ /* NOTE: no markBookDirty() — trades do not mutate the book */
+}
+
 function updatePrice(){
  const el=document.getElementById('price');
  el.textContent=lastPrice>0?lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'--';
- if(prevPrice && lastPrice !== prevPrice){
+ if(prevPrice&&lastPrice!==prevPrice){
   el.classList.remove('up','dn');
-  el.classList.add(lastPrice > prevPrice ? 'up' : 'dn');
+  el.classList.add(lastPrice>prevPrice?'up':'dn');
  }
 }
 
-let tapeRaf=false;
-function scheduleTape(){if(tapeRaf)return;tapeRaf=true;requestAnimationFrame(()=>{
- tapeRaf=false;
- const el=document.getElementById('tape');
- const countEl=document.getElementById('tape-count');
+/* ── FIX: tape render via pending queue + DocumentFragment ── */
+function scheduleTape(){
+ if(tapeRaf)return;tapeRaf=true;
+ requestAnimationFrame(()=>{
+  tapeRaf=false;
+  if(!pendingTrades.length)return;
+  const el=document.getElementById('tape');
+  /* cap burst to avoid jank on reconnect flood */
+  const batch=pendingTrades.length>MAX_TAPE?pendingTrades.slice(-MAX_TAPE):pendingTrades;
+  const frag=document.createDocumentFragment();
+  for(let i=batch.length-1;i>=0;i--){
+   const t=batch[i];
+   const row=document.createElement('div');
+   row.className=`tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}`;
+   row.innerHTML=`<span>${t.price.toFixed(2)}</span><span class="q">${t.qty.toFixed(4)}</span><span class="t">${new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>`;
+   frag.appendChild(row);
+  }
+  el.prepend(frag);
+  while(el.children.length>MAX_TAPE)el.lastChild.remove();
+  pendingTrades.length=0;
+  document.getElementById('tape-count').textContent=tape.length;
+ });
+}
 
- // Only process new trades since last frame
- const newItems = tape.slice(lastTapeLen);
- if (newItems.length > 0) {
-  let html = '';
-  for (let i = newItems.length - 1; i >= 0; i--) {
-   const t = newItems[i];
-   html += `<div class="tape-row ${t.isBuy?'tb':'ts'} ex-${t.exchange}"><span>${t.price.toFixed(2)}</span><span class="q">${t.qty.toFixed(4)}</span><span class="t">${new Date(t.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span></div>`;
-  }
-  el.insertAdjacentHTML('afterbegin', html);
-  while (el.children.length > MAX_TAPE) {
-   el.removeChild(el.lastChild);
-  }
- }
- 
- // Handle items removed by shift()
- if (tape.length < lastTapeLen) {
-  const removedCount = lastTapeLen - tape.length;
-  for(let i=0; i<removedCount; i++) {
-   if(el.lastChild) el.removeChild(el.lastChild);
-  }
- }
- 
- lastTapeLen = tape.length;
- countEl.textContent = tape.length;
-});}
- 
-function updateStats(){
- if(statsTimer) return;
- statsTimer = setInterval(() => {
+/* ── stats ── */
+function startStats(){
+ if(statsTimer)clearInterval(statsTimer);
+ statsTimer=setInterval(()=>{
   const now=Date.now();
   stamps=stamps.filter(t=>now-t<TPS_WIN);
   document.getElementById('st-tps').textContent=(stamps.length/(TPS_WIN/1000)).toFixed(1);
   document.getElementById('st-vol').textContent=vol>=1000?(vol/1000).toFixed(1)+'K':vol.toFixed(1);
- }, 500);
+ },500);
 }
- 
+
 function refreshStreams(){const n=Object.values(exStatus).filter(s=>s==='connected').length;
  document.getElementById('st-streams').textContent=`${n}/${TOTAL_EX}`;}
 function setEx(id,s){exStatus[id]=s;refreshStreams();}
 
+/* ── websocket factory ── */
 const streamFactories={},retryDelay={},failCount={};
 function makeWS(id,url,{onopen,onmessage,onping,pingMs}={}){
  return new Promise((res,rej)=>{let ws;try{ws=new WebSocket(url)}catch(e){return rej(e)}
@@ -606,10 +615,11 @@ function openStream(id,factory,retry=1500){streamFactories[id]=factory;retryDela
  factory(sym,id).then(()=>{failCount[id]=0;retryDelay[id]=1500;})
   .catch(()=>{failCount[id]=(failCount[id]||0)+1;scheduleReconnect(id,retry);});}
 
+/* ── exchange handlers ── */
 const cbLv={bid:[],ask:[]};
 const bfChans={};
 function cbFlush(){const m=vBook('COINBASE');m.clear();
- for(const s of['bid','ask'])for(const l of cbLv[s]){if(l&&l[1]>0)m.set(l[0],l[1]);}scheduleAgg();}
+ for(const s of['bid','ask'])for(const l of cbLv[s]){if(l&&l[1]>0)m.set(l[0],l[1]);}markBookDirty();}
 
 const A={
 BINANCE:(s,id)=>makeWS(id,`wss://stream.binance.com:9443/stream?streams=${s}@trade`,{onmessage(ev){const e=JSON.parse(ev.data);
@@ -693,12 +703,12 @@ KRAKEN:(s,id)=>makeWS(id,'wss://ws.kraken.com/v2',{onopen(ws){
   else if(d.channel==='book'){
    if(d.type==='snapshot'){const b=(d.data||[])[0]||{};setVenueLevels('KRAKEN',[...(b.bids||[]),...(b.asks||[])].map(pq));}
    else if(d.type==='update'){
-       (d.data||[]).forEach(u => {
-           const lv = [];
-           if(u.bids) u.bids.forEach(p => lv.push([+p.price, +p.qty]));
-           if(u.asks) u.asks.forEach(p => lv.push([+p.price, +p.qty]));
-           if(lv.length) applyVenueDelta('KRAKEN', lv);
-       });
+    (d.data||[]).forEach(u=>{
+     const lv=[];
+     if(u.bids)u.bids.forEach(p=>lv.push([+p.price,+p.qty]));
+     if(u.asks)u.asks.forEach(p=>lv.push([+p.price,+p.qty]));
+     if(lv.length)applyVenueDelta('KRAKEN',lv);
+    });
    }
   }},
  onping(ws){ws.send(JSON.stringify({method:'ping'}))},pingMs:30000}),
@@ -722,7 +732,7 @@ BITFINEX:(s,id)=>makeWS(id,'wss://api-pub.bitfinex.com/ws/2',{onopen(ws){
   if(d[0]===bfChans.book){const m=vBook('BITFINEX');
    const apply=([p,c,q])=>{c===0?m.delete(+p):m.set(+p,Math.abs(+q));};
    Array.isArray(d[1])&&Array.isArray(d[1][0])?d[1].forEach(apply):apply([d[1],d[2],d[3]]);
-   scheduleAgg();}},
+   markBookDirty();}},
  onping(ws){ws.send(JSON.stringify({event:'ping'}))},pingMs:30000}),
 HTX:(s,id)=>makeWS(id,'wss://api.huobi.pro/ws',{onopen(ws){
   ws.send(JSON.stringify({sub:`market.${s}.trade.detail`,id:'omni'}));
@@ -773,14 +783,20 @@ DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(
 };
 
 function launchAll(){EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*1500);});}
-function switchSymbol(b){currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null; smoothMaxVol=0; visualMid=0; lastTapeLen=0;
+
+function switchSymbol(b){
+ currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null;
+ smoothMaxVol=0;visualMid=0;pendingTrades.length=0;bookDirty=true;
+ deepBestBid=0;deepBestAsk=Infinity;
+ priceStrCache.fill('');
  cbLv.bid=[];cbLv.ask=[];for(const k in bfChans)delete bfChans[k];
  document.getElementById('price').textContent='--';document.getElementById('spread-live').textContent='--';
  document.getElementById('liq-bid').textContent='ΣB --';document.getElementById('liq-ask').textContent='ΣA --';
- document.getElementById('bw-input').value=''; bucketWidth=null;
+ document.getElementById('bw-input').value='';bucketWidth=null;
  document.getElementById('tape').innerHTML='';
- closeAll();closeDeepBook();clearVenueBooks();openDeepBook(b);setTimeout(launchAll,200);}
+ closeAll();closeDeepBook();clearVenueBooks();openDeepBook(b);startStats();setTimeout(launchAll,200);}
 
+/* ── AI drawer ── */
 function toggleAi(){document.getElementById('ai').classList.toggle('open');}
 function addMsg(r,t){const el=document.getElementById('ai-msgs');const d=document.createElement('div');
  d.className=r==='u'?'m-u':r==='t'?'m-t':r==='e'?'m-e':r==='s'?'m-s':'m-a';d.textContent=t;
@@ -819,13 +835,23 @@ async function sendToGLM(){
  finally{aiBusy=false;btn.disabled=false;document.getElementById('nim-dot').classList.remove('busy');}
 }
 
-function start(){if(started)return;started=true;
+/* ── start / init ── */
+function start(){
+ if(started)return;started=true;
  setNet(backendHealthy?'ok':(BACKEND_URL?'bad':'warn'),backendHealthy?'OK':(BACKEND_URL?'DOWN':'SOLO'));
  initDOMPool();
  openDeepBook(currentBase);launchAll();
- updateStats();
+ startStats();
+ /* FIX: DOM renders on fixed 15fps cadence, only when book data changed */
+ if(domRenderInterval)clearInterval(domRenderInterval);
+ domRenderInterval=setInterval(()=>{
+  if(!bookDirty)return;
+  bookDirty=false;
+  renderLadder();
+ },DOM_FPS_INTERVAL);
  if(nimKey)addMsg('a',`GLM-5.2 ready. ${currentBase} live.`);
- else addMsg('s','Set NIM key (🔑) for AI.');}
+ else addMsg('s','Set NIM key (🔑) for AI.');
+}
 
 window.addEventListener('DOMContentLoaded',async()=>{
  if(BACKEND_URL){document.getElementById('backend-url').value=BACKEND_URL;
