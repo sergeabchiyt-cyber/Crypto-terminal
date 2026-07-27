@@ -232,13 +232,16 @@ let domPool=[];
 let smoothMaxVol=0;
 let statsTimer=null;
 let visualMid=0;
-let lastCenterTick=0; /* ← FIX 1: hysteresis anchor for ladder centering */
+let lastCenterTick=0; /* hysteresis anchor for ladder centering */
 
 let pendingTrades=[];
 let tapeRaf=false;
 
 let bookDirty=false;
 let domRenderInterval=null;
+
+/* ← FIX 1: health watchdog state */
+let lastDepthTs=0,lastTradeTs=0,lastResyncTs=0,lastRestartTs=0,watchdogTimer=null;
 
 const bidBuckets=new Float64Array(NUM_RUNGS);
 const askBuckets=new Float64Array(NUM_RUNGS);
@@ -327,6 +330,7 @@ function closeDeepBook(){if(deep.ws){try{deep.ws._dead=true;deep.ws.close()}catc
  deep.bids.clear();deep.asks.clear();deep.buf=[];deep.ready=false;deep.lastId=0;
  deepBestBid=0;deepBestAsk=Infinity;}
 
+/* ← FIX 3: mark depth data received */
 function applyDepth(d){
  for(const[p,q]of d.b){
   const price=+p;
@@ -338,12 +342,14 @@ function applyDepth(d){
   if(q==='0'){deep.asks.delete(price);if(price<=deepBestAsk)deepBestAsk=Infinity;}
   else{deep.asks.set(price,+q);if(price<deepBestAsk)deepBestAsk=price;}
  }
- deep.lastId=d.u;
+ deep.lastId=d.u;lastDepthTs=Date.now();
  if(deepBestBid===0&&deep.bids.size){for(const p of deep.bids.keys())if(p>deepBestBid)deepBestBid=p;}
  if(deepBestAsk===Infinity&&deep.asks.size){for(const p of deep.asks.keys())if(p<deepBestAsk)deepBestAsk=p;}
 }
 
+/* ← FIX 2: mark resync attempt start */
 function openDeepBook(base){
+ lastDepthTs=Date.now();
  if(deep.ws){try{deep.ws._dead=true;deep.ws.close()}catch{}deep.ws=null}
  deep.ready=false;deep.buf=[];deepBestBid=0;deepBestAsk=Infinity;
  const sym=base.toLowerCase();
@@ -367,12 +373,11 @@ function openDeepBook(base){
     if(d.u<deep.lastId+1)continue;
     if(!synced&&d.U>deep.lastId+1)continue;
     applyDepth(d);synced=true;}
-   deep.buf=[];deep.ready=true;
+   deep.buf=[];deep.ready=true;lastDepthTs=Date.now(); /* ← FIX 4 */
    dbg('DOM',`binance ${deep.bids.size}b/${deep.asks.size}a best ${deepBestBid}/${deepBestAsk}`);
    markBookDirty();
   }).catch(e=>dbg('DOM',`snapshot: ${e.message}`));}
 
-/* ← FIX 3: reset centering anchor when tick grid changes */
 function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n;lastCenterTick=0;markBookDirty();}
 function autoBW(mid){return bucketWidth||DEFAULT_TICK[currentBase]||0.10;}
 function bwDecimals(bw){return bw>=1?(bw%1===0?2:2):bw>=.1?2:bw>=.01?2:4;}
@@ -421,9 +426,8 @@ function renderLadder(){
  if(!visualMid)visualMid=mid;
  visualMid+=(mid-visualMid)*0.5;
 
- /* ← FIX 2: hysteresis dead-zone — hold the center row until price
-    decisively leaves the current bucket; fracOffset slides smoothly
-    between re-centers so the ladder never flaps at a boundary */
+ /* hysteresis dead-zone: hold center row until price decisively leaves
+    the current bucket; fracOffset slides smoothly between re-centers */
  const rawCenter=Math.round(visualMid/bw)*bw;
  if(!lastCenterTick||Math.abs(visualMid-lastCenterTick)>bw*0.65)lastCenterTick=rawCenter;
  const centerTick=lastCenterTick;
@@ -519,7 +523,9 @@ function renderLadder(){
  lastLadder={bw,sb:totalBid,sa:totalAsk,venues:activeVenues};
 }
 
+/* ← FIX 5: mark trade received */
 function ingest({exchange,price,qty,isBuy,ts}){
+ lastTradeTs=Date.now();
  const trade={exchange,price,qty,isBuy,ts:ts||Date.now()};
  tape.push(trade);
  if(tape.length>MAX_TAPE)tape.shift();
@@ -569,6 +575,25 @@ function startStats(){
   document.getElementById('st-tps').textContent=(stamps.length/(TPS_WIN/1000)).toFixed(1);
   document.getElementById('st-vol').textContent=vol>=1000?(vol/1000).toFixed(1)+'K':vol.toFixed(1);
  },500);
+}
+
+/* ← FIX 7: staleness watchdog with forced recovery */
+function healthCheck(depthThresh,tradeThresh){
+ const now=Date.now();
+ if(!started)return;
+ /* deep book silent → force resync (covers dead socket AND ready-stuck-false) */
+ if(now-lastDepthTs>depthThresh&&now-lastResyncTs>10000){
+  lastResyncTs=now;dbg('WATCHDOG','depth stale → resync');openDeepBook(currentBase);
+ }
+ /* all trades silent → restart every stream, reset backoff */
+ if(now-lastTradeTs>tradeThresh&&now-lastRestartTs>20000){
+  lastRestartTs=now;dbg('WATCHDOG','trades stale → restart streams');
+  EXCHANGES.forEach(id=>retryDelay[id]=1500);closeAll();launchAll();
+ }
+}
+function startWatchdog(){
+ if(watchdogTimer)clearInterval(watchdogTimer);
+ watchdogTimer=setInterval(()=>healthCheck(15000,45000),5000);
 }
 
 function refreshStreams(){const n=Object.values(exStatus).filter(s=>s==='connected').length;
@@ -764,9 +789,9 @@ DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(
  onping(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}}))},pingMs:30000}),
 };
 
-function launchAll(){EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*1500);});}
+/* ← FIX 6: mark stream launch */
+function launchAll(){lastTradeTs=Date.now();EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*1500);});}
 
-/* ← FIX 4: reset centering anchor on symbol switch */
 function switchSymbol(b){
  currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null;
  smoothMaxVol=0;visualMid=0;lastCenterTick=0;pendingTrades.length=0;bookDirty=true;
@@ -823,6 +848,7 @@ function start(){
  initDOMPool();
  openDeepBook(currentBase);launchAll();
  startStats();
+ startWatchdog(); /* ← FIX 8 */
  if(domRenderInterval)clearInterval(domRenderInterval);
  domRenderInterval=setInterval(()=>{
   if(!bookDirty)return;
@@ -841,6 +867,11 @@ window.addEventListener('DOMContentLoaded',async()=>{
  }
  applyBackend();
  start();
+});
+
+/* ← FIX 9: instant heal when tab regains focus */
+document.addEventListener('visibilitychange',()=>{
+ if(document.visibilityState==='visible')healthCheck(8000,15000);
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeKeyModal();document.getElementById('ai').classList.remove('open');}});
 </script>
