@@ -220,7 +220,7 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 const SHARED_SECRET_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const MAX_TAPE=80, TPS_WIN=2000, NIM_MODEL='z-ai/glm-5.2';
 const SNAP_LIMIT=3000, NUM_RUNGS=40;
-const DOM_FPS_INTERVAL=33; /* ← CHANGED: 66→33 (~30fps poll) */
+const DOM_FPS_INTERVAL=33; /* ~30fps poll */
 
 let TOTAL_EX=21, currentBase='BTCUSDT';
 let tape=[], stamps=[], lastPrice=0, prevPrice=0, vol=0;
@@ -232,6 +232,7 @@ let domPool=[];
 let smoothMaxVol=0;
 let statsTimer=null;
 let visualMid=0;
+let lastCenterTick=0; /* ← FIX 1: hysteresis anchor for ladder centering */
 
 let pendingTrades=[];
 let tapeRaf=false;
@@ -371,7 +372,8 @@ function openDeepBook(base){
    markBookDirty();
   }).catch(e=>dbg('DOM',`snapshot: ${e.message}`));}
 
-function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n;markBookDirty();}
+/* ← FIX 3: reset centering anchor when tick grid changes */
+function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n;lastCenterTick=0;markBookDirty();}
 function autoBW(mid){return bucketWidth||DEFAULT_TICK[currentBase]||0.10;}
 function bwDecimals(bw){return bw>=1?(bw%1===0?2:2):bw>=.1?2:bw>=.01?2:4;}
 function fmtQty(n){
@@ -417,9 +419,14 @@ function renderLadder(){
  const bw=autoBW(mid);
 
  if(!visualMid)visualMid=mid;
- visualMid+=(mid-visualMid)*0.5; /* ← CHANGED: 0.25→0.5 */
+ visualMid+=(mid-visualMid)*0.5;
 
- const centerTick=Math.round(visualMid/bw)*bw;
+ /* ← FIX 2: hysteresis dead-zone — hold the center row until price
+    decisively leaves the current bucket; fracOffset slides smoothly
+    between re-centers so the ladder never flaps at a boundary */
+ const rawCenter=Math.round(visualMid/bw)*bw;
+ if(!lastCenterTick||Math.abs(visualMid-lastCenterTick)>bw*0.65)lastCenterTick=rawCenter;
+ const centerTick=lastCenterTick;
  const fracOffset=(centerTick-visualMid)/bw*18;
 
  const innerEl=document.getElementById('dom-ladder-inner');
@@ -759,9 +766,10 @@ DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(
 
 function launchAll(){EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*1500);});}
 
+/* ← FIX 4: reset centering anchor on symbol switch */
 function switchSymbol(b){
  currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null;
- smoothMaxVol=0;visualMid=0;pendingTrades.length=0;bookDirty=true;
+ smoothMaxVol=0;visualMid=0;lastCenterTick=0;pendingTrades.length=0;bookDirty=true;
  deepBestBid=0;deepBestAsk=Infinity;
  priceStrCache.fill('');
  cbLv.bid=[];cbLv.ask=[];for(const k in bfChans)delete bfChans[k];
