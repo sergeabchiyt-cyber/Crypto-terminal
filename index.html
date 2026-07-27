@@ -220,7 +220,7 @@ select { background: var(--bg1); border: 1px solid var(--line); color: var(--amb
 const SHARED_SECRET_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const MAX_TAPE=80, TPS_WIN=2000, NIM_MODEL='z-ai/glm-5.2';
 const SNAP_LIMIT=3000, NUM_RUNGS=40;
-const DOM_FPS_INTERVAL=66; /* ~15 fps render cadence for DOM ladder */
+const DOM_FPS_INTERVAL=33; /* ← CHANGED: 66→33 (~30fps poll) */
 
 let TOTAL_EX=21, currentBase='BTCUSDT';
 let tape=[], stamps=[], lastPrice=0, prevPrice=0, vol=0;
@@ -233,20 +233,16 @@ let smoothMaxVol=0;
 let statsTimer=null;
 let visualMid=0;
 
-/* ── FIX: tape pending queue (replaces broken lastTapeLen) ── */
 let pendingTrades=[];
 let tapeRaf=false;
 
-/* ── FIX: dirty-flag DOM render (replaces per-trade scheduleAgg) ── */
 let bookDirty=false;
 let domRenderInterval=null;
 
-/* ── FIX: pre-allocated bucket arrays (replaces per-frame Map alloc) ── */
 const bidBuckets=new Float64Array(NUM_RUNGS);
 const askBuckets=new Float64Array(NUM_RUNGS);
 const priceStrCache=new Array(NUM_RUNGS).fill('');
 
-/* ── FIX: incremental best bid/ask (replaces O(n) key scan in refMid) ── */
 let deepBestBid=0, deepBestAsk=Infinity;
 
 const EXCHANGES=['BINANCE','BINANCEFUT','BYBIT','BYBITLIN','OKX','OKXFUT','GATE','MEXC','BITGET','KUCOIN','BITSTAMP','GEMINI','KRAKEN','COINBASE','BITFINEX','HTX','PHEMEX','POLONIEX','BINGX','WOOX','DERIBIT'];
@@ -264,7 +260,6 @@ const SYM={
 
 const DEFAULT_TICK={BTCUSDT:0.50,ETHUSDT:0.25,SOLUSDT:0.05,BNBUSDT:0.10,XRPUSDT:0.0001};
 
-/* ── utils ── */
 function loadBackendUrl(){try{return localStorage.getItem('backend_url')||''}catch{return''}}
 function saveBackendUrl(u){try{u?localStorage.setItem('backend_url',u):localStorage.removeItem('backend_url')}catch{}}
 function normalizeBackendUrl(r){let u=(r||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;try{return new URL(u).origin}catch{return''}}
@@ -317,7 +312,6 @@ async function saveNimKey(){
    await fetch(`${BACKEND_URL}/api/config/keys`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(enc)});}catch{}}
  nimKey=v;sessionStorage.setItem('nim_key',v);closeKeyModal();addMsg('s','✓ key saved');}
 
-/* ── venue books ── */
 const venueBooks={};
 function vBook(v){if(!venueBooks[v])venueBooks[v]=new Map();return venueBooks[v];}
 function setVenueLevels(v,levels){const m=vBook(v);m.clear();
@@ -327,7 +321,6 @@ function applyVenueDelta(v,deltas){const m=vBook(v);
 function clearVenueBooks(){for(const v in venueBooks)delete venueBooks[v];}
 const pq=l=>[l.price??l[0],l.qty??l.quantity??l.size??l.amount??l[1]];
 
-/* ── deep book (Binance L2) ── */
 const deep={bids:new Map(),asks:new Map(),lastId:0,ready:false,buf:[],ws:null};
 function closeDeepBook(){if(deep.ws){try{deep.ws._dead=true;deep.ws.close()}catch{}deep.ws=null}
  deep.bids.clear();deep.asks.clear();deep.buf=[];deep.ready=false;deep.lastId=0;
@@ -345,7 +338,6 @@ function applyDepth(d){
   else{deep.asks.set(price,+q);if(price<deepBestAsk)deepBestAsk=price;}
  }
  deep.lastId=d.u;
- /* lazy rescan only when best was deleted */
  if(deepBestBid===0&&deep.bids.size){for(const p of deep.bids.keys())if(p>deepBestBid)deepBestBid=p;}
  if(deepBestAsk===Infinity&&deep.asks.size){for(const p of deep.asks.keys())if(p<deepBestAsk)deepBestAsk=p;}
 }
@@ -379,7 +371,6 @@ function openDeepBook(base){
    markBookDirty();
   }).catch(e=>dbg('DOM',`snapshot: ${e.message}`));}
 
-/* ── bucket width / formatting ── */
 function setBucketWidth(v){const n=parseFloat(v);bucketWidth=(v===''||isNaN(n)||n<=0)?null:n;markBookDirty();}
 function autoBW(mid){return bucketWidth||DEFAULT_TICK[currentBase]||0.10;}
 function bwDecimals(bw){return bw>=1?(bw%1===0?2:2):bw>=.1?2:bw>=.01?2:4;}
@@ -392,7 +383,6 @@ function fmtQty(n){
  return '';
 }
 
-/* ── DOM pool ── */
 function initDOMPool(){
  const container=document.getElementById('dom-ladder-inner');
  container.innerHTML='';domPool=[];priceStrCache.fill('');
@@ -410,7 +400,6 @@ function initDOMPool(){
  }
 }
 
-/* ── FIX: O(1) mid via tracked best bid/ask ── */
 function refMid(){
  if(deepBestBid>0&&deepBestAsk<Infinity)return(deepBestBid+deepBestAsk)/2;
  if(deep.bids.size&&deep.asks.size){
@@ -421,7 +410,6 @@ function refMid(){
   if(bb&&ba<Infinity)return(bb+ba)/2;}
  return lastPrice>0?lastPrice:0;}
 
-/* ── FIX: dirty-flag book render (replaces scheduleAgg RAF) ── */
 function markBookDirty(){bookDirty=true;}
 
 function renderLadder(){
@@ -429,7 +417,7 @@ function renderLadder(){
  const bw=autoBW(mid);
 
  if(!visualMid)visualMid=mid;
- visualMid+=(mid-visualMid)*0.25;
+ visualMid+=(mid-visualMid)*0.5; /* ← CHANGED: 0.25→0.5 */
 
  const centerTick=Math.round(visualMid/bw)*bw;
  const fracOffset=(centerTick-visualMid)/bw*18;
@@ -443,13 +431,11 @@ function renderLadder(){
  const topPrice=centerTick+(halfRows*bw);
  const invBw=1/bw;
 
- /* FIX: zero-fill typed arrays instead of allocating Maps */
  bidBuckets.fill(0);
  askBuckets.fill(0);
 
  let activeVenues=0,bestBid=0,bestAsk=Infinity;
 
- /* aggregate Binance deep book via arithmetic bucket index */
  if(deep.bids.size||deep.asks.size){
   activeVenues++;
   bestBid=deepBestBid;bestAsk=deepBestAsk;
@@ -463,7 +449,6 @@ function renderLadder(){
   }
  }
 
- /* aggregate venue books */
  for(const v in venueBooks){
   const m=venueBooks[v];if(!m.size||v==='BINANCE')continue;activeVenues++;
   for(const[p,q]of m){
@@ -474,7 +459,6 @@ function renderLadder(){
   }
  }
 
- /* max vol + totals in single pass */
  let currentMaxVol=1e-9,totalBid=0,totalAsk=0;
  for(let i=0;i<NUM_RUNGS;i++){
   const bq=bidBuckets[i],aq=askBuckets[i];
@@ -490,7 +474,6 @@ function renderLadder(){
  const wallThreshold=smoothMaxVol*0.75;
  const invMax=100/smoothMaxVol;
 
- /* render rows */
  for(let i=0;i<NUM_RUNGS;i++){
   const p=topPrice-(i*bw);
   const k=p.toFixed(dec);
@@ -516,7 +499,6 @@ function renderLadder(){
   if(node.askBar.style.width!==askW)node.askBar.style.width=askW;
  }
 
- /* info bars */
  const liqBidStr='ΣB '+fmtQty(totalBid);
  const liqAskStr='ΣA '+fmtQty(totalAsk);
  const spreadStr=(bestAsk<Infinity&&bestBid>0)?'$'+(bestAsk-bestBid).toFixed(dec):'--';
@@ -530,7 +512,6 @@ function renderLadder(){
  lastLadder={bw,sb:totalBid,sa:totalAsk,venues:activeVenues};
 }
 
-/* ── FIX: trade ingestion — no DOM re-render, queue for tape ── */
 function ingest({exchange,price,qty,isBuy,ts}){
  const trade={exchange,price,qty,isBuy,ts:ts||Date.now()};
  tape.push(trade);
@@ -540,7 +521,6 @@ function ingest({exchange,price,qty,isBuy,ts}){
  prevPrice=lastPrice;lastPrice=price;vol+=qty;
  updatePrice();
  scheduleTape();
- /* NOTE: no markBookDirty() — trades do not mutate the book */
 }
 
 function updatePrice(){
@@ -552,14 +532,12 @@ function updatePrice(){
  }
 }
 
-/* ── FIX: tape render via pending queue + DocumentFragment ── */
 function scheduleTape(){
  if(tapeRaf)return;tapeRaf=true;
  requestAnimationFrame(()=>{
   tapeRaf=false;
   if(!pendingTrades.length)return;
   const el=document.getElementById('tape');
-  /* cap burst to avoid jank on reconnect flood */
   const batch=pendingTrades.length>MAX_TAPE?pendingTrades.slice(-MAX_TAPE):pendingTrades;
   const frag=document.createDocumentFragment();
   for(let i=batch.length-1;i>=0;i--){
@@ -576,7 +554,6 @@ function scheduleTape(){
  });
 }
 
-/* ── stats ── */
 function startStats(){
  if(statsTimer)clearInterval(statsTimer);
  statsTimer=setInterval(()=>{
@@ -591,7 +568,6 @@ function refreshStreams(){const n=Object.values(exStatus).filter(s=>s==='connect
  document.getElementById('st-streams').textContent=`${n}/${TOTAL_EX}`;}
 function setEx(id,s){exStatus[id]=s;refreshStreams();}
 
-/* ── websocket factory ── */
 const streamFactories={},retryDelay={},failCount={};
 function makeWS(id,url,{onopen,onmessage,onping,pingMs}={}){
  return new Promise((res,rej)=>{let ws;try{ws=new WebSocket(url)}catch(e){return rej(e)}
@@ -615,7 +591,6 @@ function openStream(id,factory,retry=1500){streamFactories[id]=factory;retryDela
  factory(sym,id).then(()=>{failCount[id]=0;retryDelay[id]=1500;})
   .catch(()=>{failCount[id]=(failCount[id]||0)+1;scheduleReconnect(id,retry);});}
 
-/* ── exchange handlers ── */
 const cbLv={bid:[],ask:[]};
 const bfChans={};
 function cbFlush(){const m=vBook('COINBASE');m.clear();
@@ -796,7 +771,6 @@ function switchSymbol(b){
  document.getElementById('tape').innerHTML='';
  closeAll();closeDeepBook();clearVenueBooks();openDeepBook(b);startStats();setTimeout(launchAll,200);}
 
-/* ── AI drawer ── */
 function toggleAi(){document.getElementById('ai').classList.toggle('open');}
 function addMsg(r,t){const el=document.getElementById('ai-msgs');const d=document.createElement('div');
  d.className=r==='u'?'m-u':r==='t'?'m-t':r==='e'?'m-e':r==='s'?'m-s':'m-a';d.textContent=t;
@@ -835,14 +809,12 @@ async function sendToGLM(){
  finally{aiBusy=false;btn.disabled=false;document.getElementById('nim-dot').classList.remove('busy');}
 }
 
-/* ── start / init ── */
 function start(){
  if(started)return;started=true;
  setNet(backendHealthy?'ok':(BACKEND_URL?'bad':'warn'),backendHealthy?'OK':(BACKEND_URL?'DOWN':'SOLO'));
  initDOMPool();
  openDeepBook(currentBase);launchAll();
  startStats();
- /* FIX: DOM renders on fixed 15fps cadence, only when book data changed */
  if(domRenderInterval)clearInterval(domRenderInterval);
  domRenderInterval=setInterval(()=>{
   if(!bookDirty)return;
