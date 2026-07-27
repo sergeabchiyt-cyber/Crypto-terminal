@@ -240,7 +240,7 @@ let tapeRaf=false;
 let bookDirty=false;
 let domRenderInterval=null;
 
-/* ← FIX 1: health watchdog state */
+/* health watchdog state */
 let lastDepthTs=0,lastTradeTs=0,lastResyncTs=0,lastRestartTs=0,watchdogTimer=null;
 
 const bidBuckets=new Float64Array(NUM_RUNGS);
@@ -330,7 +330,6 @@ function closeDeepBook(){if(deep.ws){try{deep.ws._dead=true;deep.ws.close()}catc
  deep.bids.clear();deep.asks.clear();deep.buf=[];deep.ready=false;deep.lastId=0;
  deepBestBid=0;deepBestAsk=Infinity;}
 
-/* ← FIX 3: mark depth data received */
 function applyDepth(d){
  for(const[p,q]of d.b){
   const price=+p;
@@ -347,7 +346,6 @@ function applyDepth(d){
  if(deepBestAsk===Infinity&&deep.asks.size){for(const p of deep.asks.keys())if(p<deepBestAsk)deepBestAsk=p;}
 }
 
-/* ← FIX 2: mark resync attempt start */
 function openDeepBook(base){
  lastDepthTs=Date.now();
  if(deep.ws){try{deep.ws._dead=true;deep.ws.close()}catch{}deep.ws=null}
@@ -373,7 +371,7 @@ function openDeepBook(base){
     if(d.u<deep.lastId+1)continue;
     if(!synced&&d.U>deep.lastId+1)continue;
     applyDepth(d);synced=true;}
-   deep.buf=[];deep.ready=true;lastDepthTs=Date.now(); /* ← FIX 4 */
+   deep.buf=[];deep.ready=true;lastDepthTs=Date.now();
    dbg('DOM',`binance ${deep.bids.size}b/${deep.asks.size}a best ${deepBestBid}/${deepBestAsk}`);
    markBookDirty();
   }).catch(e=>dbg('DOM',`snapshot: ${e.message}`));}
@@ -423,15 +421,26 @@ function renderLadder(){
  const mid=refMid();if(!mid)return;
  const bw=autoBW(mid);
 
+ /* ═══ MOTION CORE ═══
+    dead-band low-pass: visualMid ignores sub-band micro-jitter and only
+    chases real moves → the ladder is never disturbed by individual ticks */
  if(!visualMid)visualMid=mid;
- visualMid+=(mid-visualMid)*0.5;
+ else{
+  const diff=mid-visualMid;
+  const band=bw*0.4;
+  if(Math.abs(diff)>band){
+   const target=mid-Math.sign(diff)*band;
+   visualMid+=(target-visualMid)*0.3;
+  }
+ }
 
- /* hysteresis dead-zone: hold center row until price decisively leaves
-    the current bucket; fracOffset slides smoothly between re-centers */
+ /* hysteresis anchor: only re-grid when price decisively leaves the bucket */
  const rawCenter=Math.round(visualMid/bw)*bw;
  if(!lastCenterTick||Math.abs(visualMid-lastCenterTick)>bw*0.65)lastCenterTick=rawCenter;
  const centerTick=lastCenterTick;
- const fracOffset=(centerTick-visualMid)/bw*18;
+ /* sign corrected: ladder position is a pure function of visualMid →
+    re-centering is pixel-perfect and tracking direction is right */
+ const fracOffset=(visualMid-centerTick)/bw*18;
 
  const innerEl=document.getElementById('dom-ladder-inner');
  const transformStr=`translateY(calc(-50% + ${fracOffset.toFixed(2)}px))`;
@@ -523,7 +532,6 @@ function renderLadder(){
  lastLadder={bw,sb:totalBid,sa:totalAsk,venues:activeVenues};
 }
 
-/* ← FIX 5: mark trade received */
 function ingest({exchange,price,qty,isBuy,ts}){
  lastTradeTs=Date.now();
  const trade={exchange,price,qty,isBuy,ts:ts||Date.now()};
@@ -577,15 +585,12 @@ function startStats(){
  },500);
 }
 
-/* ← FIX 7: staleness watchdog with forced recovery */
 function healthCheck(depthThresh,tradeThresh){
  const now=Date.now();
  if(!started)return;
- /* deep book silent → force resync (covers dead socket AND ready-stuck-false) */
  if(now-lastDepthTs>depthThresh&&now-lastResyncTs>10000){
   lastResyncTs=now;dbg('WATCHDOG','depth stale → resync');openDeepBook(currentBase);
  }
- /* all trades silent → restart every stream, reset backoff */
  if(now-lastTradeTs>tradeThresh&&now-lastRestartTs>20000){
   lastRestartTs=now;dbg('WATCHDOG','trades stale → restart streams');
   EXCHANGES.forEach(id=>retryDelay[id]=1500);closeAll();launchAll();
@@ -789,7 +794,6 @@ DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(
  onping(ws){ws.send(JSON.stringify({jsonrpc:'2.0',id:99,method:'public/test',params:{}}))},pingMs:30000}),
 };
 
-/* ← FIX 6: mark stream launch */
 function launchAll(){lastTradeTs=Date.now();EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*1500);});}
 
 function switchSymbol(b){
@@ -848,7 +852,7 @@ function start(){
  initDOMPool();
  openDeepBook(currentBase);launchAll();
  startStats();
- startWatchdog(); /* ← FIX 8 */
+ startWatchdog();
  if(domRenderInterval)clearInterval(domRenderInterval);
  domRenderInterval=setInterval(()=>{
   if(!bookDirty)return;
@@ -869,7 +873,6 @@ window.addEventListener('DOMContentLoaded',async()=>{
  start();
 });
 
-/* ← FIX 9: instant heal when tab regains focus */
 document.addEventListener('visibilitychange',()=>{
  if(document.visibilityState==='visible')healthCheck(8000,15000);
 });
