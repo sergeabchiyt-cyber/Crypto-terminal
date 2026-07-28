@@ -221,6 +221,7 @@ const SHARED_SECRET_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456
 const MAX_TAPE=80, TPS_WIN=2000, NIM_MODEL='z-ai/glm-5.2';
 const SNAP_LIMIT=3000, NUM_RUNGS=40;
 const DOM_FPS_INTERVAL=33; /* ~30fps poll */
+const LADDER_CHECK_MS=550; /* ← FIX 1: ladder re-checks its price target this often */
 
 let TOTAL_EX=21, currentBase='BTCUSDT';
 let tape=[], stamps=[], lastPrice=0, prevPrice=0, vol=0;
@@ -233,6 +234,7 @@ let smoothMaxVol=0;
 let statsTimer=null;
 let visualMid=0;
 let lastCenterTick=0; /* hysteresis anchor for ladder centering */
+let sampledMid=0,lastSampleTs=0; /* ← FIX 2: sampled price target */
 
 let pendingTrades=[];
 let tapeRaf=false;
@@ -418,11 +420,17 @@ function refMid(){
 function markBookDirty(){bookDirty=true;}
 
 function renderLadder(){
- const mid=refMid();if(!mid)return;
+ /* ← FIX 3: sample the price target on the slow 550ms clock; the 100ms
+    feed stays live for qty bars, but ladder position only re-evaluates here */
+ const now=Date.now();
+ if(!sampledMid||now-lastSampleTs>=LADDER_CHECK_MS){
+  const m=refMid();if(m)sampledMid=m;
+  lastSampleTs=now;
+ }
+ const mid=sampledMid;if(!mid)return;
  const bw=autoBW(mid);
 
- /* ═══ MOTION CORE ═══
-    dead-band low-pass: visualMid ignores sub-band micro-jitter and only
+ /* dead-band low-pass: visualMid ignores sub-band micro-jitter and only
     chases real moves → the ladder is never disturbed by individual ticks */
  if(!visualMid)visualMid=mid;
  else{
@@ -796,9 +804,10 @@ DERIBIT:(s,id)=>makeWS(id,'wss://www.deribit.com/ws/api/v2',{onopen(ws){ws.send(
 
 function launchAll(){lastTradeTs=Date.now();EXCHANGES.forEach(id=>{const f=A[id];if(f)setTimeout(()=>openStream(id,(s,x)=>f(s,x)),Math.random()*1500);});}
 
+/* ← FIX 4: reset the sampler on symbol switch */
 function switchSymbol(b){
  currentBase=b;tape=[];stamps=[];lastPrice=0;prevPrice=0;vol=0;lastLadder=null;
- smoothMaxVol=0;visualMid=0;lastCenterTick=0;pendingTrades.length=0;bookDirty=true;
+ smoothMaxVol=0;visualMid=0;lastCenterTick=0;sampledMid=0;lastSampleTs=0;pendingTrades.length=0;bookDirty=true;
  deepBestBid=0;deepBestAsk=Infinity;
  priceStrCache.fill('');
  cbLv.bid=[];cbLv.ask=[];for(const k in bfChans)delete bfChans[k];
