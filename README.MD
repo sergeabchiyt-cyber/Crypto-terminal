@@ -141,4 +141,4 @@ Single HTML file, roughly 650 lines, no external requests except the exchange en
 Personal/educational trading tool, not financial advice. Displayed depth is a sum of self-reported resting order sizes across venues at a point in time and can diverge from true executable liquidity, all of this code was purely written by AI use with awarness.
 
 ##License
-Open-Source under the[MIT License](https://github.com/WisTex/The-MIT-License-Files/blob/main/LICENSE)
+Open-Source under the [MIT License](https://github.com/WisTex/The-MIT-License-Files/blob/main/LICENSE)
