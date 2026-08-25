@@ -5,6 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>DOM LADDER · MULTI-VENUE BTCUSDT</title>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+/* Lightweight Charts v5 loader with CDN fallback. Loaded async so a
+   failed/blocked CDN never blocks the inline trading-terminal script. */
+(function(){
+ var s=document.createElement('script');
+ s.src='https://unpkg.com/lightweight-charts@5.0.7/dist/lightweight-charts.standalone.production.js';
+ s.onerror=function(){
+  var f=document.createElement('script');
+  f.src='https://cdn.jsdelivr.net/npm/lightweight-charts@5.0.7/dist/lightweight-charts.standalone.production.js';
+  f.onerror=function(){console.warn('[chart] LW CDN failed on both unpkg and jsdelivr — chart disabled, sockets unaffected');};
+  document.head.appendChild(f);
+ };
+ document.head.appendChild(s);
+})();
+</script>
 <style>
 :root{
  --bg0:#0b0e14;--bg1:#12161f;--bg2:#1a1f2c;--line:#242c3d;
@@ -88,6 +103,52 @@ body{font-family:'JetBrains Mono',monospace;color:var(--txt);background:var(--bg
 .ex-BITSTAMP{border-color:#84cc16}.ex-GEMINI{border-color:#e879f9}.ex-KRAKEN{border-color:#7c3aed}.ex-COINBASE{border-color:#0ea5e9}
 .ex-BITFINEX{border-color:#f97316}.ex-HTX{border-color:#10b981}.ex-POLONIEX{border-color:#fcd34d}.ex-BINGX{border-color:#38bdf8}
 .ex-WOOX{border-color:#ec4899}.ex-DERIBIT{border-color:#c084fc}
+
+/* AI Panel */
+#ai-panel{position:fixed;right:0;top:50px;bottom:0;width:380px;background:var(--bg1);border-left:1px solid var(--line);display:flex;flex-direction:column;z-index:1000;transform:translateX(100%);transition:transform .3s ease}
+#ai-panel.open{transform:translateX(0)}
+#ai-toggle{position:fixed;right:10px;top:60px;width:44px;height:44px;background:var(--purple);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:pointer;z-index:1001;box-shadow:0 2px 8px rgba(139,124,246,.4);transition:background .2s}
+#ai-toggle:hover{background:#7c6fe0}
+#ai-header{padding:12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:8px}
+#ai-header h3{font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--purple)}
+#ai-screen-wrap{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:700;letter-spacing:.07em;color:var(--dim);cursor:pointer}
+#ai-screen-chk{accent-color:var(--purple);width:12px;height:12px;cursor:pointer}
+#ai-close{background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer;padding:0;width:24px;height:24px}
+#ai-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+.ai-msg{font-size:11px;line-height:1.5;padding:10px;border-radius:6px;word-wrap:break-word;white-space:pre-wrap}
+.ai-msg.user{background:var(--bg2);color:var(--txt);align-self:flex-end;max-width:85%}
+.ai-msg.assistant{background:rgba(139,124,246,.12);color:var(--txt);align-self:flex-start;max-width:85%}
+.ai-msg.system{background:rgba(240,185,11,.12);color:var(--amber);font-size:10px;text-align:center}
+#ai-input-wrap{padding:12px;border-top:1px solid var(--line);display:flex;gap:8px;flex-shrink:0}
+#ai-input{flex:1;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font:500 11px 'JetBrains Mono',monospace;padding:8px 10px;border-radius:4px;outline:none}
+#ai-input:focus{border-color:var(--purple)}
+#ai-send{background:var(--purple);border:none;color:#fff;font-weight:700;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:11px}
+#ai-send:hover{background:#7c6fe0}
+#ai-send:disabled{opacity:.5;cursor:not-allowed}
+#ai-key-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:2000}
+#ai-key-modal.show{display:flex}
+#ai-key-box{background:var(--bg1);border:1px solid var(--line);border-radius:8px;padding:24px;width:90%;max-width:400px}
+#ai-key-box h3{font-size:14px;margin-bottom:12px;color:var(--purple)}
+#ai-key-box p{font-size:11px;color:var(--dim);margin-bottom:16px;line-height:1.4}
+#ai-key-input{width:100%;background:var(--bg0);border:1px solid var(--line);color:var(--txt);font:500 11px 'JetBrains Mono',monospace;padding:10px;border-radius:4px;margin-bottom:16px}
+#ai-key-save{background:var(--purple);border:none;color:#fff;font-weight:700;padding:10px 20px;border-radius:4px;cursor:pointer;width:100%}
+#ai-key-change{font-size:10px;color:var(--dim);cursor:pointer;text-decoration:underline;margin-top:8px;display:inline-block}
+
+/* Chart Panel */
+#chart-toggle{position:fixed;left:10px;bottom:10px;width:44px;height:44px;background:var(--purple);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:pointer;z-index:1001;box-shadow:0 2px 8px rgba(139,124,246,.4);transition:background .2s}
+#chart-toggle:hover{background:#7c6fe0}
+#chart-panel{position:fixed;left:0;bottom:0;width:50vw;max-width:720px;height:320px;background:var(--bg1);border-top:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:1000;transform:translateY(100%);transition:transform .3s ease}
+#chart-panel.open{transform:translateY(0)}
+.chart-header{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--line);gap:8px;flex-shrink:0}
+.chart-header>span{font-size:11px;font-weight:700;color:var(--purple);letter-spacing:.08em}
+.chart-tf-group{display:flex;gap:3px}
+.chart-tf-group button{background:var(--bg0);border:1px solid var(--line);color:var(--dim);font:600 9px 'JetBrains Mono',monospace;padding:3px 7px;border-radius:3px;cursor:pointer}
+.chart-tf-group button.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+#chart-close{background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;padding:0;width:24px;height:24px}
+#chart-canvas{flex:1;position:relative;overflow:hidden;min-height:0}
+#chart-canvas canvas{position:absolute;inset:0}
+#chart-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase;background:var(--bg1);pointer-events:none;z-index:2}
+#chart-placeholder.hidden{display:none}
 </style>
 </head>
 <body>
@@ -121,6 +182,46 @@ body{font-family:'JetBrains Mono',monospace;color:var(--txt);background:var(--bg
  </div>
 </div>
 
+<button id="ai-toggle" title="AI Analysis">🤖</button>
+<div id="ai-panel">
+ <div id="ai-header">
+  <h3>GLM 5.2 · ORDERFLOW AI</h3>
+  <label id="ai-screen-wrap"><input type="checkbox" id="ai-screen-chk"/>SCREEN</label>
+  <button id="ai-close">✕</button>
+ </div>
+ <div id="ai-messages"></div>
+ <div id="ai-input-wrap">
+  <input id="ai-input" placeholder="Ask about orderflow, absorption, CVD..." />
+  <button id="ai-send">Send</button>
+ </div>
+</div>
+<div id="ai-key-modal">
+ <div id="ai-key-box">
+  <h3>NVIDIA API Key</h3>
+  <p>Enter your NVIDIA NIM API key to enable AI analysis. This key is stored locally in your browser and never sent anywhere except through your reverse proxy.</p>
+  <input id="ai-key-input" type="password" placeholder="nvapi-..." />
+  <button id="ai-key-save">Save Key</button>
+ </div>
+</div>
+
+<button id="chart-toggle" title="Chart">📈</button>
+<div id="chart-panel">
+ <div class="chart-header">
+  <span class="disp">📈 BTCUSDT</span>
+  <div class="chart-tf-group">
+   <button data-tf="1m">1m</button>
+   <button data-tf="5m">5m</button>
+   <button data-tf="15m">15m</button>
+   <button data-tf="1h">1h</button>
+   <button data-tf="4h">4h</button>
+  </div>
+  <button id="chart-close">✕</button>
+ </div>
+ <div id="chart-canvas">
+  <div id="chart-placeholder">Select a timeframe to load candles</div>
+ </div>
+</div>
+
 <script>
 'use strict';
 
@@ -145,7 +246,7 @@ const els={};
 let lastPrice=0, dayPct=0;
 let dirty=false;
 
-const book={bids:new Map(),asks:new Map(),lastId:0,ready:false,buf:[]};
+const book={bids:new Map(),asks:new Map(),lastId:0,ready:false,synced:false,buf:[]};
 let bestBid=0, bestAsk=Infinity;
 
 const chase={bid:{last:0,streak:0,alpha:0},ask:{last:0,streak:0,alpha:0}};
@@ -407,11 +508,27 @@ function renderLadder(){
  for(const p of book.bids.keys())if(p>bb)bb=p;
  for(const p of book.asks.keys())if(p<ba)ba=p;
 
+ /* self-heal crossed primary book (stale sync): purge crossed levels */
+ if(bb>0&&ba<Infinity&&bb>=ba){
+  for(const p of [...book.bids.keys()])if(p>=ba)book.bids.delete(p);
+  for(const p of [...book.asks.keys()])if(p<=bb)book.asks.delete(p);
+  bb=0;ba=Infinity;
+  for(const p of book.bids.keys())if(p>bb)bb=p;
+  for(const p of book.asks.keys())if(p<ba)ba=p;
+ }
+
  updateChase('bid',bb);
  updateChase('ask',ba);
  bestBid=bb;bestAsk=ba;
 
- if(!bb&&ba===Infinity)return;
+ if(!bb && ba===Infinity){
+    if(lastPrice > 0){
+       bb = lastPrice;
+       ba = lastPrice;
+    } else {
+       return;
+    }
+ }
 
  const mid=(bb&&ba<Infinity)?(bb+ba)/2:(lastPrice||bb||ba);
  const refBid=bb||(ba-step);
@@ -429,7 +546,9 @@ function renderLadder(){
  for(const v in venueBooks){
   const m=venueBooks[v];
   for(const[p,q]of m){
-   if(p<=mid)addBid(p,q);else addAsk(p,q);
+   /* clip venue levels that cross the primary touch (stale venue snapshots) */
+   if(p<=mid){if(p<ba)addBid(p,q);}
+   else{if(p>bb)addAsk(p,q);}
   }
  }
 
@@ -462,7 +581,7 @@ function paintLadder(rows,maxOrder,dec,step){
   const r=rows[pos];
   if(r.spread){
    node.row.className='lad-row spread';
-   node.priceEl.textContent=(bestAsk<Infinity&&bestBid>0)?('SPREAD '+(bestAsk-bestBid).toFixed(dec)):'—';
+   node.priceEl.textContent=(bestAsk<Infinity&&bestBid>0&&bestAsk>bestBid)?('SPREAD '+(bestAsk-bestBid).toFixed(dec)):'—';
    node.sizeVal.textContent='';
    continue;
   }
@@ -481,7 +600,7 @@ function paintLadder(rows,maxOrder,dec,step){
 function updateFooter(sumBid,sumAsk,dec){
  els['liq-b'].textContent='ΣB '+fmtQty(sumBid);
  els['liq-a'].textContent='ΣA '+fmtQty(sumAsk);
- els['spr'].textContent=(bestAsk<Infinity&&bestBid>0)?(bestAsk-bestBid).toFixed(dec):'--';
+ els['spr'].textContent=(bestAsk<Infinity&&bestBid>0&&bestAsk>bestBid)?(bestAsk-bestBid).toFixed(dec):'--';
 }
 
 let lastRenderTs=0;
@@ -510,13 +629,19 @@ function flushTape(){
  els['tape-n'].textContent=recent.length;
 }
 
-function ingestTrade(exchange,price,qty,isBuy,ts){
+function ingestTrade(exchange,price,qty,isBuy,ts,isPrimary=false){
  if(!(price>0)||!(qty>0))return;
- lastPrice=price;
- dirty=true;
+ if(isPrimary){
+  lastPrice=price;
+  dirty=true;
+ }
  tapeDirty=true;
  tapeTrades.push({exchange,price,qty,isBuy,ts});
- if(tapeTrades.length>200)tapeTrades.splice(0,tapeTrades.length-200);
+ /* 600-trade buffer: display still uses last 60, but the AI gets a much
+    longer window for candles/CVD */
+ if(tapeTrades.length>600)tapeTrades.splice(0,tapeTrades.length-600);
+ /* Live chart tick — wrapped so chart failures can never break the tape. */
+ try{feedChartTrade(price,qty,isBuy,ts);}catch(e){}
 }
 
 /* ---------- binance primary feed (depth authoritative + candles) ---------- */
@@ -552,7 +677,7 @@ function applyDepth(d){
  book.lastId=d.u;
 }
 function startDepth(){
- book.bids.clear();book.asks.clear();book.buf=[];book.ready=false;book.lastId=0;
+ book.bids.clear();book.asks.clear();book.buf=[];book.ready=false;book.synced=false;book.lastId=0;
  depthConn=makeReconnectingWS(
   ()=>BINANCE_WS+'/ws/'+symbol.toLowerCase()+'@depth@100ms',
   {
@@ -561,8 +686,19 @@ function startDepth(){
    onMessage:ev=>{
     const d=JSON.parse(ev.data);
     if(d.e!=='depthUpdate')return;
-    if(!book.ready){book.buf.push(d);if(book.buf.length>3000)book.buf.shift();return}
-    if(d.U!==book.lastId+1){resyncDepth();return}
+    if(!book.ready){
+       book.buf.push(d);
+       if(book.buf.length>3000)book.buf.shift();
+       return;
+    }
+    if(d.u < book.lastId) return;
+    
+    if(!book.synced){
+       if(d.U > book.lastId){ resyncDepth(); return; }
+       book.synced = true;
+    } else {
+       if(d.U !== book.lastId + 1){ resyncDepth(); return; }
+    }
     applyDepth(d);
     dirty=true;
    }
@@ -575,7 +711,17 @@ function resyncDepth(){
  if(depthConn)depthConn.close();
  startDepth();
 }
+let lastSnapTs=0,snapPending=false;
 function fetchSnapshot(){
+ const wait=2000-(Date.now()-lastSnapTs);
+ if(wait>0){
+  if(!snapPending){snapPending=true;setTimeout(()=>{snapPending=false;lastSnapTs=Date.now();doFetchSnapshot();},wait);}
+  return;
+ }
+ lastSnapTs=Date.now();
+ doFetchSnapshot();
+}
+function doFetchSnapshot(){
  fetch(BINANCE_REST+'/api/v3/depth?symbol='+symbol+'&limit='+SNAP_LIMIT)
   .then(r=>r.json()).then(snap=>{
    if(!snap||!snap.lastUpdateId){setStatus('bad');return}
@@ -583,21 +729,37 @@ function fetchSnapshot(){
    book.lastId=snap.lastUpdateId;
    for(const[p,q]of snap.bids)book.bids.set(+p,+q);
    for(const[p,q]of snap.asks)book.asks.set(+p,+q);
+   
    let synced=false;
    for(const d of book.buf){
-    if(d.u<book.lastId+1)continue;
-    if(!synced&&d.U>book.lastId+1)continue;
-    applyDepth(d);synced=true;
+    if(d.u < book.lastId) continue;
+    if(!synced){
+       if(d.U > book.lastId){
+          resyncDepth();
+          return;
+       }
+       synced = true;
+    } else {
+       if(d.U !== book.lastId + 1){
+          resyncDepth();
+          return;
+       }
+    }
+    applyDepth(d);
    }
-   book.buf=[];book.ready=true;
-   setStatus('ok');setEx('BINANCE','connected');
+   
+   book.buf=[];
+   book.ready=true;
+   book.synced=synced;
+   setStatus('ok');
+   setEx('BINANCE','connected');
    dirty=true;
   }).catch(()=>setStatus('bad'));
 }
 
 function startDataSocket(){
  const sym=symbol.toLowerCase();
- const streams=sym+'@trade/'+sym+'@ticker';
+ const streams=sym+'@aggTrade/'+sym+'@ticker';
  dataConn=makeReconnectingWS(
   ()=>BINANCE_WS+'/stream?streams='+streams,
   {
@@ -606,8 +768,8 @@ function startDataSocket(){
     const st=msg.stream||'';
     const d=msg.data;
     if(!d)return;
-    if(st.indexOf('@trade')>=0){
-     ingestTrade('BINANCE',+d.p,+d.q,!d.m,d.T);
+    if(st.indexOf('@aggTrade')>=0){
+     ingestTrade('BINANCE',+d.p,+d.q,!d.m,d.T,true);
     }else if(st.indexOf('@ticker')>=0){
      dayPct=+d.P;
      updatePriceDisplay();
@@ -633,6 +795,652 @@ function wireControls(){
  });
 }
 
+/* ---------- AI Panel ---------- */
+const AI_PROXY='https://fragrant-flower-5338.sergeabchiyt.workers.dev/v1/chat/completions';
+const AI_MODEL='stepfun-ai/step-3.7-flash';
+let aiKey=localStorage.getItem('nim_api_key')||'';
+let aiMessages=[];
+let aiStreaming=false;
+
+function aiShowKeyModal(){document.getElementById('ai-key-modal').classList.add('show')}
+function aiHideKeyModal(){document.getElementById('ai-key-modal').classList.remove('show')}
+
+function aiSaveKey(){
+ const key=document.getElementById('ai-key-input').value.trim();
+ if(!key)return;
+ aiKey=key;
+ localStorage.setItem('nim_api_key',key);
+ aiHideKeyModal();
+ aiAddMessage('system','API key saved. Ready to analyze orderflow.');
+}
+
+function aiTogglePanel(){
+ const panel=document.getElementById('ai-panel');
+ panel.classList.toggle('open');
+ if(!aiKey)aiShowKeyModal();
+}
+
+function aiAddMessage(role,content){
+ const msg={role,content,ts:Date.now()};
+ aiMessages.push(msg);
+ aiRenderMessages();
+ return msg;
+}
+
+function aiRenderMessages(){
+ const el=document.getElementById('ai-messages');
+ let html='';
+ for(const m of aiMessages){
+  const safe=String(m.content||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  html+='<div class="ai-msg '+m.role+'">'+safe+'</div>';
+ }
+ el.innerHTML=html;
+ el.scrollTop=el.scrollHeight;
+}
+
+function aiUpdateLastMessage(content){
+ if(aiMessages.length===0)return;
+ aiMessages[aiMessages.length-1].content=content;
+ aiRenderMessages();
+}
+
+/* ---------- AI full-screen JSON snapshot ---------- */
+
+/* Reasoning-block stripping. Tags are assembled programmatically so they
+   survive copy/paste through any markup filter. */
+const THINK_OPEN='<'+'think'+'>';
+const THINK_CLOSE='</'+'think'+'>';
+const THINK_RE=new RegExp(THINK_OPEN+'([\\s\\S]*?)(?:'+THINK_CLOSE+'|$)','g');
+
+/* The exact ladder painted on screen, aggregated across all venues.
+   Returns bids[]/asks[] as [price,size] pairs, best-first (index 0 = touch). */
+function aiLadderData(half){
+ const step=currentTick();
+ const dec=tickDecimals(step);
+ let bb=0,ba=Infinity;
+ for(const p of book.bids.keys())if(p>bb)bb=p;
+ for(const p of book.asks.keys())if(p<ba)ba=p;
+ if(!bb&&ba===Infinity){
+  if(lastPrice>0){bb=lastPrice;ba=lastPrice;}
+  else return null;
+ }
+ const mid=(bb&&ba<Infinity)?(bb+ba)/2:(lastPrice||bb||ba);
+ const gridBid=bucketize(bb||(ba-step),step,true);
+ const gridAsk=bucketize((ba<Infinity)?ba:(bb+step),step,false);
+ const bidQ=new Float64Array(half+1);
+ const askQ=new Float64Array(half+1);
+ function addBid(p,q){const bkt=bucketize(p,step,true);const idx=Math.round((gridBid-bkt)/step)+1;if(idx>=1&&idx<=half)bidQ[idx]+=q;}
+ function addAsk(p,q){const bkt=bucketize(p,step,false);const idx=Math.round((bkt-gridAsk)/step)+1;if(idx>=1&&idx<=half)askQ[idx]+=q;}
+ for(const[p,q]of book.bids)addBid(p,q);
+ for(const[p,q]of book.asks)addAsk(p,q);
+ for(const v in venueBooks){
+  const m=venueBooks[v];
+  for(const[p,q]of m){
+   if(p<=mid){if(p<ba)addBid(p,q);}
+   else{if(p>bb)addAsk(p,q);}
+  }
+ }
+ const bids=[],asks=[];
+ for(let i=1;i<=half;i++){
+  bids.push([+(gridBid-(i-1)*step).toFixed(dec),+bidQ[i].toFixed(4)]);
+  asks.push([+(gridAsk+(i-1)*step).toFixed(dec),+askQ[i].toFixed(4)]);
+ }
+ return {bids,asks};
+}
+
+/* Cumulative resting liquidity within % bands of mid (all venues combined) */
+function aiDepthProfile(){
+ const mid=(bestBid>0&&bestAsk<Infinity)?(bestBid+bestAsk)/2:lastPrice;
+ if(!mid)return null;
+ const bands=[0.05,0.1,0.25,0.5,1];
+ const bidAcc=[0,0,0,0,0],askAcc=[0,0,0,0,0];
+ const scan=m=>{
+  for(const[p,q]of m){
+   const d=Math.abs(p-mid)/mid*100;
+   if(p<=mid){if(p<bestAsk)for(let i=0;i<bands.length;i++)if(d<=bands[i])bidAcc[i]+=q;}
+   else{if(p>bestBid)for(let i=0;i<bands.length;i++)if(d<=bands[i])askAcc[i]+=q;}
+  }
+ };
+ scan(book.bids);scan(book.asks);
+ for(const v in venueBooks)scan(venueBooks[v]);
+ return {bandsPct:bands,bidsWithin:bidAcc.map(x=>+x.toFixed(3)),asksWithin:askAcc.map(x=>+x.toFixed(3))};
+}
+
+/* Per-exchange best quote + spread (cross-venue dislocation) */
+function aiVenueTable(){
+ const dec=tickDecimals(currentTick());
+ const out={};
+ for(const v in venueBooks){
+  const m=venueBooks[v];
+  if(!m.size)continue;
+  let bb=0,ba=Infinity;
+  for(const p of m.keys()){if(p>bb)bb=p;if(p<ba)ba=p;}
+  out[v]={
+   bestBid:bb>0?bb.toFixed(dec):null,
+   bestAsk:ba<Infinity?ba.toFixed(dec):null,
+   spread:(bb>0&&ba<Infinity)?+(ba-bb).toFixed(dec):null,
+   levels:m.size
+  };
+ }
+ return out;
+}
+
+function aiSnapshotContext(){
+ const dec=tickDecimals(currentTick());
+
+ /* ---- flow analytics over the tape window ---- */
+ let cvd=0,buyVol=0,sellVol=0,buys=0,sells=0,notional=0,volSum=0;
+ let largestBuy=null,largestSell=null;
+ const exFlow={};
+ for(const t of tapeTrades){
+  if(t.isBuy){buyVol+=t.qty;buys++;cvd+=t.qty;if(!largestBuy||t.qty>largestBuy.qty)largestBuy=t;}
+  else{sellVol+=t.qty;sells++;cvd-=t.qty;if(!largestSell||t.qty>largestSell.qty)largestSell=t;}
+  volSum+=t.qty;notional+=t.qty*t.price;
+  const f=exFlow[t.exchange]||(exFlow[t.exchange]={buy:0,sell:0,trades:0});
+  f.trades++;if(t.isBuy)f.buy+=t.qty;else f.sell+=t.qty;
+ }
+ let tradeRatePerMin=null,windowMove=null,windowSpanSec=null;
+ if(tapeTrades.length>1){
+  const spanMs=Math.max(1,tapeTrades[tapeTrades.length-1].ts-tapeTrades[0].ts);
+  windowSpanSec=+(spanMs/1000).toFixed(1);
+  tradeRatePerMin=Math.round(tapeTrades.length/(spanMs/60000));
+  windowMove=+(tapeTrades[tapeTrades.length-1].price-tapeTrades[0].price).toFixed(2);
+ }
+
+ /* ---- 10-second OHLC candles from the tape: the "chart" in JSON ---- */
+ const candles=[];
+ {
+  const bucketMs=10000;let cur=null;
+  for(const t of tapeTrades){
+   const bkt=Math.floor(t.ts/bucketMs)*bucketMs;
+   if(!cur||cur.t!==bkt){if(cur)candles.push(cur);cur={t:bkt,o:t.price,h:t.price,l:t.price,c:t.price,v:0,b:0,s:0};}
+   if(t.price>cur.h)cur.h=t.price;
+   if(t.price<cur.l)cur.l=t.price;
+   cur.c=t.price;cur.v+=t.qty;
+   if(t.isBuy)cur.b+=t.qty;else cur.s+=t.qty;
+  }
+  if(cur)candles.push(cur);
+ }
+
+ /* ---- on-screen ladder + walls ---- */
+ const lad=aiLadderData(HALF_RUNGS);
+ let walls=null;
+ if(lad){
+  const top=arr=>arr.slice().sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>({price:x[0],size:x[1]}));
+  walls={bidWalls:top(lad.bids),askWalls:top(lad.asks)};
+ }
+
+ const sumB=[...book.bids.values()].reduce((a,b)=>a+b,0);
+ const sumA=[...book.asks.values()].reduce((a,b)=>a+b,0);
+
+ const venueFlow={};
+ for(const k in exFlow){
+  const f=exFlow[k];
+  venueFlow[k]={buy:+f.buy.toFixed(3),sell:+f.sell.toFixed(3),trades:f.trades};
+ }
+
+ const ctx={
+  meta:{
+   symbol:symbol,
+   tickSize:currentTick(),
+   ladderRungsPerSide:HALF_RUNGS,
+   tapeWindowTrades:tapeTrades.length,
+   timestamp:new Date().toISOString(),
+   feedsConnected:Object.values(exStatus).filter(s=>s==='connected').length+' of '+VENUE_LIST.length
+  },
+  price:{
+   last:lastPrice?lastPrice.toFixed(dec):null,
+   change24h:dayPct?((dayPct>=0?'+':'')+dayPct.toFixed(2)+'%'):null,
+   bestBid:bestBid>0?bestBid.toFixed(dec):null,
+   bestAsk:bestAsk<Infinity?bestAsk.toFixed(dec):null,
+   spread:(bestAsk<Infinity&&bestBid>0&&bestAsk>bestBid)?(bestAsk-bestBid).toFixed(dec):null
+  },
+  flow:{
+   cvd:+cvd.toFixed(3),
+   cvdBias:cvd>0?'aggressive buying':cvd<0?'aggressive selling':'balanced',
+   buyVol:+buyVol.toFixed(3),
+   sellVol:+sellVol.toFixed(3),
+   buySellRatio:sellVol>0?+(buyVol/sellVol).toFixed(2):null,
+   aggressiveBuyCount:buys,
+   aggressiveSellCount:sells,
+   vwap:volSum>0?+(notional/volSum).toFixed(2):null,
+   tradeRatePerMin:tradeRatePerMin,
+   priceMoveOverWindow:windowMove,
+   windowSpanSec:windowSpanSec,
+   largestAggressiveBuy:largestBuy?{ex:largestBuy.exchange,price:largestBuy.price.toFixed(dec),qty:+largestBuy.qty.toFixed(4)}:null,
+   largestAggressiveSell:largestSell?{ex:largestSell.exchange,price:largestSell.price.toFixed(dec),qty:+largestSell.qty.toFixed(4)}:null
+  },
+  candles10s:candles.slice(-20).map(k=>({
+   time:new Date(k.t).toLocaleTimeString(),
+   o:+k.o.toFixed(dec),h:+k.h.toFixed(dec),l:+k.l.toFixed(dec),c:+k.c.toFixed(dec),
+   vol:+k.v.toFixed(3),buyVol:+k.b.toFixed(3),sellVol:+k.s.toFixed(3)
+  })),
+  ladder:lad?{note:'aggregated across all venues; bids[]/asks[] are [price,size], best-first (index 0 = touch)',bids:lad.bids,asks:lad.asks}:null,
+  walls:walls,
+  depthProfile:aiDepthProfile(),
+  book:{
+   totalBidQty:+sumB.toFixed(3),
+   totalAskQty:+sumA.toFixed(3),
+   imbalance:(sumB+sumA)>0?+(sumB/(sumB+sumA)).toFixed(3):null,
+   topBids:[...book.bids.entries()].sort((a,b)=>b[0]-a[0]).slice(0,15).map(([p,q])=>[+p.toFixed(dec),+q]),
+   topAsks:[...book.asks.entries()].sort((a,b)=>a[0]-b[0]).slice(0,15).map(([p,q])=>[+p.toFixed(dec),+q])
+  },
+  venues:aiVenueTable(),
+  venueFlow:venueFlow,
+  chartBubbles:(function(){
+   /* Absorption bubbles currently on the chart (most recent 10).
+      Side naming: belowBar -> buyers ran into passive sellers
+                   aboveBar -> sellers ran into passive buyers */
+   if(!chartReady||chartCandles.length===0)return [];
+   try{
+    return detectAbsorption().slice(-10).map(b=>({
+     time:b.time,
+     side:b.position==='belowBar'?'buyers_absorbed':'sellers_absorbed',
+     color:b.color
+    }));
+   }catch(e){return [];}
+  })(),
+  tape:tapeTrades.slice(-50).map(t=>({
+   ex:t.exchange,price:+t.price.toFixed(dec),qty:+t.qty.toFixed(4),
+   side:t.isBuy?'BUY':'SELL',time:new Date(t.ts).toLocaleTimeString()
+  }))
+ };
+ return JSON.stringify(ctx,null,2);
+}
+
+/* ---------- AI screen capture (optional, for external charts) ---------- */
+async function aiGrabFrame(){
+ let screenStream=null,screenVideo=null;
+ try{
+  screenStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
+  screenVideo=document.createElement('video');
+  screenVideo.muted=true;
+  screenVideo.srcObject=screenStream;
+  await screenVideo.play();
+  
+  await new Promise(r=>setTimeout(r,100));
+  
+  const scale=Math.min(1,1280/screenVideo.videoWidth);
+  const c=document.createElement('canvas');
+  c.width=Math.round(screenVideo.videoWidth*scale);
+  c.height=Math.round(screenVideo.videoHeight*scale);
+  c.getContext('2d').drawImage(screenVideo,0,0,c.width,c.height);
+  const dataUrl=c.toDataURL('image/jpeg',0.75);
+  
+  screenStream.getTracks().forEach(t=>t.stop());
+  screenStream=null;
+  screenVideo=null;
+  
+  return dataUrl;
+ }catch(e){
+  if(screenStream){screenStream.getTracks().forEach(t=>t.stop());screenStream=null;}
+  screenVideo=null;
+  return null;
+ }
+}
+
+async function aiSend(){
+ if(aiStreaming)return;
+ const input=document.getElementById('ai-input');
+ const q=input.value.trim();
+ if(!q)return;
+ if(!aiKey){aiShowKeyModal();return;}
+
+ aiAddMessage('user',q);
+ input.value='';
+
+ const systemPrompt=`You are an expert orderflow and volume profile analyst embedded in a live multi-venue BTCUSDT trading terminal. Every request contains a complete machine-readable snapshot of the entire screen in JSON — you do NOT need an image to analyze it:
+
+- meta: symbol, tick size, timestamp, connected exchange feeds, tape window size
+- price: last trade, 24h change, best bid/ask, spread
+- flow: CVD over the tape window, aggressive buy/sell volumes and counts, buy/sell ratio, VWAP, trade rate, price move over the window, largest aggressive prints
+- candles10s: recent price action as 10-second OHLC candles with per-candle buy/sell volume (this is your chart)
+- ladder: the exact DOM ladder shown on screen — aggregated resting size at every visible price level across all venues; bids[] and asks[] are [price,size] pairs, best-first (index 0 = the touch)
+- walls: the 3 largest resting sizes per side (liquidity walls / spoofing candidates)
+- depthProfile: cumulative resting liquidity within 0.05/0.1/0.25/0.5/1% of mid
+- book: top raw Binance levels, total depth, and book imbalance
+- venues: per-exchange best bid/ask and spread (cross-venue price dislocation)
+- venueFlow: which exchanges the aggressive flow is concentrated on
+- tape: the most recent trade prints
+
+Analyze absorption (aggressive flow into passive liquidity), CVD vs price divergence, liquidity walls and spoofing risk, exhaustion vs continuation, and which venue is leading price. Be decisive, cite actual numbers from the JSON, and keep it under ~250 words. An optional screenshot may also be attached; if so, cross-check it against the JSON.`;
+
+ const context=aiSnapshotContext();
+ let userContent=[{type:'text',text:`Current market context:\n${context}\n\nQuestion: ${q}`}];
+
+ if(document.getElementById('ai-screen-chk').checked){
+  aiAddMessage('system','Capturing screen...');
+  const shot=await aiGrabFrame();
+  if(shot){
+   userContent.push({type:'image_url',image_url:{url:shot}});
+   aiUpdateLastMessage('Screen captured. Analyzing...');
+  } else {
+   aiUpdateLastMessage('Screen capture failed or denied. Continuing without image.');
+  }
+ }
+
+ /* Keep a direct reference to the assistant message so updates always
+    target THIS message even if system messages get added later. */
+ const assistantMsg=aiAddMessage('assistant','Analyzing...');
+ aiStreaming=true;
+ document.getElementById('ai-send').disabled=true;
+
+ const updateAssistant=(content)=>{
+  assistantMsg.content=content;
+  aiRenderMessages();
+ };
+
+ /* NON-STREAMING MODE: the Cloudflare Worker forces NVIDIA to stream upstream,
+    buffers the whole answer, and returns ONE complete JSON payload. */
+ const startedAt=Date.now();
+ const waitTimer=setInterval(()=>{
+  updateAssistant('Analyzing... '+Math.round((Date.now()-startedAt)/1000)+'s (waiting for full answer)');
+ },1000);
+
+ /* 10-minute hard cap so a dead proxy can't hang the panel forever */
+ const abortCtl=new AbortController();
+ const abortTimer=setTimeout(()=>abortCtl.abort(),600000);
+
+ try{
+  const hdrs={'Content-Type':'application/json','Authorization':`Bearer ${aiKey}`};
+  /* 16k budget: thinking models spend thousands of tokens on hidden
+     reasoning BEFORE writing the answer. */
+  const payload=content=>JSON.stringify({model:AI_MODEL,messages:[{role:'system',content:systemPrompt},{role:'user',content:content}],stream:false,max_tokens:16384});
+  let resp=await fetch(AI_PROXY,{method:'POST',headers:hdrs,body:payload(userContent),signal:abortCtl.signal});
+  const hadShot=userContent.length>1;
+  if(resp.status===400&&hadShot){
+   resp=await fetch(AI_PROXY,{method:'POST',headers:hdrs,body:payload(userContent[0]),signal:abortCtl.signal});
+   aiAddMessage('system','Endpoint rejected image; retried text-only.');
+  }
+  if(!resp.ok){
+   const err=await resp.text();
+   updateAssistant(`Error: ${resp.status} - ${err}`);
+   return;
+  }
+
+  const data=await resp.json();
+
+  /* Worker reports buffering-stage failures inside the body */
+  if(data&&data.error){
+   updateAssistant('Error: '+(data.error.message||JSON.stringify(data.error)));
+   return;
+  }
+
+  const choice=(data&&data.choices&&data.choices[0])||null;
+  const msg=(choice&&choice.message)||null;
+
+  let content='';
+  if(msg){
+   if(typeof msg.content==='string')content=msg.content;
+   else if(Array.isArray(msg.content))content=msg.content.map(p=>(p&&typeof p.text==='string')?p.text:'').join('');
+   /* Fallback: thinking model returned the answer only as reasoning */
+   if(!content&&typeof msg.reasoning_content==='string')content=msg.reasoning_content;
+   if(!content&&typeof msg.reasoning==='string')content=msg.reasoning;
+  }
+  if(!content&&choice&&typeof choice.text==='string')content=choice.text;
+  if(!content&&data&&typeof data.text==='string')content=data.text;
+
+  /* Strip embedded reasoning blocks if the model put them in the answer */
+  if(content){
+   const innerParts=[];
+   const outside=content.replace(THINK_RE,(m,ins)=>{innerParts.push(ins);return '';}).trim();
+   content=outside||innerParts.join('').trim();
+  }
+
+  /* Worker diagnostics when the model produced nothing */
+  if(!content&&data&&data._nim_debug){
+   const dbg=data._nim_debug;
+   updateAssistant('(Model returned no answer text. finish_reason='+(dbg.finish_reason||'n/a')+', content chars='+(dbg.content_chars||0)+', reasoning chars='+(dbg.reasoning_chars||0)+'). '+dbg.hint);
+   return;
+  }
+
+  /* Truncation warning */
+  if(content&&choice&&choice.finish_reason==='length'){
+   content+='\n\n[⚠ Hit max_tokens before the model finished — raise max_tokens for a complete answer]';
+  }
+
+  updateAssistant(content||'(No content received from AI.)');
+ }catch(e){
+  if(e&&e.name==='AbortError'){
+   updateAssistant('Request timed out after 10 minutes.');
+  }else{
+   updateAssistant(`Network error: ${e.message}`);
+  }
+ }finally{
+  clearInterval(waitTimer);
+  clearTimeout(abortTimer);
+  aiStreaming=false;
+  document.getElementById('ai-send').disabled=false;
+ }
+}
+
+function aiWireUI(){
+ document.getElementById('ai-toggle').addEventListener('click',aiTogglePanel);
+ document.getElementById('ai-close').addEventListener('click',aiTogglePanel);
+ document.getElementById('ai-send').addEventListener('click',aiSend);
+ document.getElementById('ai-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey)aiSend();
+ });
+ document.getElementById('ai-key-save').addEventListener('click',aiSaveKey);
+ 
+ if(!aiKey){
+  setTimeout(()=>{
+   aiAddMessage('system','Welcome! Click the robot icon to start analyzing orderflow.');
+  },1000);
+ }
+}
+
+/* ---------- Chart Module (Lightweight Charts v5) ---------- */
+/* LW global is set by the async CDN loader in <head>. If it hasn't loaded
+   yet (or both CDNs are blocked), the chart simply stays disabled and the
+   rest of the terminal — including all 18 venue sockets — runs normally. */
+function getLW(){return window.LightweightCharts||null;}
+
+let chart=null, candleSeries=null, volSeries=null, markers=null;
+let chartCandles=[];
+let chartTF=null;          /* null until the user explicitly clicks a tf button */
+let chartLastBubbleMs=0;
+let chartReady=false;
+
+function tfMs(tf){
+ const u=tf[tf.length-1];
+ const n=+tf.slice(0,-1);
+ if(u==='m')return n*60000;
+ if(u==='h')return n*3600000;
+ if(u==='d')return n*86400000;
+ return 60000;
+}
+/* Returns the bucket OPEN time in UNIX SECONDS (what LW v5 expects).
+   This is the corrected version — returns Math.floor(ts/ms)*ms/1000, NOT
+   Math.floor(ts/ms) which is just a bucket index and would crash LW. */
+function tfBucketSec(ts,tf){
+ const ms=tfMs(tf);
+ return Math.floor(ts/ms)*ms/1000;
+}
+function tfBucketMs(ts,tf){
+ const ms=tfMs(tf);
+ return Math.floor(ts/ms)*ms;
+}
+
+async function fetchKlinesPage(endTime){
+ const url=BINANCE_REST+'/api/v3/klines?symbol='+symbol+'&interval='+chartTF+'&limit=1000'+(endTime?'&endTime='+endTime:'');
+ const r=await fetch(url);
+ if(!r.ok)throw new Error('klines '+r.status);
+ return await r.json();
+}
+
+async function loadChartHistory(){
+ if(!chartTF||!candleSeries)return;   /* no fetch until the user picks a tf */
+ /* Single 1000-candle request — fast load, no pagination. */
+ let page;
+ try{page=await fetchKlinesPage(null);}catch(e){console.error('[chart] klines fetch:',e);return;}
+ if(!page||!page.length)return;
+ chartCandles=page.map(k=>({
+  time:Math.floor(k[0]/1000),
+  open:+k[1],high:+k[2],low:+k[3],close:+k[4],
+  volume:+k[5],takerBuy:+k[9],
+  delta:2*(+k[9])-(+k[5])
+ }));
+ computeChartRolling();
+ candleSeries.setData(chartCandles.map(c=>({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close})));
+ volSeries.setData(chartCandles.map(c=>({time:c.time,value:c.volume,color:c.delta>=0?'rgba(23,210,173,0.5)':'rgba(246,70,93,0.5)'})));
+ chart.timeScale().fitContent();
+ renderChartMarkers(detectAbsorption());
+ chartReady=true;
+}
+
+function computeChartRolling(){
+ const W=20;
+ for(let i=0;i<chartCandles.length;i++){
+  const s=Math.max(0,i-W);
+  const slice=chartCandles.slice(s,i+1);
+  let sum=0;for(const c of slice)sum+=c.volume;
+  const mean=sum/slice.length;
+  let vs=0;for(const c of slice)vs+=(c.volume-mean)*(c.volume-mean);
+  chartCandles[i].volMean=mean;
+  chartCandles[i].volStdev=Math.sqrt(vs/slice.length);
+ }
+}
+
+function detectAbsorption(){
+ const out=[];
+ for(let i=2;i<chartCandles.length-1;i++){
+  const c=chartCandles[i];
+  if(c.volStdev==null||c.volMean==null)continue;
+  if(c.volume<c.volMean+c.volStdev*1.5)continue;
+  const next=chartCandles[i+1];
+  const strongBuy=c.delta>0 && c.delta>c.volume*0.2;
+  const strongSell=c.delta<0 && c.delta<-c.volume*0.2;
+  /* green bubble = lower wick: aggressive buyers got absorbed by passive sellers */
+  if(strongBuy && next.close<c.close){
+   out.push({time:c.time,position:'belowBar',color:'rgba(23,210,173,0.95)',shape:'circle',text:'A'});
+  }
+  /* red bubble = upper wick: aggressive sellers got absorbed by passive buyers */
+  else if(strongSell && next.close>c.close){
+   out.push({time:c.time,position:'aboveBar',color:'rgba(246,70,93,0.95)',shape:'circle',text:'A'});
+  }
+ }
+ return out;
+}
+
+function renderChartMarkers(bubbles){
+ if(!markers)return;
+ try{markers.setMarkers(bubbles);}catch(e){}
+}
+
+function feedChartTrade(price,qty,isBuy,ts){
+ if(!chartReady||!candleSeries)return;
+ const bktMs=tfBucketMs(ts,chartTF);
+ const bktSec=Math.floor(bktMs/1000);
+ const last=chartCandles[chartCandles.length-1];
+ if(!last||last.time!==bktSec){
+  const nc={time:bktSec,open:price,high:price,low:price,close:price,
+   volume:qty,takerBuy:isBuy?qty:0,delta:isBuy?qty:-qty,
+   volMean:last?last.volMean:0,volStdev:last?last.volStdev:0};
+  chartCandles.push(nc);
+  if(chartCandles.length>1000)chartCandles.shift();
+  candleSeries.update({time:bktSec,open:price,high:price,low:price,close:price});
+  volSeries.update({time:bktSec,value:qty,color:isBuy?'rgba(23,210,173,0.5)':'rgba(246,70,93,0.5)'});
+ }else{
+  if(price>last.high)last.high=price;
+  if(price<last.low)last.low=price;
+  last.close=price;
+  last.volume+=qty;
+  if(isBuy){last.takerBuy+=qty;last.delta+=qty;}
+  else{last.delta-=qty;}
+  candleSeries.update({time:bktSec,open:last.open,high:last.high,low:last.low,close:last.close});
+  volSeries.update({time:bktSec,value:last.volume,color:last.delta>=0?'rgba(23,210,173,0.5)':'rgba(246,70,93,0.5)'});
+ }
+ const now=Date.now();
+ if(now-chartLastBubbleMs>5000){
+  chartLastBubbleMs=now;
+  computeChartRolling();
+  renderChartMarkers(detectAbsorption());
+ }
+}
+
+function finalizeLiveCandle(){
+ if(!chartReady)return;
+ computeChartRolling();
+ renderChartMarkers(detectAbsorption());
+}
+
+function initChart(){
+ const container=document.getElementById('chart-canvas');
+ if(!container)return false;
+ const LW=getLW();
+ if(!LW){console.warn('[chart] LightweightCharts not loaded — chart disabled, sockets unaffected');return false;}
+ try{
+  chart=LW.createChart(container,{
+   layout:{background:{color:'transparent'},textColor:'#78829a',fontSize:10},
+   grid:{vertLines:{color:'rgba(36,44,61,0.5)'},horzLines:{color:'rgba(36,44,61,0.5)'}},
+   timeScale:{timeVisible:true,secondsVisible:false},
+   rightPriceScale:{borderColor:'rgba(36,44,61,1)'},
+   crosshair:{mode:0},
+   width:container.clientWidth,
+   height:container.clientHeight
+  });
+  candleSeries=chart.addSeries(LW.CandlestickSeries,{
+   upColor:'rgba(23,210,173,0.6)',downColor:'rgba(246,70,93,0.6)',
+   borderUpColor:'#17d2ad',borderDownColor:'#f6465d',
+   wickUpColor:'#17d2ad',wickDownColor:'#f6465d'
+  });
+  volSeries=chart.addSeries(LW.HistogramSeries,{
+   priceFormat:{type:'volume'},priceScaleId:'volume'
+  });
+  chart.priceScale('volume').applyOptions({scaleMargins:{top:0.75,bottom:0}});
+  if(LW.createSeriesMarkers){
+   markers=LW.createSeriesMarkers(candleSeries,[]);
+  }else if(candleSeries.setMarkers){
+   markers=candleSeries;
+  }
+  if(window.ResizeObserver){
+   new ResizeObserver(()=>{
+    if(chart)chart.applyOptions({width:container.clientWidth,height:container.clientHeight});
+   }).observe(container);
+  }
+  return true;
+ }catch(e){
+  console.error('[chart] initChart failed:',e);
+  chart=null;candleSeries=null;volSeries=null;markers=null;
+  return false;
+ }
+}
+
+function chartTogglePanel(){
+ const panel=document.getElementById('chart-panel');
+ if(!panel)return;
+ panel.classList.toggle('open');
+ /* Open just shows the (empty) panel. The user MUST click a timeframe
+    button to trigger any candle fetch — no default-tf auto-load. */
+ if(panel.classList.contains('open')&&!chart){
+  initChart();   /* best-effort init; if LW not loaded yet, the tf-click handler will retry */
+ }
+}
+
+function wireChart(){
+ const tg=document.getElementById('chart-toggle');
+ if(tg)tg.addEventListener('click',chartTogglePanel);
+ const cl=document.getElementById('chart-close');
+ if(cl)cl.addEventListener('click',chartTogglePanel);
+ document.querySelectorAll('.chart-tf-group button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+   /* EXPLICIT USER SELECTION — this is the only path that triggers a fetch. */
+   document.querySelectorAll('.chart-tf-group button').forEach(b=>b.classList.remove('active'));
+   btn.classList.add('active');
+   chartTF=btn.dataset.tf;
+   const ph=document.getElementById('chart-placeholder');
+   if(ph)ph.classList.add('hidden');
+   if(!chart){
+    if(!initChart())return;   /* LW not loaded yet; user can retry by clicking again */
+   }
+   chartCandles=[];
+   chartReady=false;
+   loadChartHistory().catch(e=>console.error('[chart] load '+chartTF+':',e));
+  });
+ });
+}
+
 function boot(){
  initLadder();
  wireControls();
@@ -641,6 +1449,8 @@ function boot(){
  startDataSocket();
  launchAllVenues();
  requestAnimationFrame(tickLoop);
+ wireChart();
+ aiWireUI();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 </script>
