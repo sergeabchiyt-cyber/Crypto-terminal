@@ -135,11 +135,15 @@ body{font-family:'JetBrains Mono',monospace;color:var(--txt);background:var(--bg
 #ai-key-change{font-size:10px;color:var(--dim);cursor:pointer;text-decoration:underline;margin-top:8px;display:inline-block}
 
 /* Chart Panel */
-#chart-toggle{position:fixed;left:10px;bottom:10px;width:44px;height:44px;background:var(--purple);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:pointer;z-index:1001;box-shadow:0 2px 8px rgba(139,124,246,.4);transition:background .2s}
+#chart-toggle{position:fixed;left:10px;bottom:10px;width:44px;height:44px;background:var(--purple);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:grab;z-index:1001;box-shadow:0 2px 8px rgba(139,124,246,.4);transition:background .2s;user-select:none;-webkit-user-select:none;touch-action:none}
 #chart-toggle:hover{background:#7c6fe0}
+#chart-toggle.dragging{cursor:grabbing;opacity:.85}
 #chart-panel{position:fixed;left:0;bottom:0;width:50vw;max-width:720px;height:320px;background:var(--bg1);border-top:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:1000;transform:translateY(100%);transition:transform .3s ease}
 #chart-panel.open{transform:translateY(0)}
-.chart-header{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--line);gap:8px;flex-shrink:0}
+#chart-panel.dragging{transition:none;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.chart-header{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--line);gap:8px;flex-shrink:0;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
+.chart-header.dragging{cursor:grabbing}
+.chart-header .grip{color:var(--dim);font-size:11px;letter-spacing:-2px;opacity:.6;cursor:grab;padding-right:4px}
 .chart-header>span{font-size:11px;font-weight:700;color:var(--purple);letter-spacing:.08em}
 .chart-tf-group{display:flex;gap:3px}
 .chart-tf-group button{background:var(--bg0);border:1px solid var(--line);color:var(--dim);font:600 9px 'JetBrains Mono',monospace;padding:3px 7px;border-radius:3px;cursor:pointer}
@@ -204,9 +208,10 @@ body{font-family:'JetBrains Mono',monospace;color:var(--txt);background:var(--bg
  </div>
 </div>
 
-<button id="chart-toggle" title="Chart">📈</button>
+<button id="chart-toggle" title="Drag to move · click to open">📈</button>
 <div id="chart-panel">
  <div class="chart-header">
+  <span class="grip" title="Drag to move">⠿</span>
   <span class="disp">📈 BTCUSDT</span>
   <div class="chart-tf-group">
    <button data-tf="1m">1m</button>
@@ -1419,10 +1424,104 @@ function chartTogglePanel(){
 }
 
 function wireChart(){
+ /* ---------- drag helper: works for both the toggle button and the panel header ---------- */
+ function makeDraggable(el,handle,opts){
+  opts=opts||{};
+  let startX=0,startY=0,origX=0,origY=0,moved=0,active=false;
+  function down(e){
+   /* don't start drag from clicks on form controls / buttons inside the handle */
+   if(e.target.closest('button,input,select,textarea,[data-no-drag]'))return;
+   const p=e.touches?e.touches[0]:e;
+   active=true;
+   startX=p.clientX;startY=p.clientY;
+   const r=el.getBoundingClientRect();
+   origX=r.left;origY=r.top;
+   moved=0;
+   handle.classList.add('dragging');
+   if(el.id==='chart-panel')el.classList.add('dragging');
+   document.addEventListener('mousemove',move);
+   document.addEventListener('touchmove',move,{passive:false});
+   document.addEventListener('mouseup',up);
+   document.addEventListener('touchend',up);
+   if(e.cancelable&&e.touches)e.preventDefault();
+  }
+  function move(e){
+   if(!active)return;
+   const p=e.touches?e.touches[0]:e;
+   const dx=p.clientX-startX,dy=p.clientY-startY;
+   if(Math.abs(dx)+Math.abs(dy)>3)moved++;
+   const w=el.offsetWidth,h=el.offsetHeight;
+   const nx=Math.max(0,Math.min(window.innerWidth-w,origX+dx));
+   const ny=Math.max(0,Math.min(window.innerHeight-h,origY+dy));
+   el.style.left=nx+'px';
+   el.style.top=ny+'px';
+   el.style.right='auto';
+   el.style.bottom='auto';
+   if(e.cancelable)e.preventDefault();
+  }
+  function up(){
+   if(!active)return;
+   active=false;
+   handle.classList.remove('dragging');
+   if(el.id==='chart-panel')el.classList.remove('dragging');
+   document.removeEventListener('mousemove',move);
+   document.removeEventListener('touchmove',move);
+   document.removeEventListener('mouseup',up);
+   document.removeEventListener('touchend',up);
+   if(moved>=3&&opts.onDragEnd){
+    const r=el.getBoundingClientRect();
+    opts.onDragEnd(Math.round(r.left),Math.round(r.top));
+   }
+  }
+  handle.addEventListener('mousedown',down);
+  handle.addEventListener('touchstart',down,{passive:false});
+  return {wasDrag:()=>moved>=3};
+ }
+ function applyPos(el,x,y){
+  if(!(x>=0&&y>=0&&x<window.innerWidth&&y<window.innerHeight))return;
+  el.style.left=x+'px';el.style.top=y+'px';el.style.right='auto';el.style.bottom='auto';
+ }
+ function loadChartPositions(){
+  const tg=document.getElementById('chart-toggle');
+  const panel=document.getElementById('chart-panel');
+  const tp=localStorage.getItem('chartTogglePos');
+  if(tp&&tg){
+   const[x,y]=tp.split(',').map(n=>+n);
+   if(!isNaN(x)&&!isNaN(y))applyPos(tg,x,y);
+  }
+  const pp=localStorage.getItem('chartPanelPos');
+  if(pp&&panel){
+   const[x,y]=pp.split(',').map(n=>+n);
+   if(!isNaN(x)&&!isNaN(y))applyPos(panel,x,y);
+  }
+ }
+
  const tg=document.getElementById('chart-toggle');
- if(tg)tg.addEventListener('click',chartTogglePanel);
+ const panel=document.getElementById('chart-panel');
+ loadChartPositions();
+
+ if(tg){
+  /* toggle button: drag to move, click to open. The click handler reads
+     wasDrag() so a drag doesn't accidentally open the panel. */
+  const state=makeDraggable(tg,tg,{
+   onDragEnd:(x,y)=>localStorage.setItem('chartTogglePos',x+','+y)
+  });
+  tg.addEventListener('click',()=>{
+   if(state.wasDrag())return;
+   chartTogglePanel();
+  });
+ }
  const cl=document.getElementById('chart-close');
  if(cl)cl.addEventListener('click',chartTogglePanel);
+
+ /* panel: drag via the header (close + tf buttons are excluded) */
+ const header=panel?panel.querySelector('.chart-header'):null;
+ if(panel&&header){
+  makeDraggable(panel,header,{
+   onDragEnd:(x,y)=>localStorage.setItem('chartPanelPos',x+','+y)
+  });
+ }
+
  document.querySelectorAll('.chart-tf-group button').forEach(btn=>{
   btn.addEventListener('click',()=>{
    /* EXPLICIT USER SELECTION — this is the only path that triggers a fetch. */
