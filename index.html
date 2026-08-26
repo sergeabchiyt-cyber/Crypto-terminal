@@ -1030,14 +1030,15 @@ function aiSnapshotContext(){
   venueFlow:venueFlow,
   chartBubbles:(function(){
    /* Absorption bubbles currently on the chart (most recent 10).
-      Side naming: belowBar -> buyers ran into passive sellers
-                   aboveBar -> sellers ran into passive buyers */
+      B = market absorbing sells (bullish, green)
+      S = market absorbing buys (bearish, red) */
    if(!chartReady||chartCandles.length===0)return [];
    try{
     return detectAbsorption().slice(-10).map(b=>({
      time:b.time,
-     side:b.position==='belowBar'?'buyers_absorbed':'sellers_absorbed',
-     color:b.color
+     side:b.text==='B'?'sells_absorbed':'buys_absorbed',
+     color:b.color,
+     size:b.size
     }));
    }catch(e){return [];}
   })(),
@@ -1303,6 +1304,13 @@ function computeChartRolling(){
  }
 }
 
+/* Volume-scaled marker size: 1 at the 1.5σ threshold, up to 4 on extreme prints */
+function bubbleSize(c){
+ if(!c.volStdev)return 1;
+ const z=(c.volume-c.volMean)/c.volStdev;
+ return Math.max(1,Math.min(4,0.5+z*0.6));
+}
+
 function detectAbsorption(){
  const out=[];
  for(let i=2;i<chartCandles.length-1;i++){
@@ -1312,16 +1320,17 @@ function detectAbsorption(){
   const next=chartCandles[i+1];
   const strongBuy=c.delta>0 && c.delta>c.volume*0.2;
   const strongSell=c.delta<0 && c.delta<-c.volume*0.2;
-  /* green bubble = lower wick: aggressive buyers got absorbed by passive sellers */
-  if(strongBuy && next.close<c.close){
-   out.push({time:c.time,position:'belowBar',color:'rgba(23,210,173,0.95)',shape:'circle',text:'A'});
+  const size=bubbleSize(c);
+  /* absorbing SELLS -> B (green): aggressive sellers soaked by passive bids = bullish */
+  if(strongSell && next.close>c.close){
+   out.push({time:c.time,position:'belowBar',color:'rgba(23,210,173,0.95)',shape:'circle',text:'B',size});
   }
-  /* red bubble = upper wick: aggressive sellers got absorbed by passive buyers */
-  else if(strongSell && next.close>c.close){
-   out.push({time:c.time,position:'aboveBar',color:'rgba(246,70,93,0.95)',shape:'circle',text:'A'});
+  /* absorbing BUYS -> S (red): aggressive buyers soaked by passive offers = bearish */
+  else if(strongBuy && next.close<c.close){
+   out.push({time:c.time,position:'belowBar',color:'rgba(246,70,93,0.95)',shape:'circle',text:'S',size});
   }
  }
- return out;
+ return out.sort((a,b)=>a.time-b.time);
 }
 
 function renderChartMarkers(bubbles){
