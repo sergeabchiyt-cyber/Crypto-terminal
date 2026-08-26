@@ -1,4 +1,4 @@
-```markdown
+
 # DOM Ladder — Multi-Venue BTCUSDT
 
 A single-file BTCUSDT depth-of-market ladder, trade tape, and charting terminal, aggregating resting order size across 18 exchange feeds directly in the browser. No build step, no local server — open the HTML file and it connects directly to each exchange's public WebSocket API from the client, with an optional AI analyst panel powered by a Cloudflare proxy.
