@@ -135,7 +135,7 @@ body{font-family:'JetBrains Mono',monospace;color:var(--txt);background:var(--bg
 #ai-key-change{font-size:10px;color:var(--dim);cursor:pointer;text-decoration:underline;margin-top:8px;display:inline-block}
 
 /* Chart Panel */
-#chart-toggle{position:fixed;right:10px;top:114px;width:44px;height:44px;background:var(--purple);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:grab;z-index:1001;box-shadow:0 2px 8px rgba(139,124,246,.4);transition:background .2s;user-select:none;-webkit-user-select:none;touch-action:none};color:#fff;font-size:20px;cursor:pointer;z-index:1001;box-shadow:0 2px 8px rgba(139,124,246,.4);transition:background .2s}
+#chart-toggle{position:fixed;right:10px;top:114px;width:44px;height:44px;background:var(--purple);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:grab;z-index:1001;box-shadow:0 2px 8px rgba(139,124,246,.4);transition:background .2s;user-select:none;-webkit-user-select:none;touch-action:none}
 #chart-toggle:hover{background:#7c6fe0}
 #chart-panel{position:fixed;right:0;bottom:0;width:50vw;max-width:720px;height:320px;background:var(--bg1);border-top:1px solid var(--line);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:1000;transform:translateY(100%);transition:transform .3s ease,right .3s ease}
 #chart-panel.open{transform:translateY(0)}
@@ -1283,7 +1283,6 @@ async function loadChartHistory(){
   volume:+k[5],takerBuy:+k[9],
   delta:2*(+k[9])-(+k[5])
  }));
- computeChartRolling();
  candleSeries.setData(chartCandles.map(c=>({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close})));
  volSeries.setData(chartCandles.map(c=>({time:c.time,value:c.volume,color:c.delta>=0?'rgba(23,210,173,0.5)':'rgba(246,70,93,0.5)'})));
  chart.timeScale().fitContent();
@@ -1291,44 +1290,68 @@ async function loadChartHistory(){
  chartReady=true;
 }
 
-function computeChartRolling(){
- const W=20;
- for(let i=0;i<chartCandles.length;i++){
-  const s=Math.max(0,i-W);
-  const slice=chartCandles.slice(s,i+1);
-  let sum=0;for(const c of slice)sum+=c.volume;
-  const mean=sum/slice.length;
-  let vs=0;for(const c of slice)vs+=(c.volume-mean)*(c.volume-mean);
-  chartCandles[i].volMean=mean;
-  chartCandles[i].volStdev=Math.sqrt(vs/slice.length);
- }
-}
-
-/* Volume-scaled marker size: 1 at the 1.5σ threshold, up to 4 on extreme prints */
-function bubbleSize(c){
- if(!c.volStdev)return 1;
- const z=(c.volume-c.volMean)/c.volStdev;
- return Math.max(1,Math.min(4,0.5+z*0.6));
-}
-
 function detectAbsorption(){
  const out=[];
- for(let i=2;i<chartCandles.length-1;i++){
-  const c=chartCandles[i];
-  if(c.volStdev==null||c.volMean==null)continue;
-  if(c.volume<c.volMean+c.volStdev*1.5)continue;
-  const next=chartCandles[i+1];
-  const strongBuy=c.delta>0 && c.delta>c.volume*0.2;
-  const strongSell=c.delta<0 && c.delta<-c.volume*0.2;
-  const size=bubbleSize(c);
-  /* absorbing SELLS -> B (green): aggressive sellers soaked by passive bids = bullish */
-  if(strongSell && next.close>c.close){
-   out.push({time:c.time,position:'belowBar',color:'rgba(23,210,173,0.95)',shape:'circle',text:'B',size});
-  }
-  /* absorbing BUYS -> S (red): aggressive buyers soaked by passive offers = bearish */
-  else if(strongBuy && next.close<c.close){
-   out.push({time:c.time,position:'belowBar',color:'rgba(246,70,93,0.95)',shape:'circle',text:'S',size});
-  }
+ const lookback = Math.min(100, chartCandles.length);
+ if (lookback < 20) return out;
+ 
+ const volumes = chartCandles.map(c => c.volume);
+ const emaArr = new Array(volumes.length).fill(0);
+ const stdevArr = new Array(volumes.length).fill(0);
+ 
+ const k = 2 / (lookback + 1);
+ emaArr[0] = volumes[0];
+ for (let i = 1; i < volumes.length; i++) {
+     emaArr[i] = volumes[i] * k + emaArr[i - 1] * (1 - k);
+ }
+
+ const baseThreshold = 1.0;
+
+ for (let i = lookback; i < chartCandles.length; i++) {
+   const c = chartCandles[i];
+   const range = c.high - c.low;
+   if (range === 0) continue;
+
+   const start = i - lookback + 1;
+   let sum = 0;
+   for(let j=start; j<=i; j++) sum += volumes[j];
+   const mean = sum / lookback;
+   
+   let vs = 0;
+   for(let j=start; j<=i; j++) vs += Math.pow(volumes[j] - mean, 2);
+   stdevArr[i] = Math.sqrt(vs / lookback);
+
+   const upperWick = c.high - Math.max(c.open, c.close);
+   const lowerWick = Math.min(c.open, c.close) - c.low;
+   const upperWickVol = c.volume * (upperWick / range);
+   const lowerWickVol = c.volume * (lowerWick / range);
+
+   const rvol = emaArr[i] > 0 ? c.volume / emaArr[i] : 0;
+   const zScore = stdevArr[i] > 0 ? c.volume / stdevArr[i] : 0;
+   const volScore = (rvol * 0.6) + (zScore * 0.4);
+
+   const midPrice = (c.high + c.low) / 2;
+   const topBody = Math.max(c.open, c.close);
+   const lowBody = Math.min(c.open, c.close);
+
+   const isUpperWick = midPrice >= topBody && midPrice <= c.high;
+   const isLowerWick = midPrice <= lowBody && midPrice >= c.low;
+
+   let size = 0;
+   if (volScore >= baseThreshold + 6) size = 4;
+   else if (volScore >= baseThreshold + 3) size = 3;
+   else if (volScore >= baseThreshold + 2) size = 2;
+   else if (volScore >= baseThreshold + 1) size = 1.5;
+   else if (volScore >= baseThreshold) size = 1;
+
+   if (size > 0) {
+     if (isUpperWick && upperWickVol > 0) {
+       out.push({time:c.time, position:'aboveBar', color:'rgba(246,70,93,0.95)', shape:'circle', text:'S', size});
+     }
+     if (isLowerWick && lowerWickVol > 0) {
+       out.push({time:c.time, position:'belowBar', color:'rgba(23,210,173,0.95)', shape:'circle', text:'B', size});
+     }
+   }
  }
  return out.sort((a,b)=>a.time-b.time);
 }
@@ -1364,14 +1387,12 @@ function feedChartTrade(price,qty,isBuy,ts){
  const now=Date.now();
  if(now-chartLastBubbleMs>5000){
   chartLastBubbleMs=now;
-  computeChartRolling();
   renderChartMarkers(detectAbsorption());
  }
 }
 
 function finalizeLiveCandle(){
  if(!chartReady)return;
- computeChartRolling();
  renderChartMarkers(detectAbsorption());
 }
 
